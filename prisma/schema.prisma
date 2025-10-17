@@ -19,6 +19,52 @@ enum Role {
   COLLABORATOR
 }
 
+enum CollaboratorStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CourseModality {
+  ASYNCHRONOUS
+  SYNCHRONOUS
+  BLENDED
+}
+
+enum LessonType {
+  VIDEO
+  PDF
+  PPT
+  HTML
+  SCORM
+}
+
+enum FileType {
+  PDF
+  PPT
+  IMAGE
+  VIDEO
+  DOCUMENT
+  OTHER
+}
+
+enum EnrollmentStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum EnrollmentType {
+  AUTOMATIC  // Asignado automáticamente por regla
+  MANUAL     // Asignado manualmente por admin/jefe
+}
+
 model User {
   id             String    @id @default(cuid())
   name           String?
@@ -28,11 +74,262 @@ model User {
   hashedPassword String?
   role           Role      @default(COLLABORATOR)
   signatureUrl   String?   
+  collaborator   Collaborator? @relation(fields: [collaboratorId], references: [id])
+  collaboratorId String?       @unique
 
   accounts       Account[]
   sessions       Session[]
 
   @@map("users")
+}
+
+model Site { // "Sede"
+  id            String         @id @default(cuid())
+  name          String
+  code          String         @unique
+  collaborators Collaborator[]
+  courseLinks   CourseSiteAssignment[]
+  assignmentHistory CollaboratorAssignmentHistory[]
+
+  @@map("sites")
+}
+
+model Area {
+  id            String         @id @default(cuid())
+  name          String
+  code          String         @unique
+  positions     Position[]
+  collaborators Collaborator[]
+  headHistory   AreaHeadHistory[]
+  courseLinks   CourseAreaAssignment[]
+  assignmentHistory CollaboratorAssignmentHistory[]
+
+  @@map("areas")
+}
+
+model Position { // "Puesto"
+  id            String         @id @default(cuid())
+  name          String
+  areaId        String
+  area          Area           @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  collaborators Collaborator[]
+  courseLinks   CoursePositionAssignment[]
+  assignmentHistory CollaboratorAssignmentHistory[]
+
+  @@unique([name, areaId])
+  @@map("positions")
+}
+
+model Collaborator {
+  id          String               @id @default(cuid())
+  dni         String               @unique
+  fullName    String
+  email       String               @unique
+  siteId      String?
+  site        Site?                @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  areaId      String?
+  area        Area?                @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  positionId  String?
+  position    Position?            @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  status      CollaboratorStatus   @default(ACTIVE)
+  entryDate   DateTime
+  user        User?
+  history     CollaboratorAssignmentHistory[]
+  headOfAreas AreaHeadHistory[]    @relation("HeadCollaborator")
+
+  courseLinks CourseCollaboratorAssignment[]
+  
+  // E - Inscripciones
+  enrollments Enrollment[]         @relation("Enrollments")
+  
+  // H - Progreso y cumplimiento
+  courseProgress       CourseProgress[]
+  certifications       CertificationRecord[]
+  alerts               ProgressAlert[]
+  learningPathProgress LearningPathProgress[]
+
+  @@map("collaborators")
+}
+
+model CollaboratorAssignmentHistory {
+  id            String       @id @default(cuid())
+  collaboratorId String
+  collaborator   Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+
+  siteId     String?
+  site       Site?      @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  areaId     String?
+  area       Area?      @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  positionId String?
+  position   Position?  @relation(fields: [positionId], references: [id], onDelete: SetNull)
+
+  startDate DateTime @default(now())
+  endDate   DateTime?
+
+  @@map("collaborator_assignment_history")
+}
+
+model AreaHeadHistory {
+  id            String       @id @default(cuid())
+  areaId        String
+  area          Area         @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  collaboratorId String
+  collaborator   Collaborator @relation("HeadCollaborator", fields: [collaboratorId], references: [id], onDelete: Cascade)
+  startDate     DateTime     @default(now())
+  endDate       DateTime?
+
+  @@map("area_head_history")
+}
+
+/* B3 — Cursos y matriz de asignación */
+model Course {
+  id          String                        @id @default(cuid())
+  code        String                        @unique
+  name        String
+  description String?
+  objective   String?                       // Objetivo del curso
+  duration    Int?                          // Duración en horas
+  modality    CourseModality                @default(ASYNCHRONOUS)
+  validity    Int?                          // Vigencia en meses
+  requirements String?                      // Requisitos del curso
+  status      CourseStatus                  @default(DRAFT)
+  
+  // Versionado
+  currentVersion Int                        @default(1)
+  versions    CourseVersion[]
+  
+  // Relaciones existentes
+  areaLinks   CourseAreaAssignment[]
+  posLinks    CoursePositionAssignment[]
+  siteLinks   CourseSiteAssignment[]
+  collLinks   CourseCollaboratorAssignment[]
+  
+  // Rutas de aprendizaje
+  pathCourses LearningPathCourse[]
+  
+  // D1 - Unidades y lecciones
+  units       Unit[]
+  
+  // E - Inscripciones
+  enrollmentRules EnrollmentRule[] @relation("EnrollmentRules")
+  enrollments     Enrollment[]     @relation("Enrollments")
+  
+  // F - Evaluaciones
+  quizzes         Quiz[]
+  
+  // H - Progreso y cumplimiento
+  courseProgress  CourseProgress[]
+  certifications  CertificationRecord[]
+  alerts          ProgressAlert[]
+  
+  createdAt   DateTime                      @default(now())
+  updatedAt   DateTime                      @updatedAt
+
+  @@map("courses")
+}
+
+// C2 - Versionado de cursos
+model CourseVersion {
+  id          String         @id @default(cuid())
+  courseId    String
+  course      Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  version     Int
+  name        String
+  description String?
+  objective   String?
+  duration    Int?
+  modality    CourseModality
+  validity    Int?
+  requirements String?
+  status      CourseStatus
+  
+  createdAt   DateTime       @default(now())
+  createdBy   String?        // ID del usuario que creó la versión
+  
+  @@unique([courseId, version])
+  @@map("course_versions")
+}
+
+// C3 - Rutas de aprendizaje
+model LearningPath {
+  id          String                 @id @default(cuid())
+  code        String                 @unique
+  name        String
+  description String?
+  status      CourseStatus           @default(DRAFT)
+  
+  courses     LearningPathCourse[]
+  
+  // H - Progreso
+  progress    LearningPathProgress[]
+  
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  
+  @@map("learning_paths")
+}
+
+model LearningPathCourse {
+  id              String        @id @default(cuid())
+  pathId          String
+  path            LearningPath  @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  courseId        String
+  course          Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  order           Int           // Orden en el itinerario
+  isRequired      Boolean       @default(true)
+  
+  // Prerequisitos
+  prerequisiteId  String?       // ID de otro curso en la ruta que debe completarse antes
+  prerequisite    LearningPathCourse? @relation("Prerequisites", fields: [prerequisiteId], references: [id], onDelete: SetNull)
+  dependents      LearningPathCourse[] @relation("Prerequisites")
+  
+  @@unique([pathId, courseId])
+  @@map("learning_path_courses")
+}
+
+model CourseAreaAssignment {
+  id       String @id @default(cuid())
+  courseId String
+  areaId   String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  area     Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, areaId])
+  @@map("course_area_assignment")
+}
+
+model CoursePositionAssignment {
+  id         String   @id @default(cuid())
+  courseId   String
+  positionId String
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  position   Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, positionId])
+  @@map("course_position_assignment")
+}
+
+model CourseSiteAssignment {
+  id       String @id @default(cuid())
+  courseId String
+  siteId   String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  site     Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, siteId])
+  @@map("course_site_assignment")
+}
+
+model CourseCollaboratorAssignment {
+  id            String       @id @default(cuid())
+  courseId      String
+  collaboratorId String
+  course        Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  collaborator  Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, collaboratorId])
+  @@map("course_collaborator_assignment")
 }
 
 model Account {
@@ -72,3 +369,871 @@ model VerificationToken {
   @@unique([identifier, token])
   @@map("verification_tokens")
 }
+
+/* Módulo D — Contenidos */
+
+// D1 - Unidades didácticas
+model Unit {
+  id          String    @id @default(cuid())
+  courseId    String
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  title       String
+  description String?
+  order       Int       // Orden dentro del curso
+  
+  lessons     Lesson[]
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@unique([courseId, order])
+  @@map("units")
+}
+
+// D1 - Lecciones
+model Lesson {
+  id          String        @id @default(cuid())
+  unitId      String
+  unit        Unit          @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  
+  title       String
+  description String?
+  type        LessonType    // VIDEO, PDF, PPT, HTML, SCORM
+  order       Int           // Orden dentro de la unidad
+  
+  // Contenido según el tipo
+  videoUrl    String?       // URL de YouTube/Vimeo
+  fileUrl     String?       // URL del archivo (PDF, PPT, SCORM)
+  htmlContent String?       @db.Text // Contenido HTML
+  
+  // Criterios de completado
+  completionThreshold Int   @default(80) // % de vista para marcar como completado
+  duration    Int?          // Duración en minutos (opcional)
+  
+  progress    LessonProgress[]
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  @@unique([unitId, order])
+  @@map("lessons")
+}
+
+// D1 - Progreso de lecciones
+model LessonProgress {
+  id              String    @id @default(cuid())
+  lessonId        String
+  lesson          Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  collaboratorId  String    // ID del colaborador (no FK para simplificar)
+  
+  viewPercentage  Int       @default(0) // % de la lección vista
+  completed       Boolean   @default(false)
+  completedAt     DateTime?
+  
+  lastViewedAt    DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  
+  @@unique([lessonId, collaboratorId])
+  @@map("lesson_progress")
+}
+
+// D2 - Repositorio de archivos
+model FileRepository {
+  id          String    @id @default(cuid())
+  
+  name        String
+  description String?
+  fileType    FileType  // PDF, PPT, IMAGE, VIDEO, DOCUMENT, OTHER
+  
+  // Vercel Blob
+  blobUrl     String    // URL del archivo en Vercel Blob
+  size        Int       // Tamaño en bytes
+  mimeType    String
+  
+  // Metadatos
+  tags        String[]  // Etiquetas para búsqueda
+  version     Int       @default(1)
+  previousVersionId String? // ID de la versión anterior
+  
+  // Control
+  uploadedBy  String    // ID del usuario que subió
+  uploadedAt  DateTime  @default(now())
+  
+  @@map("file_repository")
+}
+
+// D3 - Actividades interactivas
+model InteractiveActivity {
+  id          String    @id @default(cuid())
+  
+  title       String
+  description String?
+  
+  // Contenido HTML con componentes shadcn
+  htmlContent String    @db.Text
+  
+  // Configuración
+  maxAttempts Int?      // Número máximo de intentos (null = ilimitado)
+  
+  // Relación con curso (opcional)
+  courseId    String?
+  
+  attempts    ActivityAttempt[]
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@map("interactive_activities")
+}
+
+// D3 - Intentos de actividades
+model ActivityAttempt {
+  id          String              @id @default(cuid())
+  activityId  String
+  activity    InteractiveActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  collaboratorId String            // ID del colaborador
+  
+  // Datos del intento
+  attemptNumber Int
+  responses   Json                // Respuestas en formato JSON
+  score       Int?                // Puntuación (opcional)
+  completed   Boolean             @default(false)
+  
+  startedAt   DateTime            @default(now())
+  completedAt DateTime?
+  
+  @@map("activity_attempts")
+}
+
+// E - Módulo de Inscripciones y Accesos
+// E1 - Reglas de asignación automática por perfil
+model EnrollmentRule {
+  id          String    @id @default(cuid())
+  courseId    String
+  course      Course    @relation("EnrollmentRules", fields: [courseId], references: [id], onDelete: Cascade)
+  
+  // Criterios de asignación (al menos uno debe estar definido)
+  siteId      String?   // Sede específica
+  areaId      String?   // Área específica
+  positionId  String?   // Puesto específico
+  
+  // Control
+  isActive    Boolean   @default(true)
+  createdBy   String    // ID del usuario que creó la regla
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@unique([courseId, siteId, areaId, positionId])
+  @@map("enrollment_rules")
+}
+
+// E2 - Inscripciones (automáticas y manuales)
+model Enrollment {
+  id              String           @id @default(cuid())
+  courseId        String
+  course          Course           @relation("Enrollments", fields: [courseId], references: [id], onDelete: Cascade)
+  collaboratorId  String
+  collaborator    Collaborator     @relation("Enrollments", fields: [collaboratorId], references: [id], onDelete: Cascade)
+  
+  // Tipo y estado
+  type            EnrollmentType
+  status          EnrollmentStatus @default(PENDING)
+  
+  // Fechas
+  enrolledAt      DateTime         @default(now())
+  startedAt       DateTime?        // Cuando inició el curso
+  completedAt     DateTime?        // Cuando completó el curso
+  expiresAt       DateTime?        // Fecha de expiración (si aplica)
+  
+  // Progreso
+  progressPercent Int              @default(0)
+  
+  // Metadata
+  enrolledBy      String?          // ID del usuario que hizo la inscripción manual
+  ruleId          String?          // ID de la regla que generó la inscripción automática
+  notes           String?          // Notas adicionales
+  
+  // H - Progreso
+  courseProgress  CourseProgress?
+  
+  updatedAt       DateTime         @updatedAt
+  
+  @@unique([courseId, collaboratorId])
+  @@map("enrollments")
+}
+
+/* Módulo F — Evaluaciones Automatizadas */
+
+// F1 - Tipos de preguntas
+enum QuestionType {
+  SINGLE_CHOICE      // Opción múltiple (una correcta)
+  MULTIPLE_CHOICE    // Opción múltiple (varias correctas)
+  TRUE_FALSE         // Verdadero/Falso
+  ORDER              // Ordenar elementos
+  FILL_BLANK         // Completar espacios en blanco
+}
+
+// F2 - Estado de cuestionarios
+enum QuizStatus {
+  DRAFT              // Borrador
+  PUBLISHED          // Publicado
+  ARCHIVED           // Archivado
+}
+
+// F3 - Estado de intentos
+enum AttemptStatus {
+  IN_PROGRESS        // En progreso
+  SUBMITTED          // Enviado
+  GRADED             // Calificado
+  PASSED             // Aprobado
+  FAILED             // Reprobado
+}
+
+// F1 - Banco de preguntas
+model Question {
+  id              String         @id @default(cuid())
+  
+  // Contenido
+  questionText    String         @db.Text
+  type            QuestionType
+  points          Int            @default(1)  // Puntos de la pregunta
+  
+  // Metadata
+  topic           String?        // Tema de la pregunta
+  difficulty      Int?           @default(5)  // Dificultad (1-10)
+  discriminationIndex Float?     // Índice de discriminación
+  
+  // Feedback
+  correctFeedback String?        @db.Text
+  incorrectFeedback String?      @db.Text
+  explanation     String?        @db.Text
+  
+  // Relación con versión de curso
+  courseVersionId String?
+  
+  // Opciones de respuesta
+  options         QuestionOption[]
+  
+  // Relación muchos a muchos con quizzes
+  quizQuestions   QuizQuestion[]
+  
+  // Control
+  createdBy       String         // ID del usuario que creó
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  @@map("questions")
+}
+
+// F1 - Opciones de respuesta
+model QuestionOption {
+  id          String    @id @default(cuid())
+  questionId  String
+  question    Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  
+  optionText  String    @db.Text
+  isCorrect   Boolean   @default(false)
+  order       Int       // Orden de presentación
+  
+  @@unique([questionId, order])
+  @@map("question_options")
+}
+
+// F2 - Cuestionarios
+model Quiz {
+  id              String       @id @default(cuid())
+  
+  // Información básica
+  title           String
+  description     String?      @db.Text
+  instructions    String?      @db.Text
+  
+  // Relación con curso/unidad
+  courseId        String?
+  course          Course?      @relation(fields: [courseId], references: [id])
+  unitId          String?
+  
+  // Configuración de evaluación
+  passingScore    Int          @default(70)  // Nota mínima para aprobar (%)
+  maxAttempts     Int?         // Máximo de intentos (null = ilimitado)
+  timeLimit       Int?         // Tiempo límite en minutos (null = sin límite)
+  
+  // Aleatorización
+  shuffleQuestions Boolean     @default(false)
+  shuffleOptions   Boolean     @default(false)
+  questionsPerAttempt Int?     // Número de preguntas por intento (null = todas)
+  
+  // Políticas de visualización
+  showCorrectAnswers Boolean   @default(true)
+  showFeedback       Boolean   @default(true)
+  showScoreImmediately Boolean @default(true)
+  
+  // Control
+  status          QuizStatus   @default(DRAFT)
+  createdBy       String       // ID del usuario que creó
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  // Relaciones
+  quizQuestions   QuizQuestion[]
+  attempts        QuizAttempt[]
+  
+  @@map("quizzes")
+}
+
+// F2 - Relación muchos a muchos: Quiz <-> Question
+model QuizQuestion {
+  id          String    @id @default(cuid())
+  quizId      String
+  quiz        Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  questionId  String
+  question    Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  
+  order       Int       // Orden en el cuestionario
+  points      Int?      // Puntos específicos para esta pregunta en este quiz (override)
+  
+  @@unique([quizId, questionId])
+  @@map("quiz_questions")
+}
+
+// F3 - Intentos de cuestionarios
+model QuizAttempt {
+  id              String        @id @default(cuid())
+  quizId          String
+  quiz            Quiz          @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  collaboratorId  String        // ID del colaborador
+  
+  // Información del intento
+  attemptNumber   Int           // Número de intento (1, 2, 3, ...)
+  status          AttemptStatus @default(IN_PROGRESS)
+  
+  // Respuestas (JSON con estructura: { questionId: answer })
+  answers         Json?
+  
+  // Resultados
+  score           Float?        // Puntuación obtenida (%)
+  pointsEarned    Int?          // Puntos obtenidos
+  pointsTotal     Int?          // Puntos totales
+  
+  // Timing
+  startedAt       DateTime      @default(now())
+  submittedAt     DateTime?
+  timeSpent       Int?          // Tiempo empleado en segundos
+  
+  // F3 - Remediación
+  requiresRemediation Boolean   @default(false)
+  remediationCompleted Boolean  @default(false)
+  remediationContent   String?  @db.Text // Contenido de refuerzo
+  
+  @@unique([quizId, collaboratorId, attemptNumber])
+  @@map("quiz_attempts")
+}
+
+// ============================================
+// MÓDULO H: PROGRESO Y CUMPLIMIENTO
+// ============================================
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  PASSED
+  FAILED
+  EXPIRED
+  EXEMPTED
+}
+
+enum AlertType {
+  EXPIRING_SOON    // Próximo a vencer
+  EXPIRED          // Vencido
+  RECERTIFICATION  // Requiere recertificación
+  OVERDUE          // Atrasado
+}
+
+// H1 + H3 - Tracking de avance y estados por curso
+model CourseProgress {
+  id              String         @id @default(cuid())
+  collaboratorId  String
+  courseId        String
+  enrollmentId    String?        @unique
+  
+  // H1 - Métricas de avance
+  status          ProgressStatus @default(NOT_STARTED)
+  progressPercent Int            @default(0) // 0-100
+  timeSpent       Int            @default(0) // segundos totales
+  lastActivityAt  DateTime?
+  
+  // H3 - Fechas por estado
+  startedAt       DateTime?
+  completedAt     DateTime?
+  passedAt        DateTime?
+  failedAt        DateTime?
+  
+  // H2 - Cumplimiento y vigencia
+  expiresAt       DateTime?      // Fecha de expiración
+  certifiedAt     DateTime?      // Fecha de certificación
+  
+  // H3 - Exoneración
+  exemptedAt      DateTime?
+  exemptionReason String?        @db.Text
+  exemptedBy      String?        // userId que exoneró
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  // Relaciones
+  collaborator    Collaborator   @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  course          Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  enrollment      Enrollment?    @relation(fields: [enrollmentId], references: [id])
+  certifications  CertificationRecord[]
+  
+  @@unique([collaboratorId, courseId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([collaboratorId])
+  @@index([courseId])
+  @@map("course_progress")
+}
+
+// H2 - Registro de certificaciones y recertificaciones
+model CertificationRecord {
+  id                String         @id @default(cuid())
+  courseProgressId  String
+  collaboratorId    String
+  courseId          String
+  
+  // Certificación
+  certificateNumber String         @unique
+  issuedAt          DateTime       @default(now())
+  expiresAt         DateTime?
+  
+  // Recertificación
+  isRecertification Boolean        @default(false)
+  previousCertId    String?        // Referencia a certificación anterior
+  recertificationDueAt DateTime?
+  
+  // Archivo del certificado
+  certificateUrl    String?
+  certificateData   Json?          // Datos adicionales del certificado
+  
+  // K1 - Certificado PDF y verificación
+  pdfUrl            String?        // URL del certificado PDF generado
+  verificationCode  String?        @unique // Código único de verificación
+  qrCode            String?        // QR code en base64 o URL
+  pdfMetadata       Json?          // Metadata del PDF (tamaño, fecha generación, etc.)
+  
+  // Validez
+  isValid           Boolean        @default(true)
+  revokedAt         DateTime?
+  revokedBy         String?
+  revocationReason  String?        @db.Text
+  
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  
+  // Relaciones
+  courseProgress    CourseProgress @relation(fields: [courseProgressId], references: [id], onDelete: Cascade)
+  collaborator      Collaborator   @relation(fields: [collaboratorId], references: [id])
+  course            Course         @relation(fields: [courseId], references: [id])
+  previousCert      CertificationRecord? @relation("RecertificationChain", fields: [previousCertId], references: [id])
+  nextCerts         CertificationRecord[] @relation("RecertificationChain")
+  
+  @@index([collaboratorId])
+  @@index([courseId])
+  @@index([expiresAt])
+  @@index([isValid])
+  @@map("certification_records")
+}
+
+// H2 - Alertas de cumplimiento y recertificación
+model ProgressAlert {
+  id              String      @id @default(cuid())
+  collaboratorId  String
+  courseId        String
+  
+  // Tipo de alerta
+  type            AlertType
+  severity        Int         @default(1) // 1=info, 2=warning, 3=critical
+  
+  // Mensaje
+  title           String
+  message         String      @db.Text
+  
+  // Fechas
+  triggeredAt     DateTime    @default(now())
+  dueDate         DateTime?
+  
+  // Estado
+  isRead          Boolean     @default(false)
+  readAt          DateTime?
+  isDismissed     Boolean     @default(false)
+  dismissedAt     DateTime?
+  
+  // Metadata
+  metadata        Json?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relaciones
+  collaborator    Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  course          Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  @@index([collaboratorId])
+  @@index([type])
+  @@index([isRead])
+  @@index([dueDate])
+  @@map("progress_alerts")
+}
+
+// H1 - Progreso en rutas de aprendizaje
+model LearningPathProgress {
+  id                String       @id @default(cuid())
+  collaboratorId    String
+  learningPathId    String
+  
+  // Métricas
+  progressPercent   Int          @default(0) // 0-100
+  coursesCompleted  Int          @default(0)
+  coursesTotal      Int          @default(0)
+  
+  startedAt         DateTime?
+  completedAt       DateTime?
+  lastActivityAt    DateTime?
+  
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  
+  // Relaciones
+  collaborator      Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  learningPath      LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  
+  @@unique([collaboratorId, learningPathId])
+  @@index([collaboratorId])
+  @@index([learningPathId])
+  @@map("learning_path_progress")
+}
+
+// ============================================
+// MÓDULO I: NOTIFICACIONES Y RECORDATORIOS
+// ============================================
+
+enum NotificationType {
+  NEW_ENROLLMENT         // Nueva asignación de curso
+  REMINDER_30_DAYS       // Recordatorio 30 días antes de vencimiento
+  REMINDER_7_DAYS        // Recordatorio 7 días antes de vencimiento
+  REMINDER_1_DAY         // Recordatorio 1 día antes de vencimiento
+  COURSE_FAILED          // Desaprobación de curso
+  CERTIFICATE_READY      // Certificado disponible
+  RECERTIFICATION_DUE    // Recertificación próxima
+  TEAM_SUMMARY           // Resumen semanal para jefes
+}
+
+enum NotificationChannel {
+  EMAIL                  // Email externo
+  IN_APP                 // Bandeja interna
+  BOTH                   // Ambos canales
+}
+
+enum NotificationPriority {
+  LOW                    // Baja prioridad
+  MEDIUM                 // Prioridad media
+  HIGH                   // Alta prioridad
+  URGENT                 // Urgente
+}
+
+// J - Tipos de reporte
+enum ReportType {
+  DASHBOARD              // J1: Dashboard ejecutivo
+  AREA                   // J2: Reporte por área
+  COURSE                 // J3: Reporte por curso
+  COMPLIANCE             // J4: Cumplimiento legal/SSOMA
+  AUDIT_TRAIL            // J5: Trazabilidad de evaluaciones
+}
+
+// J - Formatos de exportación
+enum ReportFormat {
+  JSON                   // JSON (para APIs)
+  XLSX                   // Excel
+  CSV                    // CSV
+  PDF                    // PDF
+}
+
+// J - Frecuencia de programación
+enum ScheduleFrequency {
+  DAILY                  // Diario
+  WEEKLY                 // Semanal
+  MONTHLY                // Mensual
+  QUARTERLY              // Trimestral
+  CUSTOM                 // Personalizado (usa cronExpression)
+}
+
+// I1 - Plantillas de notificaciones editables
+model NotificationTemplate {
+  id              String             @id @default(cuid())
+  
+  // Identificación
+  type            NotificationType   @unique
+  name            String
+  description     String?
+  
+  // Contenido de la plantilla
+  subject         String             // Asunto del email o título de notificación
+  bodyHtml        String             @db.Text // Cuerpo HTML con variables {{variable}}
+  bodyText        String             @db.Text // Versión texto plano
+  
+  // Configuración
+  isActive        Boolean            @default(true)
+  defaultChannel  NotificationChannel @default(BOTH)
+  priority        NotificationPriority @default(MEDIUM)
+  
+  // Variables disponibles (JSON array)
+  availableVars   Json               // ["collaboratorName", "courseName", "dueDate", etc.]
+  
+  // Control
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  updatedBy       String?            // userId que actualizó
+  
+  // Relaciones
+  notifications   Notification[]
+  
+  @@map("notification_templates")
+}
+
+// I1 - Notificaciones individuales (bandeja interna)
+model Notification {
+  id              String             @id @default(cuid())
+  
+  // Destinatario
+  userId          String
+  collaboratorId  String?
+  
+  // Tipo y plantilla
+  type            NotificationType
+  templateId      String?
+  template        NotificationTemplate? @relation(fields: [templateId], references: [id])
+  
+  // Contenido
+  subject         String
+  bodyHtml        String             @db.Text
+  bodyText        String             @db.Text
+  
+  // Metadata
+  priority        NotificationPriority @default(MEDIUM)
+  channel         NotificationChannel
+  
+  // Enlaces relacionados
+  relatedCourseId String?
+  relatedEnrollmentId String?
+  relatedCertificationId String?
+  
+  // Estado
+  isRead          Boolean            @default(false)
+  readAt          DateTime?
+  isArchived      Boolean            @default(false)
+  archivedAt      DateTime?
+  
+  // Envío por email
+  emailSent       Boolean            @default(false)
+  emailSentAt     DateTime?
+  emailError      String?
+  
+  // Control
+  scheduledFor    DateTime?          // Para notificaciones programadas
+  sentAt          DateTime?
+  createdAt       DateTime           @default(now())
+  
+  @@index([userId])
+  @@index([collaboratorId])
+  @@index([type])
+  @@index([isRead])
+  @@index([scheduledFor])
+  @@map("notifications")
+}
+
+// I1 - Preferencias de notificación (opt-in/out)
+model NotificationPreference {
+  id              String             @id @default(cuid())
+  
+  userId          String
+  type            NotificationType
+  
+  // Canales habilitados
+  enableEmail     Boolean            @default(true)
+  enableInApp     Boolean            @default(true)
+  
+  // Control
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  
+  @@unique([userId, type])
+  @@index([userId])
+  @@map("notification_preferences")
+}
+
+// I2 - Registro de envíos de recordatorios
+model NotificationLog {
+  id              String             @id @default(cuid())
+  
+  // Información del envío
+  type            NotificationType
+  channel         NotificationChannel
+  
+  // Destinatarios
+  recipientCount  Int                @default(0)
+  successCount    Int                @default(0)
+  failureCount    Int                @default(0)
+  
+  // Contenido enviado
+  subject         String?
+  
+  // Metadata
+  metadata        Json?              // Información adicional del envío
+  
+  // Control
+  sentAt          DateTime           @default(now())
+  sentBy          String?            // userId que ejecutó el envío
+  
+  @@index([type])
+  @@index([sentAt])
+  @@map("notification_logs")
+}
+
+// ====================================
+// MÓDULO J — REPORTES
+// ====================================
+
+// J1-J5 - Reportes generados
+model Report {
+  id              String             @id @default(cuid())
+  
+  // Tipo de reporte
+  type            ReportType
+  
+  // Configuración
+  name            String
+  description     String?            @db.Text
+  filters         Json               // Filtros aplicados (área, sede, curso, fechas, etc.)
+  
+  // Resultado
+  format          ReportFormat
+  filePath        String?            // Ruta al archivo generado (XLSX/CSV/PDF)
+  fileSize        Int?               // Tamaño en bytes
+  
+  // Estadísticas del reporte
+  totalRecords    Int?               // Total de registros incluidos
+  summary         Json?              // Resumen de métricas principales
+  
+  // Control
+  generatedBy     String             // userId que generó
+  generatedAt     DateTime           @default(now())
+  expiresAt       DateTime?          // Fecha de expiración del archivo
+  
+  // Programación (si es programado)
+  scheduleId      String?
+  schedule        ReportSchedule?    @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  
+  @@index([scheduleId])
+  @@index([generatedBy])
+  @@index([generatedAt])
+  @@map("reports")
+}
+
+// J1 - Programación de reportes recurrentes
+model ReportSchedule {
+  id              String             @id @default(cuid())
+  
+  // Configuración
+  name            String
+  type            ReportType
+  format          ReportFormat
+  filters         Json               // Filtros base
+  
+  // Frecuencia
+  frequency       ScheduleFrequency
+  cronExpression  String?            // Expresión cron personalizada (opcional)
+  
+  // Destinatarios
+  recipients      String[]           // Emails de los destinatarios
+  
+  // Estado
+  isActive        Boolean            @default(true)
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  
+  // Control
+  createdBy       String
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  
+  // Reportes generados
+  reports         Report[]
+  executions      ReportExecution[]
+  
+  @@index([isActive, nextRunAt])
+  @@map("report_schedules")
+}
+
+// J1 - Historial de ejecuciones programadas
+model ReportExecution {
+  id              String             @id @default(cuid())
+  
+  scheduleId      String
+  schedule        ReportSchedule     @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  
+  // Resultado
+  status          String             // SUCCESS, FAILED, PARTIAL
+  recordsProcessed Int?
+  errorMessage    String?            @db.Text
+  
+  // Timing
+  startedAt       DateTime           @default(now())
+  completedAt     DateTime?
+  duration        Int?               // Duración en segundos
+  
+  @@index([scheduleId])
+  @@index([startedAt])
+  @@map("report_executions")
+}
+
+// J1 - Snapshots de KPIs para dashboard
+model KPISnapshot {
+  id              String             @id @default(cuid())
+  
+  // KPIs globales
+  totalCollaborators Int
+  totalCourses    Int
+  totalEnrollments Int
+  
+  // Cumplimiento
+  overallCompliance Float            // % cumplimiento general (0-100)
+  complianceByArea Json              // { areaId: % }
+  
+  // Alertas
+  expiringIn7Days Int                // Cursos por vencer en 7 días
+  expiringIn30Days Int               // Cursos por vencer en 30 días
+  expired         Int                // Cursos vencidos
+  
+  // Evaluaciones
+  avgAttempts     Float              // Promedio de intentos
+  avgScore        Float              // Promedio de calificaciones
+  passRate        Float              // Tasa de aprobación (%)
+  
+  // Engagement
+  activeUsers     Int                // Usuarios activos en los últimos 30 días
+  coursesInProgress Int              // Cursos en progreso
+  coursesCompleted Int               // Cursos completados
+  
+  // NPS/Feedback (opcional)
+  avgNPS          Float?             // Promedio de NPS
+  totalFeedbacks  Int?               // Total de feedbacks recibidos
+  
+  // Control
+  snapshotAt      DateTime           @default(now())
+  
+  @@index([snapshotAt])
+  @@map("kpi_snapshots")
+}
+
+

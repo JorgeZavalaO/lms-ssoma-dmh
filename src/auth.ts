@@ -4,18 +4,6 @@ import Credentials from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 
-// declare module "next-auth" {
-//   interface User {
-//     role: string
-//   }
-//   interface Session {
-//     user: {
-//       id: string
-//       role: string
-//     } & DefaultSession["user"]
-//   }
-// }
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   trustHost: true,
@@ -43,12 +31,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id
         token.role = user.role
+        // Obtener collaboratorId al crear el token
+        if (user.role === "COLLABORATOR") {
+          const userWithCollaborator = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { collaboratorId: true },
+          })
+          token.collaboratorId = userWithCollaborator?.collaboratorId
+        }
       }
       return token
     },
     async session({ session, token }) {
       session.user.id = token.id as string
-      session.user.role = token.role as string
+      session.user.role = token.role as "SUPERADMIN" | "ADMIN" | "COLLABORATOR"
+      if (token.collaboratorId) {
+        session.user.collaboratorId = token.collaboratorId as string
+      }
       return session
     },
   },
