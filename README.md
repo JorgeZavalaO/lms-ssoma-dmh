@@ -227,7 +227,27 @@ Nota técnica: el módulo K incluye 4 endpoints REST en `/api/certificates/*`, v
 
 Nota técnica: el módulo J incluye 5 endpoints REST en `/api/reports/*`, validaciones en `src/validations/reports.ts`, 4 modelos Prisma (Report, ReportSchedule, ReportExecution, KPISnapshot), 3 enums (ReportType, ReportFormat, ScheduleFrequency), servicio con 6 funciones (600+ líneas) en `src/lib/reports.ts`, dependencias: recharts 2.x, date-fns 3.x, shadcn/ui chart component.
 
-### 👥 Portal del Colaborador (Nuevo - Octubre 2025)
+### 🏠 Landing Page y Reorganización de Rutas (Octubre 2025 - v2.0)
+- **Landing Page en Raíz (`/`)**: Página de presentación pública con hero, features, benefits, CTA y footer
+  - Accesible sin autenticación
+  - Diseño profesional con gradientes y grid responsivo
+  - Botones de CTA apuntando a /login y #features
+  - Arquitectura: `src/app/page.tsx`
+
+- **Reorganización con Route Groups**:
+  - `/(public)/` - Rutas públicas sin sidebar: `/login`, `/register`
+  - `/(authenticated)/` - Rutas protegidas con sidebar y header: todos los módulos admin
+  - Dashboard movido a `/dashboard` (con sidebar y KPIs dinámicos)
+  - Layout raíz simplificado a solo SessionProvider + Toaster
+
+- **Beneficios Arquitectónicos**:
+  - Separación clara de concerns: público vs autenticado
+  - Diferentes layouts por grupo de rutas
+  - Sidebar visible solo en rutas autenticadas
+  - Mejor organización del código
+  - Escalable para agregar más grupos (ej: `/super-admin/`)
+
+### 👥 Portal del Colaborador (Octubre 2025)
 - **Mis Cursos**: Visualización de cursos asignados con progreso detallado
   - Tabs: Disponibles, En Progreso, Completados, Historial
   - Tarjetas con: nombre curso, progreso %, estado, acciones
@@ -376,8 +396,15 @@ lms-ssoma-dmh/
 ├── public/                    # Archivos estáticos
 ├── src/
 │   ├── app/                   # Next.js App Router
-│   │   ├── layout.tsx         # Layout global
-│   │   ├── page.tsx           # Página de inicio
+│   │   ├── page.tsx           # Landing page (público, raíz /)
+│   │   ├── layout.tsx         # Layout global (SessionProvider)
+│   │   ├── (public)/          # Route group: rutas públicas
+│   │   │   ├── layout.tsx     # Layout sin sidebar
+│   │   │   ├── login/page.tsx # Login con 2-column grid
+│   │   │   └── register/page.tsx # Registro
+│   │   ├── (authenticated)/   # Route group: rutas autenticadas
+│   │   │   ├── layout.tsx     # Layout con sidebar
+│   │   │   └── dashboard/page.tsx # Dashboard KPIs (/dashboard)
 │   │   ├── api/               # API Routes
 │   │   │   ├── auth/          # Endpoints de autenticación
 │   │   │   ├── collaborators/ # CRUD colaboradores

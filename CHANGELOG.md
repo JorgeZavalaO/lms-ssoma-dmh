@@ -7,6 +7,110 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [2.0.0] - 2025-10-17
+
+### Agregado - Reorganización de Rutas y Arquitectura de Route Groups (Octubre 17, 2025)
+
+- **Landing Page en la raíz (/)** - Diseño completamente renovado
+  - Página pública accesible sin autenticación
+  - Hero section con gradiente y CTAs destacados
+  - Sección de características con 6 módulos: Cursos, Certificación, Reportes, Control, Alertas, Gestión de Equipo
+  - Sección de beneficios con 4 ventajas principales
+  - Sección de call-to-action con enlace de contacto
+  - Footer con 4 columnas de enlaces y contacto
+  - Diseño responsive mobile-first
+  - Ubicación: `src/app/page.tsx`
+
+- **Reorganización de rutas con Next.js Route Groups** - Arquitectura mejorada
+  - **Grupo público `(public)/`**:
+    - Layout sin sidebar, header ni footer (limpio y minimalista)
+    - Rutas públicas: `/login`, `/register`
+    - Ubicación: `src/app/(public)/`
+  
+  - **Grupo autenticado `(authenticated)/`**:
+    - Layout con SidebarProvider, AppSidebar, AppHeader, AppFooter
+    - Dashboard movido a `/dashboard` (antes en raíz `/`)
+    - Todas las rutas protegidas por autenticación
+    - Sidebar visible en todas las páginas de este grupo
+    - Ubicación: `src/app/(authenticated)/`
+  
+  - **Layout jerárquico optimizado**:
+    - Root layout (`src/app/layout.tsx`): SessionProvider + Toaster (mínimo)
+    - Public layout: Passthrough mínimo (sin componentes extra)
+    - Authenticated layout: SidebarProvider + componentes de navegación
+    - Beneficios: Flexibilidad de layout, reutilización de componentes, mejor mantenibilidad
+
+- **Dashboard reorganizado** - Movido a `/dashboard`
+  - Ahora ubicado en `src/app/(authenticated)/dashboard/page.tsx`
+  - KPIs dinámicos extraídos de base de datos
+  - 4 tarjetas KPI: Completados, En progreso, Por vencer, Alertas
+  - Gráfico de área con tendencia mensual de 6 meses
+  - Card de próximos vencimientos con severidad
+  - Quick links a funcionalidades clave
+  - Barra de progreso del usuario
+  - Saludo personalizado con avatar e iniciales
+  - Accesible solo para usuarios autenticados
+
+- **Pages/Rutas eliminadas (limpieza de estructura)**:
+  - Eliminado: `src/app/dashboard/` (antiguo)
+  - Eliminado: `src/app/login/` (movido a `(public)`)
+  - Eliminado: `src/app/register/` (movido a `(public)`)
+  - Eliminado: `src/app/(public)/landing/` (movido a raíz)
+  - Eliminado: `src/app/(authenticated)/page.tsx` (conflicto resuelto)
+  - Resultado: No hay duplicados, rutas limpias y organizadas
+
+### Cambiado - Arquitectura de Layouts y Enrutamiento (Octubre 17, 2025)
+
+- **Root layout simplificado** (`src/app/layout.tsx`)
+  - Antes: SessionProvider + Toaster + SidebarProvider + componentes de navegación
+  - Ahora: SessionProvider + Toaster solamente
+  - Razón: Permite layouts diferentes por grupo de rutas
+
+- **Login page sin sidebar** (`src/app/(public)/login/page.tsx`)
+  - Diseño 2-columnas: formulario a la izquierda, imagen a la derecha
+  - Sin componentes de navegación (sidebar/header/footer)
+  - Tema limpio y enfocado en autenticación
+  - Responsive: single column en mobile, 2-columns en desktop
+
+- **Register page sin sidebar** (`src/app/(public)/register/page.tsx`)
+  - Formulario de registro centrado en card
+  - Sin componentes de navegación
+  - Campos: nombre, email, contraseña
+  - Integración con API de registro
+
+### Técnico - Migraciones de Archivo y Build (Octubre 17, 2025)
+
+- **Reorganización de estructura**:
+  - Copiar landing de `(public)/landing/page.tsx` → `page.tsx` (raíz)
+  - Crear layouts para cada grupo de rutas
+  - Crear layout para `(authenticated)` con sidebar
+  - Eliminar todas las páginas duplicadas
+
+- **Build exitoso**:
+  - Compilación: ✓ Exitosa en 8.4 segundos
+  - Rutas generadas: 72 páginas totales
+  - Errores críticos: Ninguno
+  - Warnings: Solo ESLint no-blocking (no-explicit-any, img elements, unused imports)
+  - Migraciones Prisma: Sin cambios pendientes
+
+- **Validación de rutas**:
+  - Verificado: `/` accesible sin autenticación (landing)
+  - Verificado: `/login` accesible sin autenticación (sin sidebar)
+  - Verificado: `/register` accesible sin autenticación (sin sidebar)
+  - Verificado: `/dashboard` requiere autenticación (con sidebar)
+  - Verificado: Todas las rutas bajo `(authenticated)` incluyen sidebar
+
+### Beneficios de la Reorganización
+
+- ✅ **Separación clara** entre áreas públicas y autenticadas
+- ✅ **Flexibilidad de layouts** sin cambios en URLs
+- ✅ **Mejor rendimiento** (cada grupo tiene su layout óptimo)
+- ✅ **Mantenibilidad mejorada** (lógica centralizada en layouts)
+- ✅ **UX consistente** (componentes reutilizables por contexto)
+- ✅ **Escalabilidad** (fácil agregar nuevas áreas con layouts diferentes)
+
+---
+
 ## [Unreleased]
 
 ### Agregado - Portal del Colaborador (Octubre 17, 2025)

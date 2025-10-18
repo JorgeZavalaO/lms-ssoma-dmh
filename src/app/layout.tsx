@@ -2,10 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "next-auth/react";
-import { AppSidebar } from "@/components/sidebar";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { AppHeader } from "@/components/app-header";
-import { AppFooter } from "@/components/app-footer";
 import { Toaster } from "sonner";
 
 const geistSans = Geist({
@@ -20,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "LMS SSOMA DMH",
-  description: "Panel administrativo",
+  description: "Panel administrativo de formación SSOMA",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -28,14 +24,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="es">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <SessionProvider>
-          <SidebarProvider>
-            <AppSidebar />
-            <SidebarInset>
-              <AppHeader />
-              <main className="flex-1 overflow-auto p-6">{children}</main>
-              <AppFooter />
-            </SidebarInset>
-          </SidebarProvider>
+          {children}
         </SessionProvider>
         <Toaster />
       </body>
