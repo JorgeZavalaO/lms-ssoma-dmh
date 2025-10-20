@@ -45,14 +45,24 @@ import {
   Shield,
   Mail,
   LineChart,
+  AlertCircle,
+  Layers,
+  MoreVertical,
+  Lock,
 } from "lucide-react"
 import Link from "next/link"
 import { NavUser } from "./nav-user"
 import { NotificationsBadge } from "@/components/notifications-badge"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
+  const [mounted, setMounted] = React.useState(false)
 
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Mostrar sidebar aunque la sesión aún no esté cargada
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -74,14 +84,34 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </SidebarMenuButton>
             </SidebarMenuItem>
 
-            {/* Student/Collaborator section */}
-            {session?.user?.role === "COLLABORATOR" && (
+            {/* ADMIN Dashboard */}
+            {mounted && (session?.user?.role === "ADMIN" || session?.user?.role === "SUPERADMIN") && (
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Admin Dashboard">
+                  <Link href="/admin/dashboard">
+                    <BarChart3 className="h-4 w-4" />
+                    <span>Admin Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
+
+            {/* Student/Collaborator section - Always show if session is loaded */}
+            {mounted && session?.user?.role === "COLLABORATOR" && (
               <>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild tooltip="Mis Cursos">
                     <Link href="/my-courses">
                       <BookOpen className="h-4 w-4" />
                       <span>Mis Cursos</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild tooltip="Mi Ruta de Aprendizaje">
+                    <Link href="/my-courses">
+                      <Route className="h-4 w-4" />
+                      <span>Mi Ruta</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -124,7 +154,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             )}
 
             {/* Admin section: visible to ADMIN/SUPERADMIN */}
-            {(session?.user?.role === "ADMIN" || session?.user?.role === "SUPERADMIN") && (
+            {mounted && (session?.user?.role === "ADMIN" || session?.user?.role === "SUPERADMIN") && (
               <Collapsible
                 asChild
                 defaultOpen={false}
@@ -318,6 +348,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       </SidebarMenuSubItem>
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton asChild>
+                          <Link href="/admin/alerts">
+                            <AlertCircle className="h-4 w-4" />
+                            <span>Alertas Críticas</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild>
                           <Link href="/admin/certifications">
                             <Award className="h-4 w-4" />
                             <span>Certificaciones</span>
@@ -332,24 +370,28 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild>
-                          <Link href="/admin/alerts">
-                            <Bell className="h-4 w-4" />
-                            <span>Alertas</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
                     </SidebarMenuSub>
                   </CollapsibleContent>
                 </SidebarMenuItem>
               </Collapsible>
             )}
+
+            {/* SUPERADMIN only section */}
+            {mounted && session?.user?.role === "SUPERADMIN" && (
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Configuración del Sistema">
+                  <Link href="/super">
+                    <Lock className="h-4 w-4" />
+                    <span>Sistema</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
           </SidebarMenu>
         </SidebarGroup>
 
         {/* Auth section: shown when no session */}
-        {!session && (
+        {mounted && !session && (
           <SidebarGroup>
             <SidebarGroupLabel>Cuenta</SidebarGroupLabel>
             <SidebarMenu>

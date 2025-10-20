@@ -9,7 +9,30 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## [2.0.0] - 2025-10-17
 
-### Agregado - Reorganización de Rutas y Arquitectura de Route Groups (Octubre 17, 2025)
+### Agregado - Dashboards Diferenciados por Rol (Octubre 17, 2025)
+
+- **Dashboard Ejecutivo para ADMIN/SUPERADMIN** (`/admin/dashboard`)
+  - 📊 4 KPIs principales: Colaboradores activos, Cursos publicados, Cumplimiento general (%), Alertas críticas
+  - 📈 Gráfico de cumplimiento por área (BarChart con comportamiento interactivo)
+  - 🥧 Distribución de estados de cursos (PieChart: Borrador, Publicado, Archivado)
+  - 📉 Tendencia de inscripciones últimos 6 meses (LineChart)
+  - 🏆 Top 5 áreas por cumplimiento con badges de rendimiento (verde/amarillo/rojo)
+  - 🚨 Sección crítica: Alerta visual si hay alertas sin resolver
+  - 👥 Colaboradores críticos: Top 5 con más alertas sin resolver
+  - 🎯 Accesos rápidos: Gestión de colaboradores, cursos, reportes, inscripciones
+  - Ubicación: `src/app/admin/dashboard/page.tsx` (345 líneas)
+  - Servicio KPIs: `src/lib/admin-kpis.ts` (189 líneas)
+  - Build: Ruta precompilada (○) en 7.2s, 73 rutas totales
+
+- **Login Inteligente con Redirección por Rol**
+  - Cambio en `src/app/(public)/login/page.tsx`
+  - Detecta rol de usuario tras autenticación exitosa
+  - Fetch dinámico de sesión para obtener rol
+  - Redirecciona ADMIN/SUPERADMIN → `/admin/dashboard`
+  - Redirecciona COLLABORATOR → `/dashboard`
+  - Flujo fluido sin pasos adicionales
+
+- **Agregado - Reorganización de Rutas y Arquitectura de Route Groups (Octubre 17, 2025)
 
 - **Landing Page en la raíz (/)** - Diseño completamente renovado
   - Página pública accesible sin autenticación
@@ -59,7 +82,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Eliminado: `src/app/(authenticated)/page.tsx` (conflicto resuelto)
   - Resultado: No hay duplicados, rutas limpias y organizadas
 
-### Cambiado - Arquitectura de Layouts y Enrutamiento (Octubre 17, 2025)
+### Cambiado - Redirección post-login inteligente (Octubre 17, 2025)
+
+- **Login detecta rol y redirige apropiadamente**
+  - Cambio en `src/app/(public)/login/page.tsx`
+  - Obtiene rol desde sesión tras autenticación exitosa
+  - ADMIN/SUPERADMIN → `/admin/dashboard`
+  - COLLABORATOR → `/dashboard`
+  - UX mejorada sin pasos adicionales
 
 - **Root layout simplificado** (`src/app/layout.tsx`)
   - Antes: SessionProvider + Toaster + SidebarProvider + componentes de navegación

@@ -9,6 +9,7 @@ const PUBLIC_PATHS = new Set<string>([
 
 // Prefijos protegidos (solo estas rutas pasan por middleware)
 const PROTECTED_PREFIXES = [
+  "/dashboard",
   "/admin",
   "/my-courses",
   "/courses",
@@ -36,7 +37,7 @@ function hasSession(req: NextRequest) {
   return SESSION_COOKIES.some((k) => cookies.has(k))
 }
 
-export default function middleware(req: NextRequest) {
+export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   // Permitir assets internos sin costo
@@ -73,6 +74,7 @@ export default function middleware(req: NextRequest) {
 export const config = {
   // Limitar el alcance del middleware reduce el tamaño del bundle en Edge
   matcher: [
+    "/dashboard/:path*",
     "/admin/:path*",
     "/my-courses/:path*",
     "/courses/:path*",

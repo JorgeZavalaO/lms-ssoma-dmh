@@ -27,7 +27,12 @@ export default function LoginPage() {
     if (result?.error) {
       setError("Credenciales inválidas")
     } else if (result?.ok) {
-      window.location.href = "/"
+      // Redirigir según rol: admin -> /admin/dashboard, otros -> /dashboard
+      // Fetch la sesión para obtener el rol
+      const response = await fetch("/api/auth/session")
+      const session = await response.json()
+      const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "SUPERADMIN"
+      window.location.href = isAdmin ? "/admin/dashboard" : "/dashboard"
     }
   }
 
