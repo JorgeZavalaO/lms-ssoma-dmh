@@ -25,8 +25,10 @@ import { useForm } from "react-hook-form"
 import { LearningPathSchema } from "@/validations/courses"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
-import { ListOrdered, Plus, Trash2 } from "lucide-react"
+import { ListOrdered, Plus, Trash2, Check, Search, X } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 // Create Learning Path Dialog
 interface CreateLearningPathDialogProps {
@@ -317,7 +319,8 @@ export function ManageCoursesDialog({ pathId, courses, onRefresh }: ManageCourse
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
   const [availableCourses, setAvailableCourses] = React.useState<any[]>([])
-  const [selectedCourseId, setSelectedCourseId] = React.useState("")
+  const [selectedCourseIds, setSelectedCourseIds] = React.useState<string[]>([])
+  const [searchQuery, setSearchQuery] = React.useState("")
   const [order, setOrder] = React.useState(courses.length + 1)
   const [isRequired, setIsRequired] = React.useState(true)
   const [prerequisiteId, setPrerequisiteId] = React.useState("none")
@@ -341,32 +344,37 @@ export function ManageCoursesDialog({ pathId, courses, onRefresh }: ManageCourse
   }
 
   const addCourse = async () => {
-    if (!selectedCourseId) {
-      toast.error("Selecciona un curso")
+    if (selectedCourseIds.length === 0) {
+      toast.error("Selecciona al menos un curso")
       return
     }
 
     setLoading(true)
     try {
-      const res = await fetch(`/api/learning-paths/${pathId}/courses`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          courseId: selectedCourseId,
-          order: Number(order),
-          isRequired,
-          prerequisiteId: prerequisiteId === "none" ? undefined : prerequisiteId,
-        }),
-      })
+      // Agregar todos los cursos seleccionados
+      let currentOrder = order
+      for (const courseId of selectedCourseIds) {
+        const res = await fetch(`/api/learning-paths/${pathId}/courses`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            courseId: courseId,
+            order: currentOrder,
+            isRequired,
+            prerequisiteId: prerequisiteId === "none" ? undefined : prerequisiteId,
+          }),
+        })
 
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || "Error adding course")
+        if (!res.ok) {
+          const error = await res.json()
+          throw new Error(error.error || "Error adding course")
+        }
+        currentOrder++
       }
 
-      toast.success("Curso agregado a la ruta")
-      setSelectedCourseId("")
-      setOrder(order + 1)
+      toast.success(`${selectedCourseIds.length} curso(s) agregado(s) a la ruta`)
+      setSelectedCourseIds([])
+      setOrder(currentOrder)
       setPrerequisiteId("none")
       onRefresh()
     } catch (error) {
@@ -375,6 +383,19 @@ export function ManageCoursesDialog({ pathId, courses, onRefresh }: ManageCourse
       setLoading(false)
     }
   }
+
+  const toggleCourseSelection = (courseId: string) => {
+    setSelectedCourseIds(prev =>
+      prev.includes(courseId)
+        ? prev.filter(id => id !== courseId)
+        : [...prev, courseId]
+    )
+  }
+
+  const filteredCourses = availableCourses.filter(course =>
+    course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    course.code.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   const removeCourse = async (courseId: string) => {
     setLoading(true)
@@ -435,27 +456,75 @@ export function ManageCoursesDialog({ pathId, courses, onRefresh }: ManageCourse
 
           {/* Agregar curso */}
           <div className="border rounded-lg p-4 space-y-4">
-            <h3 className="font-medium">Agregar Curso</h3>
+            <h3 className="font-medium">Agregar Curso(s)</h3>
             
+            <div className="space-y-2">
+              <Label>Seleccionar Cursos (múltiple)</Label>
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nombre o código..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-9"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="border rounded-lg p-3 bg-background">
+                <ScrollArea className="h-[200px] w-full">
+                  {filteredCourses.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground text-sm">
+                      {availableCourses.length === 0
+                        ? "No hay cursos disponibles"
+                        : "No se encontraron cursos"}
+                    </div>
+                  ) : (
+                    <div className="space-y-2 pr-4">
+                      {filteredCourses.map((course) => (
+                        <div
+                          key={course.id}
+                          className="flex items-center gap-3 p-2 rounded hover:bg-muted cursor-pointer transition-colors"
+                          onClick={() => toggleCourseSelection(course.id)}
+                        >
+                          <Checkbox
+                            id={`course-${course.id}`}
+                            checked={selectedCourseIds.includes(course.id)}
+                            onCheckedChange={() => toggleCourseSelection(course.id)}
+                          />
+                          <label
+                            htmlFor={`course-${course.id}`}
+                            className="flex-1 cursor-pointer text-sm"
+                          >
+                            <div className="font-medium">{course.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {course.code} • {course.duration || 0}h
+                            </div>
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </div>
+              {selectedCourseIds.length > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  {selectedCourseIds.length} curso(s) seleccionado(s)
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Curso</Label>
-                <Select value={selectedCourseId} onValueChange={setSelectedCourseId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar curso" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCourses.map((course) => (
-                      <SelectItem key={course.id} value={course.id}>
-                        {course.code} - {course.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Orden</Label>
+                <Label>Orden Inicial</Label>
                 <Input
                   type="number"
                   value={order}
@@ -463,23 +532,23 @@ export function ManageCoursesDialog({ pathId, courses, onRefresh }: ManageCourse
                   min={1}
                 />
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label>Prerequisito</Label>
-              <Select value={prerequisiteId} onValueChange={setPrerequisiteId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sin prerequisito" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin prerequisito</SelectItem>
-                  {courses.map((pc) => (
-                    <SelectItem key={pc.id} value={pc.id}>
-                      {pc.order}. {pc.course.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <Label>Prerequisito</Label>
+                <Select value={prerequisiteId} onValueChange={setPrerequisiteId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sin prerequisito" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin prerequisito</SelectItem>
+                    {courses.map((pc) => (
+                      <SelectItem key={pc.id} value={pc.id}>
+                        {pc.order}. {pc.course.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="flex items-center space-x-2">
@@ -488,12 +557,12 @@ export function ManageCoursesDialog({ pathId, courses, onRefresh }: ManageCourse
                 checked={isRequired}
                 onCheckedChange={setIsRequired}
               />
-              <Label htmlFor="required">Curso obligatorio</Label>
+              <Label htmlFor="required">Cursos obligatorios</Label>
             </div>
 
-            <Button onClick={addCourse} disabled={loading} className="w-full">
+            <Button onClick={addCourse} disabled={loading || selectedCourseIds.length === 0} className="w-full">
               <Plus className="h-4 w-4 mr-2" />
-              Agregar Curso
+              Agregar {selectedCourseIds.length > 0 ? `${selectedCourseIds.length} Curso(s)` : "Curso(s)"}
             </Button>
           </div>
 

@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, FileText, Video, File, Code, Package } from "lucide-react"
 import { CreateUnitDialog, EditUnitDialog, DeleteUnitDialog } from "@/components/admin/content-modals"
 import { CreateLessonDialog, EditLessonDialog, DeleteLessonDialog } from "@/components/admin/lesson-modals"
+import { LessonPreviewDialog } from "@/components/admin/lesson-preview-dialog"
 
 interface Unit {
   id: string
@@ -169,6 +170,7 @@ export default function ClientCourseContent({ courseId, initialUnits }: ClientCo
                                 </div>
                               </div>
                               <div className="flex gap-2">
+                                <LessonPreviewDialog lesson={lesson} />
                                 <EditLessonDialog lesson={lesson} onEdited={refreshUnits} />
                                 <DeleteLessonDialog lessonId={lesson.id} onDeleted={refreshUnits} />
                               </div>

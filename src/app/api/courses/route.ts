@@ -38,7 +38,27 @@ export async function POST(req: Request) {
     }
     
     const body = await req.json()
-    const data = CourseSchema.parse(body)
+    const validatedData = CourseSchema.parse(body)
+    
+    // Generar código automático si no se proporciona
+    // eslint-disable-next-line prefer-const
+    let data = { ...validatedData }
+    if (!data.code) {
+      const lastCourse = await prisma.course.findFirst({
+        orderBy: { createdAt: "desc" },
+        select: { code: true }
+      })
+      
+      let nextNumber = 1
+      if (lastCourse?.code) {
+        const match = lastCourse.code.match(/CRS-(\d+)/)
+        if (match) {
+          nextNumber = parseInt(match[1]) + 1
+        }
+      }
+      
+      data.code = `CRS-${nextNumber.toString().padStart(3, '0')}`
+    }
     
     // Crear el curso y su primera versión
     const created = await prisma.course.create({

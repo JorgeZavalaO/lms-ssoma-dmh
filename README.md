@@ -30,8 +30,9 @@ LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacit
 
 ### 📚 Gestión de Cursos
 - CRUD completo de cursos con estados (BORRADOR, PUBLICADO, ARCHIVADO)
+- **Códigos automáticos** siguiendo patrón `CRS-XXX` (generados automáticamente al crear cursos)
 - Versionado automático de cursos con historial completo
-- Campos: código, nombre, objetivo, duración, modalidad, vigencia, requisitos
+- Campos: nombre, objetivo, duración, modalidad, vigencia, requisitos
 - Modalidades: Asíncrono, Síncrono, Mixto
 - Asignación de cursos a colaboradores
 - Seguimiento de estado (PENDING, IN_PROGRESS, COMPLETED)
@@ -286,7 +287,41 @@ Nota técnica: el módulo J incluye 5 endpoints REST en `/api/reports/*`, valida
   - Estadísticas: ID Usuario, ID Colaborador, Antigüedad
   - Avatar personalizadas con iniciales
 
-Nota técnica: Portal completamente integrado con navegación en sidebar (5 links: Cursos, Evaluaciones, Certificados, Notificaciones, Perfil), contador de notificaciones en tiempo real, acceso filtrado por sesión del usuario, validaciones de rol COLLABORATOR. Build exitoso: 117 rutas.
+Nota técnica: Portal completamente integrado con navegación en sidebar (5 links: Cursos, Evaluaciones, Certificados, Notificaciones, Perfil), contador de notificaciones en tiempo real, acceso filtrado por sesión del usuario, validaciones de rol COLLABORATOR. Build exitoso: 77 rutas (optimizado tras consolidación).
+
+### 📊 Consolidación de Reportes y Optimización (Octubre 2025)
+- **Consolidación de Excel Export en Dashboard Ejecutivo**:
+  - Movida funcionalidad de descarga Excel desde `/reports/collaborators` al Dashboard Ejecutivo (`/reports/dashboard`)
+  - Eliminación de página redundante `/reports/collaborators` (reducción de 79 a 77 rutas)
+  - Unificación de funcionalidad: un solo lugar para descargar reportes de colaboradores
+  - Mejora de UX: descarga directa desde dashboard sin navegación adicional
+
+- **Renombrado de Endpoint para Claridad**:
+  - `/api/reports/collaborators-progress` → `/api/reports/export-collaborators-excel`
+  - Nombre refleja mejor la función: genera archivo Excel, no solo consulta datos JSON
+  - Arquitectura más clara: endpoints de exportación vs endpoints de consulta
+  - Mantiene funcionalidad completa: 3 hojas (Resumen, Colaboradores, Detalle Cursos)
+
+- **Corrección de Bugs en Dashboard Ejecutivo**:
+  - **Cálculos corregidos**: 5 errores de división por cero con fallbacks `|| 1`
+  - **Precedencia de operadores**: Corregida en cálculos de alertas y cursos críticos
+  - **Progreso invertido**: Barra de progreso ahora muestra `completionRate` en lugar de `100 - completionRate`
+  - **Botones funcionales**: Implementados handlers para "Ver detalles" (navega a `/admin/courses/${courseId}/content`)
+  - **Estado de carga**: Botón de descarga Excel muestra `disabled={refreshing}` durante proceso
+
+- **Tracking de Progreso para Contenido No-Video**:
+  - **ContentProgressTracker**: Componente para PDF/PPT/HTML/SCORM con polling de 30s
+  - **Anti-spam validación**: Cliente (no rollback) + Servidor (Math.max validation)
+  - **Detección de actividad**: Visibility API + auto-pause (2min inactividad) + throttling
+  - **Complementa YouTubePlayer**: Video (2s polling, ≥5% threshold) + Documentos (30s polling)
+
+- **Optimización de Build y Arquitectura**:
+  - Build exitoso: 77 rutas generadas, compilación en 14.8s, sin errores críticos
+  - ESLint: Solo warnings pre-existentes (no nuevos errores)
+  - Eliminación de código redundante: 2 rutas eliminadas, arquitectura más limpia
+  - Mantenimiento de APIs de progreso: `/api/progress/courses`, `/api/progress/paths`, etc.
+
+Nota técnica: Consolidación reduce complejidad manteniendo funcionalidad completa. Excel export genera 3-sheet workbook con KPIs, colaboradores y detalle de cursos. Dashboard Ejecutivo ahora centraliza reportes y exportaciones.
 
 ### 🏢 Administración
 - Gestión de áreas con jefes de área

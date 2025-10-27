@@ -45,7 +45,7 @@ interface Enrollment {
   progressPercent: number
   course: {
     id: string
-    code: string
+    code: string | null
     name: string
   }
   collaborator: {
@@ -61,7 +61,7 @@ interface Enrollment {
 
 interface Course {
   id: string
-  code: string
+  code: string | null
   name: string
 }
 
@@ -235,7 +235,7 @@ export default function ClientEnrollments({
                     <TableCell>
                       <div className="font-medium">{enrollment.course.name}</div>
                       <div className="text-sm text-muted-foreground">
-                        {enrollment.course.code}
+                        {enrollment.course.code || "Sin código"}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -369,7 +369,7 @@ function EnrollIndividualDialog({
               <SelectContent>
                 {courses.map((course) => (
                   <SelectItem key={course.id} value={course.id}>
-                    {course.code} - {course.name}
+                    {course.code || "Sin código"} - {course.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -534,7 +534,7 @@ function EnrollBulkDialog({
               <SelectContent>
                 {courses.map((course) => (
                   <SelectItem key={course.id} value={course.id}>
-                    {course.code} - {course.name}
+                    {course.code || "Sin código"} - {course.name}
                   </SelectItem>
                 ))}
               </SelectContent>

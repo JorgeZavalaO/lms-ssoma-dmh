@@ -44,14 +44,14 @@ interface EnrollmentRule {
   createdAt: Date
   course: {
     id: string
-    code: string
+    code: string | null
     name: string
   }
 }
 
 interface Course {
   id: string
-  code: string
+  code: string | null
   name: string
 }
 
@@ -163,7 +163,7 @@ export default function ClientEnrollmentRules({
                   <TableRow key={rule.id}>
                     <TableCell>
                       <div className="font-medium">{rule.course.name}</div>
-                      <div className="text-sm text-muted-foreground">{rule.course.code}</div>
+                      <div className="text-sm text-muted-foreground">{rule.course.code || "Sin código"}</div>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
@@ -288,7 +288,7 @@ function CreateRuleDialog({ courses, sites, areas, positions, onCreated }: Creat
               <SelectContent>
                 {courses.map((course) => (
                   <SelectItem key={course.id} value={course.id}>
-                    {course.code} - {course.name}
+                    {course.code || "Sin código"} - {course.name}
                   </SelectItem>
                 ))}
               </SelectContent>

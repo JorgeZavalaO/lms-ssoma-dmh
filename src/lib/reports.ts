@@ -568,7 +568,7 @@ export async function getCourseReport(filters: {
     course: {
       id: course.id,
       name: course.name,
-      code: course.code,
+      code: course.code || "Sin código",
       activeVersion: course.currentVersion || null,
     },
     statistics: {

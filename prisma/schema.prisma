@@ -184,7 +184,7 @@ model AreaHeadHistory {
 /* B3 — Cursos y matriz de asignación */
 model Course {
   id          String                        @id @default(cuid())
-  code        String                        @unique
+  code        String?                       @unique
   name        String
   description String?
   objective   String?                       // Objetivo del curso

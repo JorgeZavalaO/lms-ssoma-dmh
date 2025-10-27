@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { QuestionForm } from "./question-form";
+import { QuestionPreviewDialog } from "@/components/admin/question-preview-dialog";
 
 type Question = {
   id: string;
@@ -165,6 +166,17 @@ export function ClientQuestions() {
                     {question.difficulty ? `${question.difficulty}/10` : "-"}
                   </TableCell>
                   <TableCell className="text-right space-x-2">
+                    <QuestionPreviewDialog
+                      type={question.type}
+                      questionText={question.questionText}
+                      topic={question.topic || ""}
+                      points={question.points.toString()}
+                      difficulty={question.difficulty?.toString() || "5"}
+                      options={question.options}
+                      correctFeedback=""
+                      incorrectFeedback=""
+                      explanation=""
+                    />
                     <Button
                       variant="ghost"
                       size="sm"

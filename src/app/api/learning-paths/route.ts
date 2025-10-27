@@ -5,10 +5,32 @@ import { LearningPathSchema } from "@/validations/courses"
 
 export async function GET(req: Request) {
   try {
+    const session = await auth()
+    if (!session?.user) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+
     const { searchParams } = new URL(req.url)
     const status = searchParams.get("status")
     
-    const where = status ? { status: status as "DRAFT" | "PUBLISHED" | "ARCHIVED" } : {}
+    const where: Record<string, unknown> = {}
+    if (status) where.status = status as "DRAFT" | "PUBLISHED" | "ARCHIVED"
+    
+    // Filtrar por colaborador si es COLLABORATOR
+    if (session.user.role === "COLLABORATOR") {
+      if (!session.user.collaboratorId) {
+        return NextResponse.json(
+          { error: "Usuario sin colaborador asociado" },
+          { status: 400 }
+        )
+      }
+      // Solo mostrar rutas donde el colaborador tiene progreso (está asignado)
+      where.progress = {
+        some: {
+          collaboratorId: session.user.collaboratorId,
+        },
+      }
+    }
     
     const items = await prisma.learningPath.findMany({
       where,
@@ -38,6 +60,21 @@ export async function GET(req: Request) {
           },
           orderBy: { order: "asc" }
         },
+        // Incluir progreso si es colaborador
+        ...(session.user.role === "COLLABORATOR" && session.user.collaboratorId
+          ? {
+              progress: {
+                where: { collaboratorId: session.user.collaboratorId },
+                select: {
+                  progressPercent: true,
+                  coursesCompleted: true,
+                  coursesTotal: true,
+                  startedAt: true,
+                  completedAt: true,
+                },
+              },
+            }
+          : {}),
         _count: {
           select: {
             courses: true,

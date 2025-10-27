@@ -4,7 +4,7 @@ export const CourseModalityEnum = z.enum(["ASYNCHRONOUS", "SYNCHRONOUS", "BLENDE
 export const CourseStatusEnum = z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"])
 
 export const CourseSchema = z.object({
-  code: z.string().min(1, "El código es requerido"),
+  code: z.string().optional(),
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
   description: z.string().optional(),
   objective: z.string().optional(),

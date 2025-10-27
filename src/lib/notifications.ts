@@ -240,7 +240,7 @@ export async function generateExpirationReminders(daysBeforeExpiration: number) 
         {
           collaboratorName: progress.collaborator.fullName,
           courseName: progress.course.name,
-          courseCode: progress.course.code,
+          courseCode: progress.course.code || "Sin código",
           dueDate: progress.expiresAt?.toLocaleDateString() || "",
           daysRemaining: daysBeforeExpiration.toString(),
         },

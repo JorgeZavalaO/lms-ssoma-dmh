@@ -32,7 +32,7 @@ interface Certificate {
   id: string
   courseId: string
   courseName: string
-  courseCode: string
+  courseCode: string | null
   courseVersion: number
   certificateNumber: string
   issuedAt: string

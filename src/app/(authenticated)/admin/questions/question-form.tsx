@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2, MoveUp, MoveDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,8 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { CreateQuestionSchema, type CreateQuestionInput } from "@/validations/quiz";
+import { Card, CardContent } from "@/components/ui/card";
+import { QuestionPreviewDialog } from "@/components/admin/question-preview-dialog";
 
 type QuestionFormProps = {
   question?: any;
@@ -22,6 +22,13 @@ type QuestionFormProps = {
 export function QuestionForm({ question, onSuccess }: QuestionFormProps) {
   const [loading, setLoading] = useState(false);
   const [type, setType] = useState(question?.type || "SINGLE_CHOICE");
+  const [questionText, setQuestionText] = useState(question?.questionText || "");
+  const [topic, setTopic] = useState(question?.topic || "");
+  const [points, setPoints] = useState(question?.points?.toString() || "1");
+  const [difficulty, setDifficulty] = useState(question?.difficulty?.toString() || "5");
+  const [correctFeedback, setCorrectFeedback] = useState(question?.correctFeedback || "");
+  const [incorrectFeedback, setIncorrectFeedback] = useState(question?.incorrectFeedback || "");
+  const [explanation, setExplanation] = useState(question?.explanation || "");
   const [options, setOptions] = useState(
     question?.options || [
       { optionText: "", isCorrect: false, order: 1 },
@@ -33,29 +40,26 @@ export function QuestionForm({ question, onSuccess }: QuestionFormProps) {
     e.preventDefault();
     setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
     const data = {
-      questionText: formData.get("questionText") as string,
+      questionText,
       type,
-      points: parseInt(formData.get("points") as string) || 1,
-      topic: formData.get("topic") as string || undefined,
-      difficulty: parseInt(formData.get("difficulty") as string) || 5,
-      correctFeedback: formData.get("correctFeedback") as string || undefined,
-      incorrectFeedback: formData.get("incorrectFeedback") as string || undefined,
-      explanation: formData.get("explanation") as string || undefined,
+      points: parseInt(points) || 1,
+      topic: topic || undefined,
+      difficulty: parseInt(difficulty) || 5,
+      correctFeedback: correctFeedback || undefined,
+      incorrectFeedback: incorrectFeedback || undefined,
+      explanation: explanation || undefined,
       options,
     };
 
     try {
-      const validatedData = CreateQuestionSchema.parse(data);
-      
       const url = question ? `/api/questions/${question.id}` : "/api/questions";
       const method = question ? "PUT" : "POST";
 
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(validatedData),
+        body: JSON.stringify(data),
       });
 
       if (!res.ok) {
@@ -131,12 +135,16 @@ export function QuestionForm({ question, onSuccess }: QuestionFormProps) {
         <Label htmlFor="questionText">Pregunta *</Label>
         <Textarea
           id="questionText"
-          name="questionText"
-          defaultValue={question?.questionText}
+          value={questionText}
+          onChange={(e) => setQuestionText(e.target.value)}
           required
           rows={3}
           placeholder="Escribe la pregunta aquí..."
+          className="resize-none"
         />
+        <p className="text-xs text-muted-foreground">
+          {questionText.length} caracteres
+        </p>
       </div>
 
       {/* Tema y Puntos */}
@@ -145,8 +153,8 @@ export function QuestionForm({ question, onSuccess }: QuestionFormProps) {
           <Label htmlFor="topic">Tema</Label>
           <Input
             id="topic"
-            name="topic"
-            defaultValue={question?.topic}
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
             placeholder="Ej: Seguridad"
           />
         </div>
@@ -154,10 +162,10 @@ export function QuestionForm({ question, onSuccess }: QuestionFormProps) {
           <Label htmlFor="points">Puntos *</Label>
           <Input
             id="points"
-            name="points"
+            value={points}
+            onChange={(e) => setPoints(e.target.value)}
             type="number"
             min="1"
-            defaultValue={question?.points || 1}
             required
           />
         </div>
@@ -165,15 +173,21 @@ export function QuestionForm({ question, onSuccess }: QuestionFormProps) {
 
       {/* Dificultad */}
       <div className="space-y-2">
-        <Label htmlFor="difficulty">Dificultad (1-10)</Label>
+        <Label>
+          Dificultad: <Badge variant="secondary">{difficulty}/10</Badge>
+        </Label>
         <Input
-          id="difficulty"
-          name="difficulty"
-          type="number"
+          value={difficulty}
+          onChange={(e) => setDifficulty(e.target.value)}
+          type="range"
           min="1"
           max="10"
-          defaultValue={question?.difficulty || 5}
+          className="w-full"
         />
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>Fácil</span>
+          <span>Difícil</span>
+        </div>
       </div>
 
       <Separator />
@@ -185,101 +199,154 @@ export function QuestionForm({ question, onSuccess }: QuestionFormProps) {
           {type !== "TRUE_FALSE" && (
             <Button type="button" variant="outline" size="sm" onClick={addOption}>
               <Plus className="h-4 w-4 mr-2" />
-              Agregar opción
+              Agregar
             </Button>
           )}
         </div>
 
-        {options.map((option: any, index: number) => (
-          <div key={index} className="flex gap-2 items-start">
-            <Checkbox
-              checked={option.isCorrect}
-              onCheckedChange={(checked) => updateOption(index, "isCorrect", checked)}
-              className="mt-3"
-            />
-            <div className="flex-1">
-              <Input
-                value={option.optionText}
-                onChange={(e) => updateOption(index, "optionText", e.target.value)}
-                placeholder={`Opción ${index + 1}`}
-                required
-              />
-            </div>
-            {type === "ORDER" && (
-              <div className="flex gap-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => moveOption(index, "up")}
-                  disabled={index === 0}
-                >
-                  <MoveUp className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => moveOption(index, "down")}
-                  disabled={index === options.length - 1}
-                >
-                  <MoveDown className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-            {type !== "TRUE_FALSE" && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => removeOption(index)}
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            )}
-          </div>
-        ))}
+        <div className="space-y-3">
+          {options.map((option: any, index: number) => (
+            <Card key={index} className="border-l-4 border-l-muted">
+              <CardContent className="pt-4">
+                <div className="flex gap-3 items-start">
+                  <Checkbox
+                    id={`correct-${index}`}
+                    checked={option.isCorrect}
+                    onCheckedChange={(checked) => updateOption(index, "isCorrect", checked)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1 space-y-2">
+                    <Input
+                      value={option.optionText}
+                      onChange={(e) => updateOption(index, "optionText", e.target.value)}
+                      placeholder={`Opción ${index + 1}`}
+                      required
+                      className="text-sm"
+                    />
+                    <div className="flex gap-1 items-center">
+                      {option.isCorrect && (
+                        <Badge variant="default" className="text-xs">
+                          Correcta
+                        </Badge>
+                      )}
+                      {type === "SINGLE_CHOICE" && (
+                        <span className="text-xs text-muted-foreground">
+                          {type === "SINGLE_CHOICE" && !option.isCorrect
+                            ? "(solo una puede ser correcta)"
+                            : ""}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    {type === "ORDER" && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => moveOption(index, "up")}
+                          disabled={index === 0}
+                          title="Mover arriba"
+                        >
+                          <MoveUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => moveOption(index, "down")}
+                          disabled={index === options.length - 1}
+                          title="Mover abajo"
+                        >
+                          <MoveDown className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                    {type !== "TRUE_FALSE" && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeOption(index)}
+                        title="Eliminar opción"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
 
       <Separator />
 
       {/* Retroalimentación */}
       <div className="space-y-4">
+        <h4 className="font-medium">Retroalimentación</h4>
+
         <div className="space-y-2">
-          <Label htmlFor="correctFeedback">Retroalimentación (correcta)</Label>
+          <Label htmlFor="correctFeedback">
+            Cuando es correcta
+            <Badge variant="outline" className="ml-2">Opcional</Badge>
+          </Label>
           <Textarea
             id="correctFeedback"
-            name="correctFeedback"
-            defaultValue={question?.correctFeedback}
+            value={correctFeedback}
+            onChange={(e) => setCorrectFeedback(e.target.value)}
             rows={2}
             placeholder="Mensaje cuando responda correctamente..."
+            className="resize-none"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="incorrectFeedback">Retroalimentación (incorrecta)</Label>
+          <Label htmlFor="incorrectFeedback">
+            Cuando es incorrecta
+            <Badge variant="outline" className="ml-2">Opcional</Badge>
+          </Label>
           <Textarea
             id="incorrectFeedback"
-            name="incorrectFeedback"
-            defaultValue={question?.incorrectFeedback}
+            value={incorrectFeedback}
+            onChange={(e) => setIncorrectFeedback(e.target.value)}
             rows={2}
             placeholder="Mensaje cuando responda incorrectamente..."
+            className="resize-none"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="explanation">Explicación</Label>
+          <Label htmlFor="explanation">
+            Explicación detallada
+            <Badge variant="outline" className="ml-2">Opcional</Badge>
+          </Label>
           <Textarea
             id="explanation"
-            name="explanation"
-            defaultValue={question?.explanation}
+            value={explanation}
+            onChange={(e) => setExplanation(e.target.value)}
             rows={3}
             placeholder="Explicación detallada de la respuesta..."
+            className="resize-none"
           />
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 pt-4">
+      {/* Acciones */}
+      <div className="flex justify-end gap-2 pt-4 border-t">
+        <QuestionPreviewDialog
+          type={type}
+          questionText={questionText}
+          topic={topic}
+          points={points}
+          difficulty={difficulty}
+          options={options}
+          correctFeedback={correctFeedback}
+          incorrectFeedback={incorrectFeedback}
+          explanation={explanation}
+        />
         <Button type="submit" disabled={loading}>
           {loading ? "Guardando..." : question ? "Actualizar" : "Crear"}
         </Button>

@@ -38,7 +38,6 @@ export function CreateCourseDialog({ onCreated }: CreateCourseDialogProps) {
 
   const form = useForm({
     defaultValues: {
-      code: "",
       name: "",
       description: "",
       objective: "",
@@ -90,35 +89,25 @@ export function CreateCourseDialog({ onCreated }: CreateCourseDialogProps) {
         <DialogHeader>
           <DialogTitle>Crear Nuevo Curso</DialogTitle>
           <DialogDescription>
-            Completa los datos del curso. Se creará la versión 1 automáticamente.
+            Completa los datos del curso. El código se generará automáticamente (CRS-XXX).
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="code">Código *</Label>
-              <Input
-                id="code"
-                {...form.register("code")}
-                placeholder="CRS-001"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Estado *</Label>
-              <Select
-                value={form.watch("status")}
-                onValueChange={(value) => form.setValue("status", value as any)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DRAFT">Borrador</SelectItem>
-                  <SelectItem value="PUBLISHED">Publicado</SelectItem>
-                  <SelectItem value="ARCHIVED">Archivado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="status">Estado *</Label>
+            <Select
+              value={form.watch("status")}
+              onValueChange={(value) => form.setValue("status", value as any)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="DRAFT">Borrador</SelectItem>
+                <SelectItem value="PUBLISHED">Publicado</SelectItem>
+                <SelectItem value="ARCHIVED">Archivado</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

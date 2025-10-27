@@ -7,12 +7,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CreateCourseDialog, EditCourseDialog, DeleteCourseDialog, ViewVersionsDialog } from "@/components/admin/course-modals"
 import { EnrollToCourseDialog } from "@/components/admin/enrollment-modals"
+import { CourseLessonsPreviewDialog } from "@/components/admin/course-lessons-preview"
 import Link from "next/link"
 import { BookOpen } from "lucide-react"
 
 interface Course {
   id: string
-  code: string
+  code: string | null
   name: string
   description?: string | null
   objective?: string | null
@@ -63,6 +64,7 @@ export function CoursesTable({ data, onRefresh }: CoursesTableProps) {
     {
       accessorKey: "code",
       header: "Código",
+      cell: ({ row }) => row.original.code || "-",
     },
     {
       accessorKey: "name",
@@ -116,17 +118,21 @@ export function CoursesTable({ data, onRefresh }: CoursesTableProps) {
       id: "assignments",
       header: "Asignaciones",
       cell: ({ row }) => {
-        const total = 
-          row.original._count.areaLinks +
-          row.original._count.posLinks +
-          row.original._count.siteLinks +
-          row.original._count.collLinks
+        const areas = row.original._count.areaLinks
+        const positions = row.original._count.posLinks
+        const sites = row.original._count.siteLinks
+        const collaborators = row.original._count.collLinks
+        const paths = row.original._count.pathCourses
+        const total = areas + positions + sites + collaborators + paths
+        
         return (
-          <div className="text-sm">
-            <div>Total: {total}</div>
-            <div className="text-xs text-muted-foreground">
-              Rutas: {row.original._count.pathCourses}
-            </div>
+          <div className="text-sm space-y-1">
+            <div className="font-medium">Total: {total}</div>
+            {areas > 0 && <div className="text-xs text-muted-foreground">Áreas: {areas}</div>}
+            {positions > 0 && <div className="text-xs text-muted-foreground">Posiciones: {positions}</div>}
+            {sites > 0 && <div className="text-xs text-muted-foreground">Sitios: {sites}</div>}
+            {collaborators > 0 && <div className="text-xs text-muted-foreground">Colaboradores: {collaborators}</div>}
+            {paths > 0 && <div className="text-xs text-muted-foreground">Rutas: {paths}</div>}
           </div>
         )
       },
@@ -161,6 +167,7 @@ const ActionsCell = React.memo(function ActionsCell({
 }) {
   return (
     <div className="flex gap-2">
+      <CourseLessonsPreviewDialog courseId={course.id} courseName={course.name} />
       <Link href={`/admin/courses/${course.id}/content`}>
         <Button variant="outline" size="sm">
           <BookOpen className="h-4 w-4 mr-1" />

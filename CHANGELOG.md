@@ -7,6 +7,58 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [2.1.0] - 2025-10-27
+
+### Agregado - Consolidación de Reportes y Optimización Arquitectónica (Octubre 27, 2025)
+
+- **Consolidación de Excel Export en Dashboard Ejecutivo**:
+  - Movida funcionalidad de descarga Excel desde `/reports/collaborators` al Dashboard Ejecutivo (`/reports/dashboard`)
+  - Eliminación de página redundante `/reports/collaborators` (reducción de 79 a 77 rutas)
+  - Eliminación de API redundante `/api/reports/collaborators-data`
+  - Unificación de funcionalidad: descarga directa desde dashboard sin navegación adicional
+  - Mejora de UX: botón con estado de carga (`disabled={refreshing}`) y tooltip descriptivo
+
+- **Renombrado de Endpoint para Mejor Arquitectura**:
+  - `/api/reports/collaborators-progress` → `/api/reports/export-collaborators-excel`
+  - Nombre refleja función real: genera archivo Excel, no consulta datos JSON
+  - Separación clara: endpoints de exportación vs endpoints de consulta de datos
+  - Mantiene funcionalidad completa: 3 hojas Excel (Resumen KPIs, Colaboradores, Detalle Cursos)
+
+- **Corrección Completa de Bugs en Dashboard Ejecutivo**:
+  - **5 errores de cálculo corregidos**: Divisiones por cero con fallbacks `|| 1`
+    - Línea ~189: Tasa de participación → `(kpis.totalCollaborators || 1)`
+    - Línea ~273: Progreso de alertas → `((... || 1))` con precedencia correcta
+    - Línea ~410: Inscripciones por curso → `(kpis.totalCourses || 1)`
+    - Línea ~580: Progreso cursos críticos → precedencia corregida
+  - **Progreso invertido corregido**: Barra muestra `completionRate` en lugar de `100 - completionRate`
+  - **Botones funcionales implementados**:
+    - "Ver detalles" → navega a `/admin/courses/${courseId}/content`
+    - "Descargar Excel" → genera archivo con 3 sheets y descarga automática
+  - **React console error resuelto**: Eliminado `indicatorClassName` prop inválido de 3 Progress components
+
+- **Tracking de Progreso para Contenido No-Video**:
+  - **ContentProgressTracker**: Componente para PDF/PPT/HTML/SCORM con polling inteligente
+  - **Validación anti-spam**: Cliente (no rollback) + Servidor (Math.max validation)
+  - **Detección de actividad avanzada**: Visibility API + auto-pause (2min inactividad) + throttling 30s
+  - **Complementa YouTubePlayer**: Video (2s polling, ≥5% threshold) + Documentos (30s polling, actividad detectada)
+
+- **Optimización de Build y Arquitectura**:
+  - Build exitoso: 77 rutas generadas, compilación 14.8s, sin errores críticos
+  - ESLint: Solo warnings pre-existentes (no nuevos errores introducidos)
+  - Arquitectura limpia: Eliminadas 2 rutas redundantes, mejor mantenibilidad
+  - APIs de progreso preservadas: `/api/progress/courses`, `/api/progress/paths`, `/api/progress/alerts`, etc.
+
+### Beneficios de la Consolidación
+
+- ✅ **Arquitectura simplificada**: Eliminadas páginas redundantes, mejor organización
+- ✅ **UX mejorada**: Descarga Excel desde dashboard central, sin navegación extra
+- ✅ **Código más limpio**: Endpoint renombrado refleja función real
+- ✅ **Bugs corregidos**: Dashboard completamente funcional con cálculos correctos
+- ✅ **Funcionalidad preservada**: Todas las APIs de progreso mantienen compatibilidad
+- ✅ **Performance optimizada**: 77 rutas (vs 79), build más rápido
+
+---
+
 ## [2.0.0] - 2025-10-17
 
 ### Agregado - Dashboards Diferenciados por Rol (Octubre 17, 2025)
@@ -240,7 +292,196 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ## Unreleased
 
-### Agregado
+### Agregado - Mejora Completa del Diálogo de Creación de Preguntas (Octubre 27, 2025)
+
+- **Vista previa en tiempo real** del formulario de preguntas
+  - Botón togglable "Vista previa / Ocultar vista previa" en la parte superior
+  - Panel lateral (en desktop) o debajo (en mobile) mostrando cómo se verá la pregunta
+  - Actualización en vivo mientras se escribe (reactive preview)
+  - Mostrable/ocultable con un botón tipo Eye/EyeOff
+
+- **Interfaz mejorada del formulario**
+  - Cambio a layout grid con 2 columnas: formulario + previsualización
+  - Mejor organización visual y separación de contenido
+  - Secciones separadas con headers claros (Información, Opciones, Retroalimentación)
+  - Cards individuales para cada opción de respuesta
+  - Mejora de espaciado y consistencia de estilos
+
+- **Componentes UI mejorados**
+  - Uso de `Card` component para opciones de respuesta (CardContent, CardHeader)
+  - Badge componentes para mostrar estado "Correcta", "Opcional", puntos, etc.
+  - Dificultad como slider en lugar de input numérico
+  - Contador visual de caracteres en pregunta
+  - Indicadores visuales para respuestas correctas (borde verde)
+
+- **Vista previa inteligente**
+  - **Metadatos**: Tipo de pregunta, tema, puntos, dificultad
+  - **Pregunta**: Texto en tiempo real
+  - **Opciones**: Visualización con círculos (opción única/múltiple) o cuadrados (otras)
+  - **Respuestas correctas**: Destacadas en verde con badge "✓ Correcta"
+  - **Retroalimentación**: 
+    - Verde para respuestas correctas
+    - Roja para respuestas incorrectas
+    - Azul para explicación
+  - Diseño responsivo que se adapta a pantalla
+
+- **Mejoras de UX/DX**
+  - Estados de cambio vinculados al formulario (onChange handlers)
+  - Validaciones visuales con badges "Opcional" en retroalimentación
+  - Tooltips en botones de movimiento (up/down para ordenar)
+  - Mensajes contextuales según tipo de pregunta
+  - Feedback visual en campo de dificultad (slider 1-10)
+
+- **Estadísticas mejoradas**
+  - Contador de caracteres en pregunta
+  - Badge dinámico mostrando puntos asignados
+  - Indicador visual de dificultad con escala 1-10
+  - Badges para opcionales vs requeridas
+
+- **Build exitoso**
+  - Compilación sin errores TypeScript
+  - 75 rutas generadas correctamente
+  - Tamaño del bundle para /admin/questions aumentó de 8.59kB a 10.1kB (aceptable)
+
+### Beneficios de la Implementación
+
+- ✅ **Previsualización en vivo**: Ve cómo se verá la pregunta mientras creas
+- ✅ **Better UX**: Interfaz más limpia y profesional
+- ✅ **Mejor validación visual**: Entiende mejor qué campos son opcionales
+- ✅ **Feedback instantáneo**: Responde a cambios sin guardar
+- ✅ **Diseño responsivo**: Funciona bien en desktop y mobile
+- ✅ **Accessibilidad mejorada**: Badges, tooltips y colores semánticos
+
+---
+
+### Agregado - Buscador en Selección de Cursos de Rutas de Aprendizaje (Octubre 27, 2025)
+
+- **Buscador en tiempo real** para filtrar cursos en diálogo de gestión
+  - Campo de búsqueda con icono de lupa (Search)
+  - Búsqueda por nombre de curso (case-insensitive)
+  - Búsqueda por código de curso (ej: CRS-001)
+  - Botón de limpiar búsqueda (X) cuando hay texto
+  - Mejora significativa de UX cuando hay muchos cursos disponibles
+
+- **Interfaz mejorada del buscador**
+  - Input con placeholder: "Buscar por nombre o código..."
+  - Icono de Search en lado izquierdo (gris)
+  - Botón X en lado derecho para limpiar (solo visible si hay texto)
+  - Styling consistente con el resto del diálogo
+  - Feedback visual en tiempo real
+
+- **Funcionalidad de filtrado**
+  - Variable de estado `searchQuery` para almacenar texto de búsqueda
+  - Función `filteredCourses` que filtra lista basada en búsqueda
+  - Busca en nombre y código del curso (case-insensitive)
+  - Mantiene compatibilidad con selección múltiple existente
+  - Mensajes distintos: "No hay cursos disponibles" vs "No se encontraron cursos"
+
+- **Build exitoso**
+  - Compilación sin errores TypeScript
+  - 75 rutas generadas correctamente
+  - Tamaño del bundle aumentó mínimamente (de 203kB a 203.1kB)
+
+### Beneficios de la Implementación
+
+- ✅ **Búsqueda eficiente**: Encuentra rápidamente cursos en lista grande
+- ✅ **Mejor UX**: No necesita scrollear si hay muchos cursos
+- ✅ **Case-insensitive**: Búsqueda flexible sin preocuparse por mayúsculas
+- ✅ **Feedback visual claro**: Icono de búsqueda + botón limpiar
+- ✅ **Mantiene funcionalidad**: Compatible con selección múltiple
+
+---
+
+### Agregado - Selección Múltiple de Cursos en Rutas de Aprendizaje (Octubre 27, 2025)
+
+- **Selección múltiple de cursos** en diálogo de gestión de rutas de aprendizaje
+  - Cambio de Select simple a interface de Checkboxes
+  - Permite seleccionar N cursos de una sola vez
+  - ScrollArea para lista larga de cursos disponibles
+  - Indicador visual de cantidad de cursos seleccionados
+  - Botón de "Agregar" dinámico que muestra cantidad a agregar
+
+- **Mejoras en UX del diálogo ManageCoursesDialog**
+  - Interfaz renovada con lista scrollable de cursos con checkboxes
+  - Cada curso muestra: nombre, código, duración en la lista
+  - Selección múltiple de cursos con un solo clic
+  - Aplicación de orden, prerequisitos y requerido a todos los cursos seleccionados
+  - Los órdenes se incrementan automáticamente para cada curso agregado
+  - Mejor visual con hover effects y espaciado mejorado
+
+- **Lógica de agregación mejorada**
+  - Función `addCourse` ahora procesa múltiples cursos en bucle
+  - Incremento automático de orden para cada curso agregado
+  - Mensaje de éxito indica cantidad de cursos agregados
+  - Campo "Cursos obligatorios" aplicable a todos los seleccionados
+  - Reset automático de selección después de agregar
+
+- **Componentes UI utilizados**
+  - `Checkbox` para selección múltiple
+  - `ScrollArea` para lista larga de cursos
+  - Estados visuales mejorados con badges y contadores
+
+- **Build exitoso**
+  - Compilación sin errores TypeScript
+  - 75 rutas generadas correctamente
+  - Warnings son solo referencias no utilizadas (sin impacto en funcionalidad)
+
+### Beneficios de la Implementación
+
+- ✅ **Eficiencia mejorada**: Agregar múltiples cursos de una sola vez
+- ✅ **Mejor UX**: Interfaz clara con checkboxes y lista scrollable
+- ✅ **Menos clics**: Selecciona N cursos sin diálogos repetitivos
+- ✅ **Configuración centralizada**: Aplica orden/prerequisitos a todos los cursos
+- ✅ **Visual feedback**: Indicador de cantidad de cursos seleccionados
+
+---
+
+- **Generación automática de códigos de curso** siguiendo patrón `CRS-XXX`
+  - Campo `code` ahora opcional en formularios de creación de cursos
+  - Lógica automática en API `/api/courses` que genera códigos secuenciales
+  - Patrón: `CRS-001`, `CRS-002`, `CRS-003`, etc. (incremental desde último curso)
+  - Si no existen cursos previos, comienza en `CRS-001`
+  - Eliminación del campo manual de código en UI para evitar errores de usuario
+
+- **Actualización del Schema de Prisma**
+  - Campo `code` en modelo `Course` ahora nullable (`String?`)
+  - Migración aplicada: `make_course_code_optional`
+  - Compatibilidad hacia atrás mantenida
+
+- **Actualización de interfaces TypeScript**
+  - `Course` interface actualizada a `code: string | null` en todos los archivos
+  - Archivos actualizados: `client-enrollments.tsx`, `client-certificates-view.tsx`
+  - Manejo seguro de valores null con operador `|| "Sin código"`
+
+- **Mejoras en UI de creación de cursos**
+  - Campo de código removido del formulario de creación/edición
+  - Descripción actualizada indicando generación automática
+  - Formulario más limpio y menos propenso a errores
+
+- **Actualización de APIs y servicios**
+  - `src/lib/notifications.ts`: Manejo de `courseCode` nullable
+  - `src/lib/reports.ts`: Fallback "Sin código" para reportes
+  - Todas las referencias a `course.code` protegidas contra null
+
+- **Validaciones actualizadas**
+  - Schema `CourseSchema` en `src/validations/courses.ts` con `code` opcional
+  - Compatibilidad mantenida con cursos existentes que tienen código
+
+- **Build exitoso y pruebas**
+  - Compilación sin errores TypeScript
+  - Todas las interfaces actualizadas correctamente
+  - Funcionalidad probada: creación de cursos genera códigos automáticamente
+  - Migración de BD aplicada exitosamente
+
+### Beneficios de la Implementación
+
+- ✅ **Eliminación de errores humanos**: No más códigos duplicados o mal formateados
+- ✅ **Consistencia automática**: Patrón uniforme `CRS-XXX` en todos los cursos
+- ✅ **UX mejorada**: Formulario más simple y rápido de completar
+- ✅ **Escalabilidad**: Sistema automático que crece con la cantidad de cursos
+- ✅ **Compatibilidad**: Cursos existentes mantienen sus códigos originales
+
+---
 
 - **Módulo K - Certificados - COMPLETADO**:
   - **K1. Emisión Automática de Certificados PDF**:

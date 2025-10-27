@@ -109,7 +109,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild tooltip="Mi Ruta de Aprendizaje">
-                    <Link href="/my-courses">
+                    <Link href="/my-learning-paths">
                       <Route className="h-4 w-4" />
                       <span>Mi Ruta</span>
                     </Link>
