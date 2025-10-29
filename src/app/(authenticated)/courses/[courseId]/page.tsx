@@ -2,6 +2,7 @@ import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { ClientCourseView } from "./client-course-view"
+import { checkCoursePrerequisites } from "@/lib/access"
 
 interface CoursePageProps {
   params: Promise<{
@@ -44,6 +45,15 @@ export default async function CoursePage({ params }: CoursePageProps) {
 
   if (!enrollment) {
     redirect("/my-courses")
+  }
+
+  // Enforcer de prerequisito si el curso pertenece a una ruta asignada
+  if (session.user.collaboratorId) {
+    const prereq = await checkCoursePrerequisites(session.user.collaboratorId, courseId)
+    if (!prereq.allowed) {
+      // Redirigir a rutas de aprendizaje si falta prerequisito
+      redirect("/my-learning-paths")
+    }
   }
 
   // Obtener progreso de lecciones

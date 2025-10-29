@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { QuizTaker } from "./quiz-taker";
+import { checkCoursePrerequisites } from "@/lib/access";
 
 type Params = Promise<{ courseId: string; quizId: string }>;
 
@@ -59,16 +60,36 @@ export default async function QuizPage({ params }: { params: Params }) {
     select: { collaboratorId: true },
   });
 
-  let attempts: any[] = [];
-  if (user?.collaboratorId) {
-    attempts = await prisma.quizAttempt.findMany({
-      where: {
-        quizId,
-        collaboratorId: user.collaboratorId,
-      },
-      orderBy: { attemptNumber: "desc" },
-    });
+  // Validar enrollment al curso y prerequisitos antes de permitir el quiz
+  if (!user?.collaboratorId) {
+    redirect("/login");
   }
+
+  // Asegurar que el quiz corresponda al courseId de la ruta
+  if (quiz.courseId && quiz.courseId !== courseId) {
+    redirect(`/courses/${quiz.courseId}`);
+  }
+
+  const enrollment = await prisma.enrollment.findFirst({
+    where: { collaboratorId: user.collaboratorId, courseId },
+  });
+  if (!enrollment) {
+    redirect("/my-courses");
+  }
+
+  const prereq = await checkCoursePrerequisites(user.collaboratorId, courseId);
+  if (!prereq.allowed) {
+    redirect("/my-learning-paths");
+  }
+
+  let attempts: any[] = [];
+  attempts = await prisma.quizAttempt.findMany({
+    where: {
+      quizId,
+      collaboratorId: user.collaboratorId,
+    },
+    orderBy: { attemptNumber: "desc" },
+  });
 
   return (
     <QuizTaker

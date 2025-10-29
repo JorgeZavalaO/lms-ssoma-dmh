@@ -46,6 +46,10 @@ LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacit
 - Cálculo de duración total del itinerario
 - Gestión visual de dependencias
 
+- Enforzamiento de prerrequisitos en servidor: si el curso pertenece a una ruta asignada y el prerrequisito no está cumplido, el acceso se bloquea y se redirige a `/my-learning-paths`.
+
+Nota técnica: la verificación de acceso está centralizada en `src/lib/access.ts` mediante `checkCoursePrerequisites(collaboratorId, courseId)` y se aplica en las páginas de curso, lección y cuestionario bajo `src/app/(authenticated)/courses/...`.
+
 ### 📖 Contenidos y Lecciones (Módulo D)
 - **Unidades Didácticas**: Organización de contenido en unidades
 - **Lecciones Multimedia**: 

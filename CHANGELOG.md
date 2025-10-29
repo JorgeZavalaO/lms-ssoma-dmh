@@ -7,6 +7,28 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [2.1.1] - 2025-10-29
+
+### Agregado - Enforzamiento de Prerrequisitos en Servidor (Octubre 29, 2025)
+
+- Nueva verificación centralizada de prerrequisitos para cursos pertenecientes a Rutas de Aprendizaje asignadas.
+- Comportamiento: si el curso está en una ruta asignada al colaborador y esa ruta define un prerrequisito no cumplido, se bloquea el acceso y se redirige a `/my-learning-paths` para brindar contexto.
+- Estrategia no intrusiva: se mantienen todas las inscripciones (no se eliminan ni se impide su creación); el bloqueo es únicamente de acceso.
+- Lógica consolidada para múltiples rutas: si el curso pertenece a varias rutas, se permite el acceso si al menos una ruta aplicable no exige prerrequisito o este ya está cumplido.
+
+Archivos relevantes:
+- `src/lib/access.ts`: helper `checkCoursePrerequisites(collaboratorId, courseId)` con verificación contra Enrollment y CourseProgress.
+- `src/app/(authenticated)/courses/[courseId]/page.tsx`: aplica guardián antes de renderizar.
+- `src/app/(authenticated)/courses/[courseId]/lessons/[lessonId]/page.tsx`: aplica guardián antes de renderizar la lección.
+- `src/app/(authenticated)/courses/[courseId]/quiz/[quizId]/page.tsx`: valida publicación, asociación y aplica guardián antes de permitir intentos.
+
+Beneficios:
+- ✅ Cumplimiento de itinerarios sin alterar el proceso de inscripción.
+- ✅ Experiencia guiada: redirección a la vista de rutas para entender el prerrequisito faltante.
+- ✅ Mantenibilidad: una sola fuente de verdad para la política de acceso a cursos.
+
+---
+
 ## [2.1.0] - 2025-10-27
 
 ### Agregado - Consolidación de Reportes y Optimización Arquitectónica (Octubre 27, 2025)
