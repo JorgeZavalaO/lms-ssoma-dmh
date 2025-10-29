@@ -105,14 +105,13 @@ export function ClientLessonView({
     // Enviar al API
     try {
       const response = await fetch(`/api/lessons/${lesson.id}/progress`, {
-        method: "POST",
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           viewPercentage: percentage,
-          currentTime,
-          duration,
+          // Campos extra no son requeridos por el esquema del servidor,
+          // pero no afectan si están presentes; enviamos solo lo necesario.
           completed,
-          timeDeltaSeconds,
         }),
       })
 

@@ -1,4 +1,3 @@
-// src/components/YouTubePlayer.tsx
 "use client"
 import React, { useEffect, useRef } from "react"
 
@@ -12,8 +11,14 @@ type Props = {
 export function YouTubePlayer({ videoUrl, onProgress, pollIntervalMs = 2000, completionThreshold = 80 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const playerRef = useRef<any>(null)
-  const lastSent = useRef<number>(0)
+  // Mantener referencias separadas para porcentaje enviado y timestamp del último envío
+  const lastPercentSentRef = useRef<number>(0)
+  const lastSentAtMsRef = useRef<number>(0)
   const lastReportedTime = useRef<number>(0)
+  // Guardar props variables en refs para evitar re-crear el player o efectos pesados
+  const onProgressRef = useRef(onProgress)
+  const completionThresholdRef = useRef(completionThreshold)
+  const pollIntervalMsRef = useRef(pollIntervalMs)
 
   // Extrae videoId de distintas urls
   const extractId = (url: string) => {
@@ -23,86 +28,107 @@ export function YouTubePlayer({ videoUrl, onProgress, pollIntervalMs = 2000, com
     return url.split("/").pop()
   }
 
+  // Mantener refs sincronizadas con props sin forzar re-creación del player
+  useEffect(() => { onProgressRef.current = onProgress }, [onProgress])
+  useEffect(() => { completionThresholdRef.current = completionThreshold }, [completionThreshold])
+  useEffect(() => { pollIntervalMsRef.current = pollIntervalMs }, [pollIntervalMs])
+
+  // Crear y (solo) volver a crear el player cuando cambie el videoUrl
   useEffect(() => {
     const id = extractId(videoUrl)
     if (!id) return
 
+    // Reset de estado de envío al cambiar de video
+    lastPercentSentRef.current = 0
+    lastSentAtMsRef.current = 0
+    lastReportedTime.current = 0
+
     // cargar script YT si no existe
-    if (typeof (window as any).YT === "undefined") {
-      const tag = document.createElement("script")
-      tag.src = "https://www.youtube.com/iframe_api"
-      document.body.appendChild(tag)
+    if (typeof (window as any).YT === "undefined" || !(window as any).YT.Player) {
+      const existingScript = document.querySelector('script[src="https://www.youtube.com/iframe_api"]') as HTMLScriptElement | null
+      if (!existingScript) {
+        const tag = document.createElement("script")
+        tag.src = "https://www.youtube.com/iframe_api"
+        document.body.appendChild(tag)
+      }
     }
 
     const onAPILoad = () => {
       if (!containerRef.current) return
-      playerRef.current = new (window as any).YT.Player(containerRef.current, {
-        height: "100%",
-        width: "100%",
-        videoId: id,
-        playerVars: {
-          enablejsapi: 1,
-          origin: window.location.origin,
-          rel: 0,
-        },
-        events: {
-          onStateChange: (e: any) => {
-            // Si empieza a reproducir arrancamos polling
-            // (no hacemos heavy work aquí)
+      try {
+        playerRef.current = new (window as any).YT.Player(containerRef.current, {
+          height: "100%",
+          width: "100%",
+          videoId: id,
+          playerVars: {
+            enablejsapi: 1,
+            origin: window.location.origin,
+            rel: 0,
           },
-        },
-      })
+          events: {
+            onStateChange: () => {
+             },
+          },
+        })
+      } catch {}
     }
 
-    // YouTube API define window.onYouTubeIframeAPIReady
     if ((window as any).YT && (window as any).YT.Player) {
       onAPILoad()
     } else {
-      ;(window as any).onYouTubeIframeAPIReady = onAPILoad
-    }
-
-    // polling para currentTime mientras reproduciendo
-    let pollHandle: number | undefined
-    const startPolling = () => {
-      if (pollHandle) return
-      pollHandle = window.setInterval(() => {
-        const p = playerRef.current
-        if (!p || typeof p.getPlayerState !== "function") return
-        const state = p.getPlayerState()
-        // 1 = playing
-        if (state === 1) {
-          const currentTime = Math.floor(p.getCurrentTime() || 0)
-          const duration = Math.floor(p.getDuration() || 0) || 1
-          const percent = Math.round((currentTime / duration) * 100)
-          const now = Date.now()
-          const timeDelta = currentTime - (lastReportedTime.current || 0)
-          // decide si enviar: umbral o tiempo
-          if (percent - (lastSent.current || 0) >= 5 || now - (lastSent.current || 0) > 10000) {
-            lastSent.current = percent
-            lastReportedTime.current = currentTime
-            onProgress({ percentage: percent, currentTime, duration, completed: percent >= completionThreshold, timeDeltaSeconds: Math.max(0, timeDelta) })
-          }
-        }
-      }, pollIntervalMs)
-    }
-
-    // Observamos play/pause para empezar/stop polling
-    const checkStateLoop = setInterval(() => {
-      const p = playerRef.current
-      if (!p || typeof p.getPlayerState !== "function") return
-      const st = p.getPlayerState()
-      if (st === 1) startPolling()
-      else if (st === 2 && pollHandle) { // paused
-        clearInterval(pollHandle); pollHandle = undefined
+      const prev = (window as any).onYouTubeIframeAPIReady
+      ;(window as any).onYouTubeIframeAPIReady = () => {
+        try { prev?.() } catch {}
+        onAPILoad()
       }
-    }, 1000)
+    }
 
     return () => {
-      if (pollHandle) clearInterval(pollHandle)
-      clearInterval(checkStateLoop)
       try { playerRef.current?.destroy() } catch {}
+      playerRef.current = null
     }
-  }, [videoUrl, onProgress, pollIntervalMs, completionThreshold])
+  }, [videoUrl])
+
+  // Polling liviano que no re-crea el player al cambiar onProgress o thresholds
+  useEffect(() => {
+    const loop = () => {
+      const p = playerRef.current
+      if (!p || typeof p.getPlayerState !== "function") return
+      const state = p.getPlayerState()
+      // Solo enviar mientras está reproduciendo (1 = playing)
+      if (state === 1) {
+        const currentTime = Math.floor(p.getCurrentTime() || 0)
+        const duration = Math.floor(p.getDuration() || 0) || 1
+        const percent = Math.round((currentTime / duration) * 100)
+        const now = Date.now()
+        const timeDelta = currentTime - (lastReportedTime.current || 0)
+
+        const shouldSendByStep = percent - (lastPercentSentRef.current || 0) >= 5
+        const shouldSendByTime = now - (lastSentAtMsRef.current || 0) > 10000
+        if (shouldSendByStep || shouldSendByTime) {
+          lastPercentSentRef.current = percent
+          lastSentAtMsRef.current = now
+          lastReportedTime.current = currentTime
+          const completed = percent >= (completionThresholdRef.current || 80)
+          try {
+            onProgressRef.current?.({
+              percentage: percent,
+              currentTime,
+              duration,
+              completed,
+              timeDeltaSeconds: Math.max(0, timeDelta),
+            })
+          } catch {}
+        }
+      }
+    }
+
+  const intervalId = window.setInterval(loop, Math.max(500, pollIntervalMsRef.current || 2000))
+
+    return () => {
+      clearInterval(intervalId)
+    }
+  }, [videoUrl])
 
   return <div ref={containerRef} id={`yt-player-${extractId(videoUrl)}`} style={{ width: "100%", height: "100%" }} />
 }
