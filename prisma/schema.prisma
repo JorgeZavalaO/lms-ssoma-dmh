@@ -260,6 +260,10 @@ model LearningPath {
   
   courses     LearningPathCourse[]
   
+  // E - Inscripciones y reglas
+  enrollmentRules EnrollmentRule[] @relation("EnrollmentRulesPath")
+  enrollments     Enrollment[]     @relation("EnrollmentsPath")
+  
   // H - Progreso
   progress    LearningPathProgress[]
   
@@ -509,30 +513,41 @@ model ActivityAttempt {
 // E - Módulo de Inscripciones y Accesos
 // E1 - Reglas de asignación automática por perfil
 model EnrollmentRule {
-  id          String    @id @default(cuid())
-  courseId    String
-  course      Course    @relation("EnrollmentRules", fields: [courseId], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  
+  // Puede asignar un curso O una ruta de aprendizaje (al menos uno debe estar definido)
+  courseId      String?
+  course        Course?   @relation("EnrollmentRules", fields: [courseId], references: [id], onDelete: Cascade)
+  
+  learningPathId String?
+  learningPath   LearningPath? @relation("EnrollmentRulesPath", fields: [learningPathId], references: [id], onDelete: Cascade)
   
   // Criterios de asignación (al menos uno debe estar definido)
-  siteId      String?   // Sede específica
-  areaId      String?   // Área específica
-  positionId  String?   // Puesto específico
+  siteId        String?   // Sede específica
+  areaId        String?   // Área específica
+  positionId    String?   // Puesto específico
   
   // Control
-  isActive    Boolean   @default(true)
-  createdBy   String    // ID del usuario que creó la regla
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  isActive      Boolean   @default(true)
+  createdBy     String    // ID del usuario que creó la regla
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   
-  @@unique([courseId, siteId, areaId, positionId])
+  @@unique([courseId, learningPathId, siteId, areaId, positionId])
   @@map("enrollment_rules")
 }
 
 // E2 - Inscripciones (automáticas y manuales)
 model Enrollment {
   id              String           @id @default(cuid())
-  courseId        String
-  course          Course           @relation("Enrollments", fields: [courseId], references: [id], onDelete: Cascade)
+  
+  // Puede inscribir a un curso O una ruta de aprendizaje (al menos uno debe estar definido)
+  courseId        String?
+  course          Course?          @relation("Enrollments", fields: [courseId], references: [id], onDelete: Cascade)
+  
+  learningPathId  String?
+  learningPath    LearningPath?    @relation("EnrollmentsPath", fields: [learningPathId], references: [id], onDelete: Cascade)
+  
   collaboratorId  String
   collaborator    Collaborator     @relation("Enrollments", fields: [collaboratorId], references: [id], onDelete: Cascade)
   
@@ -542,8 +557,8 @@ model Enrollment {
   
   // Fechas
   enrolledAt      DateTime         @default(now())
-  startedAt       DateTime?        // Cuando inició el curso
-  completedAt     DateTime?        // Cuando completó el curso
+  startedAt       DateTime?        // Cuando inició el curso/ruta
+  completedAt     DateTime?        // Cuando completó el curso/ruta
   expiresAt       DateTime?        // Fecha de expiración (si aplica)
   
   // Progreso
@@ -560,6 +575,7 @@ model Enrollment {
   updatedAt       DateTime         @updatedAt
   
   @@unique([courseId, collaboratorId])
+  @@unique([learningPathId, collaboratorId])
   @@map("enrollments")
 }
 

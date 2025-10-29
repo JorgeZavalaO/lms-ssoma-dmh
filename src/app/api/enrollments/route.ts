@@ -49,6 +49,18 @@ export async function GET(req: NextRequest) {
             validity: true,
           },
         },
+        learningPath: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            courses: {
+              select: {
+                courseId: true,
+              },
+            },
+          },
+        },
         collaborator: {
           select: {
             id: true,
@@ -84,22 +96,106 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const validated = ManualEnrollmentSchema.parse(body)
 
-    // Verificar que el curso existe
-    const course = await prisma.course.findUnique({
-      where: { id: validated.courseId },
-    })
-
-    if (!course) {
-      return NextResponse.json({ error: "Curso no encontrado" }, { status: 404 })
+    // Verificar que existe el curso o la ruta
+    if (validated.courseId) {
+      const course = await prisma.course.findUnique({
+        where: { id: validated.courseId },
+      })
+      if (!course) {
+        return NextResponse.json({ error: "Curso no encontrado" }, { status: 404 })
+      }
     }
 
-    // Crear inscripciones para cada colaborador
+    if (validated.learningPathId) {
+      const path = await prisma.learningPath.findUnique({
+        where: { id: validated.learningPathId },
+        include: {
+          courses: {
+            select: {
+              courseId: true,
+            },
+          },
+        },
+      })
+      if (!path) {
+        return NextResponse.json({ error: "Ruta no encontrada" }, { status: 404 })
+      }
+
+      // Si es ruta, crear inscripción a la ruta y a cada curso
+      const enrollments = await prisma.$transaction(
+        validated.collaboratorIds.flatMap((collaboratorId) => {
+          const ops = []
+          
+          // Inscripción a la ruta
+          ops.push(
+            prisma.enrollment.upsert({
+              where: {
+                learningPathId_collaboratorId: {
+                  learningPathId: validated.learningPathId!,
+                  collaboratorId,
+                },
+              },
+              update: {
+                status: "ACTIVE",
+                notes: validated.notes,
+              },
+              create: {
+                learningPathId: validated.learningPathId,
+                collaboratorId,
+                type: "MANUAL",
+                status: "ACTIVE",
+                enrolledBy: session.user.id,
+                notes: validated.notes,
+              },
+            })
+          )
+          
+          // Inscripción a cada curso en la ruta
+          for (const pc of path.courses) {
+            ops.push(
+              prisma.enrollment.upsert({
+                where: {
+                  courseId_collaboratorId: {
+                    courseId: pc.courseId,
+                    collaboratorId,
+                  },
+                },
+                update: {
+                  status: "ACTIVE",
+                  notes: validated.notes,
+                },
+                create: {
+                  courseId: pc.courseId,
+                  collaboratorId,
+                  type: "MANUAL",
+                  status: "ACTIVE",
+                  enrolledBy: session.user.id,
+                  notes: validated.notes,
+                },
+              })
+            )
+          }
+          
+          return ops
+        })
+      )
+
+      return NextResponse.json(
+        {
+          message: `${validated.collaboratorIds.length} colaboradores inscritos en la ruta exitosamente`,
+          enrollments,
+        },
+        { status: 201 }
+      )
+    }
+
+    // Si es curso individual
     const enrollments = await prisma.$transaction(
       validated.collaboratorIds.map((collaboratorId) =>
         prisma.enrollment.upsert({
           where: {
             courseId_collaboratorId: {
-              courseId: validated.courseId,
+              courseId: validated.courseId!,
               collaboratorId,
             },
           },

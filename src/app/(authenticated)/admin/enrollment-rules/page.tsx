@@ -10,7 +10,7 @@ export default async function EnrollmentRulesPage() {
     redirect("/login")
   }
 
-  const [rules, courses, sites, areas, positions] = await Promise.all([
+  const [rules, courses, learningPaths, sites, areas, positions] = await Promise.all([
     prisma.enrollmentRule.findMany({
       include: {
         course: {
@@ -18,6 +18,18 @@ export default async function EnrollmentRulesPage() {
             id: true,
             code: true,
             name: true,
+          },
+        },
+        learningPath: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            courses: {
+              select: {
+                courseId: true,
+              },
+            },
           },
         },
       },
@@ -29,6 +41,14 @@ export default async function EnrollmentRulesPage() {
         id: true,
         code: true,
         name: true,
+      },
+      orderBy: { name: "asc" },
+    }),
+    prisma.learningPath.findMany({
+      select: {
+        id: true,
+        name: true,
+        description: true,
       },
       orderBy: { name: "asc" },
     }),
@@ -58,6 +78,7 @@ export default async function EnrollmentRulesPage() {
       <ClientEnrollmentRules
         initialRules={rules}
         courses={courses}
+        learningPaths={learningPaths}
         sites={sites}
         areas={areas}
         positions={positions}

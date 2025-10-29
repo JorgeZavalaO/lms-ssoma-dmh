@@ -26,6 +26,18 @@ export async function GET(
             name: true,
           },
         },
+        learningPath: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            courses: {
+              select: {
+                courseId: true,
+              },
+            },
+          },
+        },
       },
     })
 

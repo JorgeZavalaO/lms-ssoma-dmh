@@ -16,7 +16,7 @@ export default async function EnrollmentsPage({ searchParams }: EnrollmentsPageP
 
   const { courseId } = await searchParams
 
-  const [enrollments, courses, collaborators, sites, areas, positions] = await Promise.all([
+  const [enrollments, courses, learningPaths, collaborators, sites, areas, positions] = await Promise.all([
     prisma.enrollment.findMany({
       where: courseId ? { courseId } : undefined,
       include: {
@@ -25,6 +25,18 @@ export default async function EnrollmentsPage({ searchParams }: EnrollmentsPageP
             id: true,
             code: true,
             name: true,
+          },
+        },
+        learningPath: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            courses: {
+              select: {
+                courseId: true,
+              },
+            },
           },
         },
         collaborator: {
@@ -47,6 +59,14 @@ export default async function EnrollmentsPage({ searchParams }: EnrollmentsPageP
         id: true,
         code: true,
         name: true,
+      },
+      orderBy: { name: "asc" },
+    }),
+    prisma.learningPath.findMany({
+      select: {
+        id: true,
+        name: true,
+        description: true,
       },
       orderBy: { name: "asc" },
     }),
@@ -98,6 +118,7 @@ export default async function EnrollmentsPage({ searchParams }: EnrollmentsPageP
       <ClientEnrollments
         initialEnrollments={enrollments}
         courses={courses}
+        learningPaths={learningPaths}
         collaborators={collaborators}
         sites={sites}
         areas={areas}

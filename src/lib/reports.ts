@@ -381,6 +381,9 @@ export async function getAreaReport(filters: {
 }): Promise<AreaReportRecord[]> {
   const enrollments = await prisma.enrollment.findMany({
     where: {
+      courseId: {
+        not: null,
+      },
       ...(filters.courseId && { courseId: filters.courseId }),
       collaborator: {
         status: "ACTIVE",
@@ -429,8 +432,8 @@ export async function getAreaReport(filters: {
         site: enrollment.collaborator.site?.name || null,
         area: enrollment.collaborator.area?.name || null,
         position: enrollment.collaborator.position?.name || null,
-        courseId: enrollment.course.id,
-        courseName: enrollment.course.name,
+        courseId: enrollment.course!.id,
+        courseName: enrollment.course!.name,
         status: progress?.status || "NOT_STARTED",
         progress: progress?.progressPercent || 0,
         startedAt: progress?.startedAt || null,

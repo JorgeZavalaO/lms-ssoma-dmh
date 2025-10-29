@@ -36,23 +36,38 @@ import { useForm } from "react-hook-form"
 
 interface EnrollmentRule {
   id: string
-  courseId: string
+  courseId: string | null
+  learningPathId: string | null
   siteId: string | null
   areaId: string | null
   positionId: string | null
   isActive: boolean
   createdAt: Date
-  course: {
+  course?: {
     id: string
     code: string | null
     name: string
-  }
+  } | null
+  learningPath?: {
+    id: string
+    name: string
+    description: string | null
+    courses: Array<{
+      courseId: string
+    }>
+  } | null
 }
 
 interface Course {
   id: string
   code: string | null
   name: string
+}
+
+interface LearningPath {
+  id: string
+  name: string
+  description: string | null
 }
 
 interface Site {
@@ -79,6 +94,7 @@ interface Position {
 interface ClientEnrollmentRulesProps {
   initialRules: EnrollmentRule[]
   courses: Course[]
+  learningPaths: LearningPath[]
   sites: Site[]
   areas: Area[]
   positions: Position[]
@@ -87,6 +103,7 @@ interface ClientEnrollmentRulesProps {
 export default function ClientEnrollmentRules({
   initialRules,
   courses,
+  learningPaths,
   sites,
   areas,
   positions,
@@ -117,6 +134,7 @@ export default function ClientEnrollmentRules({
         </div>
         <CreateRuleDialog
           courses={courses}
+          learningPaths={learningPaths}
           sites={sites}
           areas={areas}
           positions={positions}
@@ -142,6 +160,7 @@ export default function ClientEnrollmentRules({
               </p>
               <CreateRuleDialog
                 courses={courses}
+                learningPaths={learningPaths}
                 sites={sites}
                 areas={areas}
                 positions={positions}
@@ -162,8 +181,21 @@ export default function ClientEnrollmentRules({
                 {rules.map((rule) => (
                   <TableRow key={rule.id}>
                     <TableCell>
-                      <div className="font-medium">{rule.course.name}</div>
-                      <div className="text-sm text-muted-foreground">{rule.course.code || "Sin código"}</div>
+                      {rule.course ? (
+                        <>
+                          <div className="font-medium">{rule.course.name}</div>
+                          <div className="text-sm text-muted-foreground">{rule.course.code || "Sin código"}</div>
+                        </>
+                      ) : rule.learningPath ? (
+                        <>
+                          <div className="font-medium">{rule.learningPath.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Ruta: {rule.learningPath.courses.length} curso{rule.learningPath.courses.length !== 1 ? "s" : ""}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">No especificado</div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
@@ -209,19 +241,22 @@ export default function ClientEnrollmentRules({
 // Dialog para crear regla
 interface CreateRuleDialogProps {
   courses: Course[]
+  learningPaths: LearningPath[]
   sites: Site[]
   areas: Area[]
   positions: Position[]
   onCreated: () => void
 }
 
-function CreateRuleDialog({ courses, sites, areas, positions, onCreated }: CreateRuleDialogProps) {
+function CreateRuleDialog({ courses, learningPaths, sites, areas, positions, onCreated }: CreateRuleDialogProps) {
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
+  const [ruleType, setRuleType] = React.useState<"course" | "path">("course")
 
   const form = useForm({
     defaultValues: {
       courseId: "",
+      learningPathId: "",
       siteId: "",
       areaId: "",
       positionId: "",
@@ -232,7 +267,8 @@ function CreateRuleDialog({ courses, sites, areas, positions, onCreated }: Creat
     setLoading(true)
     try {
       const payload = {
-        courseId: data.courseId,
+        courseId: ruleType === "course" ? data.courseId : null,
+        learningPathId: ruleType === "path" ? data.learningPathId : null,
         siteId: data.siteId === "__all__" || data.siteId === "" ? null : data.siteId,
         areaId: data.areaId === "__all__" || data.areaId === "" ? null : data.areaId,
         positionId: data.positionId === "__all__" || data.positionId === "" ? null : data.positionId,
@@ -252,6 +288,7 @@ function CreateRuleDialog({ courses, sites, areas, positions, onCreated }: Creat
       toast.success("Regla creada y aplicada exitosamente")
       setOpen(false)
       form.reset()
+      setRuleType("course")
       onCreated()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Error desconocido")
@@ -277,23 +314,68 @@ function CreateRuleDialog({ courses, sites, areas, positions, onCreated }: Creat
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="courseId">Curso *</Label>
-            <Select
-              value={form.watch("courseId")}
-              onValueChange={(value) => form.setValue("courseId", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona un curso" />
-              </SelectTrigger>
-              <SelectContent>
-                {courses.map((course) => (
-                  <SelectItem key={course.id} value={course.id}>
-                    {course.code || "Sin código"} - {course.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Tipo de Asignación *</Label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  value="course"
+                  checked={ruleType === "course"}
+                  onChange={(e) => setRuleType(e.target.value as "course" | "path")}
+                />
+                <span>Curso Individual</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  value="path"
+                  checked={ruleType === "path"}
+                  onChange={(e) => setRuleType(e.target.value as "course" | "path")}
+                />
+                <span>Ruta de Aprendizaje</span>
+              </label>
+            </div>
           </div>
+
+          {ruleType === "course" ? (
+            <div className="space-y-2">
+              <Label htmlFor="courseId">Curso *</Label>
+              <Select
+                value={form.watch("courseId")}
+                onValueChange={(value) => form.setValue("courseId", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un curso" />
+                </SelectTrigger>
+                <SelectContent>
+                  {courses.map((course) => (
+                    <SelectItem key={course.id} value={course.id}>
+                      {course.code || "Sin código"} - {course.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="learningPathId">Ruta de Aprendizaje *</Label>
+              <Select
+                value={form.watch("learningPathId")}
+                onValueChange={(value) => form.setValue("learningPathId", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una ruta" />
+                </SelectTrigger>
+                <SelectContent>
+                  {learningPaths.map((path) => (
+                    <SelectItem key={path.id} value={path.id}>
+                      {path.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="siteId">Sede (opcional)</Label>
@@ -356,7 +438,10 @@ function CreateRuleDialog({ courses, sites, areas, positions, onCreated }: Creat
           </div>
 
           <DialogFooter>
-            <Button type="submit" disabled={loading || !form.watch("courseId")}>
+            <Button
+              type="submit"
+              disabled={loading || (!form.watch("courseId") && !form.watch("learningPathId"))}
+            >
               {loading ? "Creando..." : "Crear Regla"}
             </Button>
           </DialogFooter>

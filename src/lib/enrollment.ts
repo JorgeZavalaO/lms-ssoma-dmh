@@ -73,27 +73,60 @@ export async function applyAutoEnrollmentRules(collaboratorId: string) {
 
     // Crear inscripciones automáticas para cada regla
     const enrollments = await prisma.$transaction(
-      matchingRules.map((rule) =>
-        prisma.enrollment.upsert({
-          where: {
-            courseId_collaboratorId: {
-              courseId: rule.courseId,
-              collaboratorId: collaborator.id,
-            },
-          },
-          update: {
-            // Si ya existe, solo actualizamos si estaba cancelada
-            status: "ACTIVE",
-          },
-          create: {
-            courseId: rule.courseId,
-            collaboratorId: collaborator.id,
-            type: "AUTOMATIC",
-            status: "ACTIVE",
-            ruleId: rule.id,
-          },
-        })
-      )
+      matchingRules.flatMap((rule) => {
+        const ops = []
+        
+        // Si es curso, crear inscripción a curso
+        if (rule.courseId) {
+          ops.push(
+            prisma.enrollment.upsert({
+              where: {
+                courseId_collaboratorId: {
+                  courseId: rule.courseId,
+                  collaboratorId: collaborator.id,
+                },
+              },
+              update: {
+                // Si ya existe, solo actualizamos si estaba cancelada
+                status: "ACTIVE",
+              },
+              create: {
+                courseId: rule.courseId,
+                collaboratorId: collaborator.id,
+                type: "AUTOMATIC",
+                status: "ACTIVE",
+                ruleId: rule.id,
+              },
+            })
+          )
+        }
+
+        // Si es ruta, crear inscripción a ruta y a cada curso
+        if (rule.learningPathId) {
+          ops.push(
+            prisma.enrollment.upsert({
+              where: {
+                learningPathId_collaboratorId: {
+                  learningPathId: rule.learningPathId,
+                  collaboratorId: collaborator.id,
+                },
+              },
+              update: {
+                status: "ACTIVE",
+              },
+              create: {
+                learningPathId: rule.learningPathId,
+                collaboratorId: collaborator.id,
+                type: "AUTOMATIC",
+                status: "ACTIVE",
+                ruleId: rule.id,
+              },
+            })
+          )
+        }
+
+        return ops
+      })
     )
 
     return {
@@ -130,12 +163,15 @@ export async function removeInvalidAutoEnrollments(collaboratorId: string) {
       return { success: false, message: "Colaborador no encontrado" }
     }
 
-    // Obtener inscripciones automáticas del colaborador
+    // Obtener inscripciones automáticas del colaborador (solo las de curso)
     const autoEnrollments = await prisma.enrollment.findMany({
       where: {
         collaboratorId: collaborator.id,
         type: "AUTOMATIC",
         status: "ACTIVE",
+        courseId: {
+          not: null,
+        },
       },
       include: {
         course: {
@@ -150,7 +186,7 @@ export async function removeInvalidAutoEnrollments(collaboratorId: string) {
 
     // Filtrar inscripciones que ya no aplican
     const toCancel = autoEnrollments.filter((enrollment) => {
-      const rule = enrollment.course.enrollmentRules.find(
+      const rule = enrollment.course!.enrollmentRules.find(
         (r) =>
           (!r.siteId || r.siteId === collaborator.siteId) &&
           (!r.areaId || r.areaId === collaborator.areaId) &&

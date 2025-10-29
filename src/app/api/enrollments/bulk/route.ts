@@ -31,6 +31,112 @@ export async function POST(req: NextRequest) {
       where.positionId = { in: validated.filters.positionIds }
     }
 
+    // Verificar que existe el curso o la ruta
+    if (validated.courseId) {
+      const course = await prisma.course.findUnique({
+        where: { id: validated.courseId },
+      })
+      if (!course) {
+        return NextResponse.json({ error: "Curso no encontrado" }, { status: 404 })
+      }
+    }
+
+    if (validated.learningPathId) {
+      const path = await prisma.learningPath.findUnique({
+        where: { id: validated.learningPathId },
+        include: {
+          courses: {
+            select: {
+              courseId: true,
+            },
+          },
+        },
+      })
+      if (!path) {
+        return NextResponse.json({ error: "Ruta no encontrada" }, { status: 404 })
+      }
+
+      // Obtener colaboradores que cumplen los filtros
+      const collaborators = await prisma.collaborator.findMany({
+        where,
+        select: { id: true },
+      })
+
+      if (collaborators.length === 0) {
+        return NextResponse.json(
+          { error: "No se encontraron colaboradores con los filtros especificados" },
+          { status: 400 }
+        )
+      }
+
+      // Crear inscripciones masivas a la ruta y sus cursos
+      const enrollments = await prisma.$transaction(
+        collaborators.flatMap((collaborator) => {
+          const ops = []
+          
+          // Inscripción a la ruta
+          ops.push(
+            prisma.enrollment.upsert({
+              where: {
+                learningPathId_collaboratorId: {
+                  learningPathId: validated.learningPathId!,
+                  collaboratorId: collaborator.id,
+                },
+              },
+              update: {
+                status: "ACTIVE",
+                notes: validated.notes,
+              },
+              create: {
+                learningPathId: validated.learningPathId,
+                collaboratorId: collaborator.id,
+                type: "MANUAL",
+                status: "ACTIVE",
+                enrolledBy: session.user.id,
+                notes: validated.notes,
+              },
+            })
+          )
+          
+          // Inscripción a cada curso en la ruta
+          for (const pc of path.courses) {
+            ops.push(
+              prisma.enrollment.upsert({
+                where: {
+                  courseId_collaboratorId: {
+                    courseId: pc.courseId,
+                    collaboratorId: collaborator.id,
+                  },
+                },
+                update: {
+                  status: "ACTIVE",
+                  notes: validated.notes,
+                },
+                create: {
+                  courseId: pc.courseId,
+                  collaboratorId: collaborator.id,
+                  type: "MANUAL",
+                  status: "ACTIVE",
+                  enrolledBy: session.user.id,
+                  notes: validated.notes,
+                },
+              })
+            )
+          }
+          
+          return ops
+        })
+      )
+
+      return NextResponse.json(
+        {
+          message: `${collaborators.length} colaboradores inscritos en la ruta exitosamente`,
+          enrollments,
+        },
+        { status: 201 }
+      )
+    }
+
     // Obtener colaboradores que cumplen los filtros
     const collaborators = await prisma.collaborator.findMany({
       where,
@@ -50,7 +156,7 @@ export async function POST(req: NextRequest) {
         prisma.enrollment.upsert({
           where: {
             courseId_collaboratorId: {
-              courseId: validated.courseId,
+              courseId: validated.courseId!,
               collaboratorId: collaborator.id,
             },
           },

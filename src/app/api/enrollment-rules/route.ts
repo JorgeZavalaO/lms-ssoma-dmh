@@ -29,6 +29,18 @@ export async function GET(req: NextRequest) {
             name: true,
           },
         },
+        learningPath: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            courses: {
+              select: {
+                courseId: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     })
@@ -53,6 +65,31 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json()
     const validated = EnrollmentRuleSchema.parse(body)
+
+    // Verificar que exista el curso o la ruta
+    if (validated.courseId) {
+      const course = await prisma.course.findUnique({
+        where: { id: validated.courseId },
+      })
+      if (!course) {
+        return NextResponse.json(
+          { error: "El curso especificado no existe" },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (validated.learningPathId) {
+      const path = await prisma.learningPath.findUnique({
+        where: { id: validated.learningPathId },
+      })
+      if (!path) {
+        return NextResponse.json(
+          { error: "La ruta de aprendizaje especificada no existe" },
+          { status: 400 }
+        )
+      }
+    }
 
     // Verificar si ya existe una regla con los mismos criterios
     const existing = await prisma.enrollmentRule.findFirst({
@@ -98,6 +135,18 @@ export async function POST(req: NextRequest) {
 async function applyEnrollmentRule(ruleId: string) {
   const rule = await prisma.enrollmentRule.findUnique({
     where: { id: ruleId },
+    include: {
+      course: {
+        include: {
+          pathCourses: true,
+        },
+      },
+      learningPath: {
+        include: {
+          courses: true,
+        },
+      },
+    },
   })
 
   if (!rule || !rule.isActive) return
@@ -117,27 +166,76 @@ async function applyEnrollmentRule(ruleId: string) {
     select: { id: true },
   })
 
-  // Crear inscripciones automáticas
-  const enrollments = await prisma.$transaction(
-    collaborators.map((collaborator) =>
-      prisma.enrollment.upsert({
-        where: {
-          courseId_collaboratorId: {
+  // Si es una ruta, crear inscripciones para la ruta y para cada curso dentro
+  if (rule.learningPath && rule.learningPathId) {
+    // Crear inscripción a la ruta
+    await prisma.$transaction(
+      collaborators.map((collaborator) =>
+        prisma.enrollment.upsert({
+          where: {
+            learningPathId_collaboratorId: {
+              learningPathId: rule.learningPathId!,
+              collaboratorId: collaborator.id,
+            },
+          },
+          update: {},
+          create: {
+            learningPathId: rule.learningPathId,
+            collaboratorId: collaborator.id,
+            type: "AUTOMATIC",
+            status: "ACTIVE",
+            ruleId: rule.id,
+          },
+        })
+      )
+    )
+
+    // Crear inscripciones para cada curso en la ruta
+    const courseIds = rule.learningPath.courses.map((pc) => pc.courseId)
+    
+    for (const courseId of courseIds) {
+      await prisma.$transaction(
+        collaborators.map((collaborator) =>
+          prisma.enrollment.upsert({
+            where: {
+              courseId_collaboratorId: {
+                courseId,
+                collaboratorId: collaborator.id,
+              },
+            },
+            update: {},
+            create: {
+              courseId,
+              collaboratorId: collaborator.id,
+              type: "AUTOMATIC",
+              status: "ACTIVE",
+              ruleId: rule.id,
+            },
+          })
+        )
+      )
+    }
+  } else if (rule.course && rule.courseId) {
+    // Crear inscripción simple al curso
+    await prisma.$transaction(
+      collaborators.map((collaborator) =>
+        prisma.enrollment.upsert({
+          where: {
+            courseId_collaboratorId: {
+              courseId: rule.courseId!,
+              collaboratorId: collaborator.id,
+            },
+          },
+          update: {},
+          create: {
             courseId: rule.courseId,
             collaboratorId: collaborator.id,
+            type: "AUTOMATIC",
+            status: "ACTIVE",
+            ruleId: rule.id,
           },
-        },
-        update: {},
-        create: {
-          courseId: rule.courseId,
-          collaboratorId: collaborator.id,
-          type: "AUTOMATIC",
-          status: "ACTIVE",
-          ruleId: rule.id,
-        },
-      })
+        })
+      )
     )
-  )
-
-  return enrollments
+  }
 }

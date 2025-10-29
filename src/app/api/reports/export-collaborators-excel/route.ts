@@ -47,6 +47,11 @@ export async function GET(request: NextRequest) {
         area: true,
         site: true,
         enrollments: {
+          where: {
+            courseId: {
+              not: null,
+            },
+          },
           include: {
             course: true,
             courseProgress: true,
@@ -107,7 +112,7 @@ export async function GET(request: NextRequest) {
               : null
 
             return {
-              courseName: enrollment.course.name,
+              courseName: enrollment.course!.name,
               enrollmentStatus: enrollment.status,
               enrollmentDate: enrollment.enrolledAt
                 .toISOString()

@@ -28,6 +28,18 @@ export async function GET(
             validity: true,
           },
         },
+        learningPath: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            courses: {
+              select: {
+                courseId: true,
+              },
+            },
+          },
+        },
         collaborator: {
           select: {
             id: true,

@@ -17,6 +17,9 @@ export default async function EvaluationsPage() {
       status: {
         in: ["ACTIVE", "COMPLETED"],
       },
+      courseId: {
+        not: null,
+      },
     },
     include: {
       course: {
@@ -36,10 +39,10 @@ export default async function EvaluationsPage() {
 
   // Obtener todos los quizzes disponibles
   const availableQuizzes = enrollments.flatMap((enrollment) =>
-    enrollment.course.quizzes.map((quiz) => ({
+    enrollment.course!.quizzes.map((quiz) => ({
       ...quiz,
-      courseId: enrollment.course.id,
-      courseName: enrollment.course.name,
+      courseId: enrollment.course!.id,
+      courseName: enrollment.course!.name,
       enrollmentId: enrollment.id,
     }))
   )

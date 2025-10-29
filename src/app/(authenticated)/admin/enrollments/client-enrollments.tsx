@@ -37,17 +37,26 @@ import { useForm } from "react-hook-form"
 
 interface Enrollment {
   id: string
-  courseId: string
+  courseId: string | null
+  learningPathId: string | null
   collaboratorId: string
   type: string
   status: string
   enrolledAt: Date
   progressPercent: number
-  course: {
+  course?: {
     id: string
     code: string | null
     name: string
-  }
+  } | null
+  learningPath?: {
+    id: string
+    name: string
+    description: string | null
+    courses: Array<{
+      courseId: string
+    }>
+  } | null
   collaborator: {
     id: string
     dni: string
@@ -63,6 +72,12 @@ interface Course {
   id: string
   code: string | null
   name: string
+}
+
+interface LearningPath {
+  id: string
+  name: string
+  description: string | null
 }
 
 interface Collaborator {
@@ -93,6 +108,7 @@ interface Position {
 interface ClientEnrollmentsProps {
   initialEnrollments: Enrollment[]
   courses: Course[]
+  learningPaths: LearningPath[]
   collaborators: Collaborator[]
   sites: Site[]
   areas: Area[]
@@ -102,6 +118,7 @@ interface ClientEnrollmentsProps {
 export default function ClientEnrollments({
   initialEnrollments,
   courses,
+  learningPaths,
   collaborators,
   sites,
   areas,
@@ -142,11 +159,13 @@ export default function ClientEnrollments({
         <div className="flex gap-2">
           <EnrollIndividualDialog
             courses={courses}
+            learningPaths={learningPaths}
             collaborators={collaborators}
             onCreated={refreshEnrollments}
           />
           <EnrollBulkDialog
             courses={courses}
+            learningPaths={learningPaths}
             sites={sites}
             areas={areas}
             positions={positions}
@@ -199,11 +218,13 @@ export default function ClientEnrollments({
               <div className="flex gap-2 justify-center">
                 <EnrollIndividualDialog
                   courses={courses}
+                  learningPaths={learningPaths}
                   collaborators={collaborators}
                   onCreated={refreshEnrollments}
                 />
                 <EnrollBulkDialog
                   courses={courses}
+                  learningPaths={learningPaths}
                   sites={sites}
                   areas={areas}
                   positions={positions}
@@ -233,10 +254,23 @@ export default function ClientEnrollments({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">{enrollment.course.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {enrollment.course.code || "Sin código"}
-                      </div>
+                      {enrollment.course ? (
+                        <>
+                          <div className="font-medium">{enrollment.course.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {enrollment.course.code || "Sin código"}
+                          </div>
+                        </>
+                      ) : enrollment.learningPath ? (
+                        <>
+                          <div className="font-medium">{enrollment.learningPath.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Ruta: {enrollment.learningPath.courses.length} curso{enrollment.learningPath.courses.length !== 1 ? "s" : ""}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">No especificado</div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant={enrollment.type === "MANUAL" ? "default" : "secondary"}>
@@ -285,22 +319,26 @@ export default function ClientEnrollments({
 // Dialog para inscripción individual
 interface EnrollIndividualDialogProps {
   courses: Course[]
+  learningPaths: LearningPath[]
   collaborators: Collaborator[]
   onCreated: () => void
 }
 
 function EnrollIndividualDialog({
   courses,
+  learningPaths,
   collaborators,
   onCreated,
 }: EnrollIndividualDialogProps) {
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
   const [selectedCollaborators, setSelectedCollaborators] = React.useState<string[]>([])
+  const [enrollmentType, setEnrollmentType] = React.useState<"course" | "path">("course")
 
   const form = useForm({
     defaultValues: {
       courseId: "",
+      learningPathId: "",
       notes: "",
     },
   })
@@ -317,7 +355,8 @@ function EnrollIndividualDialog({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          courseId: data.courseId,
+          courseId: enrollmentType === "course" ? data.courseId : null,
+          learningPathId: enrollmentType === "path" ? data.learningPathId : null,
           collaboratorIds: selectedCollaborators,
           notes: data.notes || null,
         }),
@@ -333,6 +372,7 @@ function EnrollIndividualDialog({
       setOpen(false)
       form.reset()
       setSelectedCollaborators([])
+      setEnrollmentType("course")
       onCreated()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Error desconocido")
@@ -358,23 +398,68 @@ function EnrollIndividualDialog({
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="courseId">Curso *</Label>
-            <Select
-              value={form.watch("courseId")}
-              onValueChange={(value) => form.setValue("courseId", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona un curso" />
-              </SelectTrigger>
-              <SelectContent>
-                {courses.map((course) => (
-                  <SelectItem key={course.id} value={course.id}>
-                    {course.code || "Sin código"} - {course.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Tipo de Asignación *</Label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  value="course"
+                  checked={enrollmentType === "course"}
+                  onChange={(e) => setEnrollmentType(e.target.value as "course" | "path")}
+                />
+                <span>Curso Individual</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  value="path"
+                  checked={enrollmentType === "path"}
+                  onChange={(e) => setEnrollmentType(e.target.value as "course" | "path")}
+                />
+                <span>Ruta de Aprendizaje</span>
+              </label>
+            </div>
           </div>
+
+          {enrollmentType === "course" ? (
+            <div className="space-y-2">
+              <Label htmlFor="courseId">Curso *</Label>
+              <Select
+                value={form.watch("courseId")}
+                onValueChange={(value) => form.setValue("courseId", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un curso" />
+                </SelectTrigger>
+                <SelectContent>
+                  {courses.map((course) => (
+                    <SelectItem key={course.id} value={course.id}>
+                      {course.code || "Sin código"} - {course.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="learningPathId">Ruta de Aprendizaje *</Label>
+              <Select
+                value={form.watch("learningPathId")}
+                onValueChange={(value) => form.setValue("learningPathId", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una ruta" />
+                </SelectTrigger>
+                <SelectContent>
+                  {learningPaths.map((path) => (
+                    <SelectItem key={path.id} value={path.id}>
+                      {path.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>Colaboradores *</Label>
@@ -419,7 +504,7 @@ function EnrollIndividualDialog({
           <DialogFooter>
             <Button
               type="submit"
-              disabled={loading || !form.watch("courseId") || selectedCollaborators.length === 0}
+              disabled={loading || (!form.watch("courseId") && !form.watch("learningPathId")) || selectedCollaborators.length === 0}
             >
               {loading ? "Inscribiendo..." : `Inscribir ${selectedCollaborators.length} colaborador${selectedCollaborators.length !== 1 ? "es" : ""}`}
             </Button>
@@ -433,6 +518,7 @@ function EnrollIndividualDialog({
 // Dialog para inscripción masiva por filtros
 interface EnrollBulkDialogProps {
   courses: Course[]
+  learningPaths: LearningPath[]
   sites: Site[]
   areas: Area[]
   positions: Position[]
@@ -441,6 +527,7 @@ interface EnrollBulkDialogProps {
 
 function EnrollBulkDialog({
   courses,
+  learningPaths,
   sites,
   areas,
   positions,
@@ -451,17 +538,19 @@ function EnrollBulkDialog({
   const [selectedSites, setSelectedSites] = React.useState<string[]>([])
   const [selectedAreas, setSelectedAreas] = React.useState<string[]>([])
   const [selectedPositions, setSelectedPositions] = React.useState<string[]>([])
+  const [enrollmentType, setEnrollmentType] = React.useState<"course" | "path">("course")
 
   const form = useForm({
     defaultValues: {
       courseId: "",
+      learningPathId: "",
       notes: "",
     },
   })
 
   const onSubmit = async (data: Record<string, unknown>) => {
-    if (!data.courseId) {
-      toast.error("Debes seleccionar un curso")
+    if (!data.courseId && !data.learningPathId) {
+      toast.error("Debes seleccionar un curso o una ruta")
       return
     }
 
@@ -476,7 +565,8 @@ function EnrollBulkDialog({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          courseId: data.courseId,
+          courseId: enrollmentType === "course" ? data.courseId : null,
+          learningPathId: enrollmentType === "path" ? data.learningPathId : null,
           filters: {
             siteIds: selectedSites.length > 0 ? selectedSites : undefined,
             areaIds: selectedAreas.length > 0 ? selectedAreas : undefined,
@@ -498,6 +588,7 @@ function EnrollBulkDialog({
       setSelectedSites([])
       setSelectedAreas([])
       setSelectedPositions([])
+      setEnrollmentType("course")
       onCreated()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Error desconocido")
@@ -523,23 +614,68 @@ function EnrollBulkDialog({
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="courseId">Curso *</Label>
-            <Select
-              value={form.watch("courseId")}
-              onValueChange={(value) => form.setValue("courseId", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona un curso" />
-              </SelectTrigger>
-              <SelectContent>
-                {courses.map((course) => (
-                  <SelectItem key={course.id} value={course.id}>
-                    {course.code || "Sin código"} - {course.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Tipo de Asignación *</Label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  value="course"
+                  checked={enrollmentType === "course"}
+                  onChange={(e) => setEnrollmentType(e.target.value as "course" | "path")}
+                />
+                <span>Curso Individual</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  value="path"
+                  checked={enrollmentType === "path"}
+                  onChange={(e) => setEnrollmentType(e.target.value as "course" | "path")}
+                />
+                <span>Ruta de Aprendizaje</span>
+              </label>
+            </div>
           </div>
+
+          {enrollmentType === "course" ? (
+            <div className="space-y-2">
+              <Label htmlFor="courseId">Curso *</Label>
+              <Select
+                value={form.watch("courseId")}
+                onValueChange={(value) => form.setValue("courseId", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un curso" />
+                </SelectTrigger>
+                <SelectContent>
+                  {courses.map((course) => (
+                    <SelectItem key={course.id} value={course.id}>
+                      {course.code || "Sin código"} - {course.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="learningPathId">Ruta de Aprendizaje *</Label>
+              <Select
+                value={form.watch("learningPathId")}
+                onValueChange={(value) => form.setValue("learningPathId", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una ruta" />
+                </SelectTrigger>
+                <SelectContent>
+                  {learningPaths.map((path) => (
+                    <SelectItem key={path.id} value={path.id}>
+                      {path.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-3 border rounded-md p-4 bg-muted/50">
             <div className="text-sm font-medium">Filtros de Colaboradores *</div>

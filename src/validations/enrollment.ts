@@ -2,13 +2,20 @@ import { z } from "zod"
 
 // E1 - Reglas de asignación automática
 export const EnrollmentRuleSchema = z.object({
-  courseId: z.string().min(1, "El curso es requerido"),
+  courseId: z.string().optional().nullable(),
+  learningPathId: z.string().optional().nullable(),
   siteId: z.string().optional().nullable(),
   areaId: z.string().optional().nullable(),
   positionId: z.string().optional().nullable(),
   isActive: z.boolean().default(true),
   createdBy: z.string().optional(), // Se asigna en el servidor
 }).refine(
+  (data) => data.courseId || data.learningPathId,
+  {
+    message: "Debe especificar un curso O una ruta de aprendizaje",
+    path: ["courseId"],
+  }
+).refine(
   (data) => data.siteId || data.areaId || data.positionId,
   {
     message: "Debe especificar al menos un criterio: sede, área o puesto",
@@ -25,7 +32,8 @@ export const UpdateEnrollmentRuleSchema = z.object({
 
 // E2 - Inscripciones (manuales y automáticas)
 export const EnrollmentSchema = z.object({
-  courseId: z.string().min(1, "El curso es requerido"),
+  courseId: z.string().optional().nullable(),
+  learningPathId: z.string().optional().nullable(),
   collaboratorId: z.string().min(1, "El colaborador es requerido"),
   type: z.enum(["AUTOMATIC", "MANUAL"]),
   status: z.enum(["PENDING", "ACTIVE", "COMPLETED", "CANCELLED"]).default("PENDING"),
@@ -36,17 +44,31 @@ export const EnrollmentSchema = z.object({
   enrolledBy: z.string().optional().nullable(), // Requerido para MANUAL
   ruleId: z.string().optional().nullable(), // Requerido para AUTOMATIC
   notes: z.string().optional().nullable(),
-})
+}).refine(
+  (data) => data.courseId || data.learningPathId,
+  {
+    message: "Debe especificar un curso O una ruta de aprendizaje",
+    path: ["courseId"],
+  }
+)
 
 export const ManualEnrollmentSchema = z.object({
-  courseId: z.string().min(1, "El curso es requerido"),
+  courseId: z.string().optional().nullable(),
+  learningPathId: z.string().optional().nullable(),
   collaboratorIds: z.array(z.string()).min(1, "Debe seleccionar al menos un colaborador"),
   notes: z.string().optional().nullable(),
   enrolledBy: z.string().optional(), // Se asigna en el servidor
-})
+}).refine(
+  (data) => data.courseId || data.learningPathId,
+  {
+    message: "Debe especificar un curso O una ruta de aprendizaje",
+    path: ["courseId"],
+  }
+)
 
 export const BulkEnrollmentSchema = z.object({
-  courseId: z.string().min(1, "El curso es requerido"),
+  courseId: z.string().optional().nullable(),
+  learningPathId: z.string().optional().nullable(),
   filters: z.object({
     siteIds: z.array(z.string()).optional(),
     areaIds: z.array(z.string()).optional(),
@@ -54,7 +76,13 @@ export const BulkEnrollmentSchema = z.object({
   }),
   notes: z.string().optional().nullable(),
   enrolledBy: z.string().optional(), // Se asigna en el servidor
-})
+}).refine(
+  (data) => data.courseId || data.learningPathId,
+  {
+    message: "Debe especificar un curso O una ruta de aprendizaje",
+    path: ["courseId"],
+  }
+)
 
 export const UpdateEnrollmentSchema = z.object({
   status: z.enum(["PENDING", "ACTIVE", "COMPLETED", "CANCELLED"]).optional(),
