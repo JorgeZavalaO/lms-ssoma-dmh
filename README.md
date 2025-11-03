@@ -15,6 +15,19 @@ LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacit
 
 ## 🆕 Últimas Actualizaciones
 
+### v2.1.5 - Reestructuración Administrativa y Mejoras UX (3 Nov 2025)
+- ✅ **Reestructuración de /admin**: Eliminada página visible `/admin`, ahora es carpeta organizacional para paneles administrativos
+- ✅ **Breadcrumbs inteligentes**: "Inicio" redirige a dashboard, omite segmento `/admin` en navegación
+- ✅ **Redirecciones autenticadas**: Usuarios logueados redirigidos automáticamente desde páginas públicas
+- ✅ **Ordenamiento automático**: Unidades y lecciones con orden secuencial automático al crear
+- ✅ **Drag-and-drop completo**: Reordenamiento visual de unidades y lecciones con @dnd-kit
+- ✅ **Corrección de errores**: Hidratación SSR, reordenamiento API, y validaciones de estado
+- ✅ **Reportes Excel mejorados**: Notas de exámenes en puntos en lugar de porcentaje
+- ✅ **Sistema de asistencia**: Tracking automático de asistencia al completar cursos 100%
+- ✅ **Horas estandarizadas**: Ajuste automático de tiempo a duración oficial del curso
+
+**Beneficio clave**: Arquitectura más limpia con /admin como carpeta organizacional, mejor UX con drag-and-drop, y reportes precisos con horas oficiales.
+
 ### v2.1.4 - Sistema de Asistencia y Horas (31 Oct 2025)
 - ✅ **Tracking automático de asistencia**: Marca asistencia cuando los colaboradores completan 100% de un curso
 - ⏱️ **Ajuste de horas estandarizado**: Al completar, reemplaza tiempo acumulado con duración oficial del curso
@@ -924,6 +937,7 @@ Propietario - DMH © 2025. Todos los derechos reservados.
 Para ver el historial completo de cambios, consulta [CHANGELOG.md](./CHANGELOG.md).
 
 ### Versiones Recientes
+- **v2.1.5** (3 Nov 2025) - Reestructuración administrativa y mejoras UX
 - **v2.1.4** (31 Oct 2025) - Sistema de asistencia y horas estandarizadas
 - **v2.1.3** (31 Oct 2025) - Mejoras UX/UI en cuestionarios y corrección de bucles React
 - **v2.1.2** (29 Oct 2025) - Anti-salto en progreso y completado manual para no-video

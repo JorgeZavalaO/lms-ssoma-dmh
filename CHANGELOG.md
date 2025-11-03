@@ -7,6 +7,94 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [2.1.5] - 2025-11-03
+
+### Agregado - Reestructuración Administrativa y Mejoras UX
+
+- **Reestructuración de /admin como Carpeta Organizacional**:
+  - Eliminada página visible `/admin/page.tsx` para evitar ruta accesible
+  - `/admin` ahora funciona como carpeta organizacional para paneles administrativos
+  - Todas las referencias actualizadas: footer y breadcrumbs apuntan a `/admin/dashboard`
+  - Middleware ya protegía rutas `/admin/*`, ahora sin página raíz visible
+  - Arquitectura más limpia: `/admin/dashboard`, `/admin/courses`, `/admin/collaborators`, etc.
+
+- **Breadcrumbs Inteligentes con Redirecciones**:
+  - "Inicio" en breadcrumbs ahora redirige a `/dashboard` en lugar de `/`
+  - Segmento `/admin` omitido en breadcrumbs para navegación más limpia
+  - Lógica condicional: `if (currentPath === "/admin") return` para saltar segmento
+  - Mapeo de rutas actualizado con `/admin/dashboard` incluido
+
+- **Redirecciones Automáticas para Usuarios Autenticados**:
+  - Página raíz `/` redirige a `/dashboard` si usuario está autenticado
+  - `/login` y `/register` redirigen a `/dashboard` si usuario ya tiene sesión
+  - Hook `useSession` + `useEffect` para detección automática
+  - Mejor UX: evita páginas innecesarias para usuarios logueados
+
+- **Ordenamiento Automático de Unidades y Lecciones**:
+  - Campo `order` calculado automáticamente: `max(order) + 1` al crear
+  - Eliminados campos manuales de orden en formularios de creación
+  - API endpoints actualizados: `/api/units` y `/api/lessons` con cálculo automático
+  - Backend calcula orden secuencial sin intervención del usuario
+
+- **Sistema Completo de Drag-and-Drop con @dnd-kit**:
+  - **Unidades**: Reordenamiento visual con `SortableUnit` y `DndContext`
+  - **Lecciones**: Reordenamiento visual con `SortableLesson` y `DndContext` separado
+  - **API de Reordenamiento**: Endpoints `/api/units/reorder` y `/api/lessons/reorder`
+  - **Estrategia 2-step**: Incrementa órdenes +1000, luego asigna valores finales 1..n
+  - **Validaciones**: Solo unidades del mismo curso, solo lecciones de la misma unidad
+  - **SSR Seguro**: Flag `mounted` para renderizar DnD solo en cliente, fallback en servidor
+  - **UI Mejorada**: Handles con `GripVertical`, feedback visual de arrastre, opacidad 0.5
+
+- **Corrección de Errores Críticos**:
+  - **Hidratación SSR**: Error `aria-describedby` resuelto con renderizado condicional
+  - **Reordenamiento API**: Errores de unique constraint solucionados con transacción 2-step
+  - **Button-in-Button**: Cambiados handles de `<button>` a `<div>` para HTML válido
+  - **Validaciones de Estado**: Verificación de prerrequisitos en rutas de aprendizaje
+
+- **Reportes Excel con Notas en Puntos**:
+  - Columna "Nota (puntos)" en lugar de porcentaje en reportes Excel
+  - Campo `pointsEarned` utilizado en lugar de `score` calculado
+  - Endpoint `/api/reports/export-collaborators-excel` actualizado
+  - Sin símbolo % en reportes, valores numéricos directos
+
+### Técnico
+
+- **Archivos modificados principales**:
+  - `src/app/(authenticated)/admin/page.tsx`: Eliminado (no existe)
+  - `src/components/app-header.tsx`: Breadcrumbs inteligentes con omisión de /admin
+  - `src/components/app-footer.tsx`: Enlace actualizado a /admin/dashboard
+  - `src/app/page.tsx`: Redirección autenticados a /dashboard
+  - `src/app/(public)/login/page.tsx`: Redirección autenticados a /dashboard
+  - `src/app/(public)/register/page.tsx`: Redirección autenticados a /dashboard
+  - `src/app/api/units/route.ts`: Orden automático al crear unidades
+  - `src/app/api/lessons/route.ts`: Orden automático al crear lecciones
+  - `src/app/api/units/reorder/route.ts`: API DnD con estrategia 2-step
+  - `src/app/api/lessons/reorder/route.ts`: API DnD con estrategia 2-step
+  - `src/app/(authenticated)/admin/courses/[id]/content/client-content.tsx`: UI DnD completa
+  - `src/app/api/reports/export-collaborators-excel/route.ts`: Notas en puntos
+
+- **Dependencias agregadas**:
+  - `@dnd-kit/core@6.3.1`
+  - `@dnd-kit/sortable@10.0.0`
+  - `@dnd-kit/utilities@3.2.2`
+
+- **Build exitoso**:
+  - Compilación: ✓ Exitosa sin errores críticos
+  - Rutas generadas: 78 páginas (sin /admin visible)
+  - ESLint: Solo warnings pre-existentes (no nuevos errores)
+  - Middleware: Protección /admin/* intacta
+
+### Beneficios de la Implementación
+
+- ✅ **Arquitectura más limpia**: /admin como carpeta organizacional, no página visible
+- ✅ **UX mejorada**: Drag-and-drop intuitivo, redirecciones automáticas, breadcrumbs inteligentes
+- ✅ **Robustez**: Corrección de errores críticos de hidratación y reordenamiento
+- ✅ **Automatización**: Ordenamiento automático, asistencia tracking, horas estandarizadas
+- ✅ **Precisión**: Reportes con notas en puntos, horas oficiales
+- ✅ **Escalabilidad**: Sistema extensible para más funcionalidades DnD
+
+---
+
 ## [2.1.4] - 2025-10-31
 
 ### Agregado - Sistema de Asistencia y Horas de Participación
