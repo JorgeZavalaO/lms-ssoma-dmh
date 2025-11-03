@@ -101,7 +101,7 @@ export function AppHeader() {
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href="/" className="flex items-center gap-2">
+            <BreadcrumbLink href="/dashboard" className="flex items-center gap-2">
               <LayoutDashboard className="h-4 w-4" />
               <span>Inicio</span>
             </BreadcrumbLink>

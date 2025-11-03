@@ -1,5 +1,8 @@
 "use client"
 
+import { useEffect } from "react"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import {
@@ -14,6 +17,31 @@ import {
 } from "lucide-react"
 
 export default function LandingPage() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+
+  // Redirigir al dashboard si ya está autenticado
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.push("/dashboard")
+    }
+  }, [status, router])
+
+  // Mostrar loading mientras verifica la sesión
+  if (status === "loading") {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Cargando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (status === "authenticated") {
+    return null // Ya está redirigiendo
+  }
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-b from-background via-background to-muted/50">
       {/* Header */}
