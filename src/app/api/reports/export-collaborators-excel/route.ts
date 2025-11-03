@@ -22,9 +22,13 @@ interface CollaboratorProgressData {
     enrollmentStatus: string
     enrollmentDate: string
     progressPercent: number
+    score: number | null
     completedAt: string | null
     expiresAt: string | null
     daysUntilExpiration: number | null
+    attended: boolean
+    hoursSpent: number
+    courseDuration: number | null
   }>
 }
 
@@ -53,7 +57,13 @@ export async function GET(request: NextRequest) {
             },
           },
           include: {
-            course: true,
+            course: {
+              select: {
+                id: true,
+                name: true,
+                duration: true, // Duración configurada en horas
+              },
+            },
             courseProgress: true,
           },
         },
@@ -63,9 +73,9 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Preparar datos para exportar
-    const reportData: CollaboratorProgressData[] = collaborators.map(
-      (collab) => {
+    // Preparar datos para exportar (incluye notas de exámenes por curso)
+    const reportData: CollaboratorProgressData[] = await Promise.all(
+      collaborators.map(async (collab) => {
         const enrollments = collab.enrollments || []
         const completedCourses = enrollments.filter(
           (e) => e.courseProgress?.status === "PASSED"
@@ -87,6 +97,29 @@ export async function GET(request: NextRequest) {
                   progressPercents.length
               )
             : 0
+
+        // IDs de cursos del colaborador
+        const courseIds = enrollments.map((e) => e.course!.id)
+
+        // Traer intentos calificados (pointsEarned no nulo) para estos cursos
+        const attempts = await prisma.quizAttempt.findMany({
+          where: {
+            collaboratorId: collab.id,
+            pointsEarned: { not: null },
+            quiz: { courseId: { in: courseIds } },
+          },
+          select: { pointsEarned: true, quiz: { select: { courseId: true } } },
+        })
+
+        // Mejor nota por curso
+        const bestScoreByCourse: Record<string, number> = {}
+        for (const a of attempts) {
+          const cId = a.quiz.courseId!
+          const s = a.pointsEarned ?? 0
+          if (!(cId in bestScoreByCourse) || s > bestScoreByCourse[cId]) {
+            bestScoreByCourse[cId] = s
+          }
+        }
 
         return {
           collaboratorId: collab.id,
@@ -111,6 +144,19 @@ export async function GET(request: NextRequest) {
                 )
               : null
 
+            // Calcular horas: si está completado y asistido, usar duración del curso; sino calcular desde timeSpent
+            const timeSpentSeconds = enrollment.courseProgress?.timeSpent || 0
+            const attended = enrollment.courseProgress?.attended || false
+            const courseDuration = enrollment.course?.duration || null
+            
+            // Si está completado y tiene asistencia marcada, usar la duración configurada del curso
+            // De lo contrario, convertir timeSpent de segundos a horas
+            const hoursSpent = attended && courseDuration
+              ? courseDuration
+              : Math.round((timeSpentSeconds / 3600) * 100) / 100 // redondear a 2 decimales
+
+            const score = bestScoreByCourse[enrollment.course!.id] ?? null
+
             return {
               courseName: enrollment.course!.name,
               enrollmentStatus: enrollment.status,
@@ -118,6 +164,7 @@ export async function GET(request: NextRequest) {
                 .toISOString()
                 .split("T")[0],
               progressPercent: enrollment.courseProgress?.progressPercent || 0,
+              score,
               completedAt: enrollment.courseProgress?.completedAt
                 ? enrollment.courseProgress.completedAt.toISOString().split("T")[0]
                 : null,
@@ -125,10 +172,13 @@ export async function GET(request: NextRequest) {
                 ? enrollment.courseProgress.expiresAt.toISOString().split("T")[0]
                 : null,
               daysUntilExpiration: daysUntilExp,
+              attended,
+              hoursSpent,
+              courseDuration,
             }
           }),
         }
-      }
+      })
     )
 
     // Crear datos para Excel
@@ -181,7 +231,20 @@ export async function GET(request: NextRequest) {
 
     // Hoja 3: Detalle de Cursos
     const detailData = [
-      ["DNI Colaborador", "Colaborador", "Curso", "Estado Inscripción", "Fecha Inscripción", "Avance %", "Fecha Completado", "Fecha Expiración", "Días Hasta Expiración"],
+      [
+        "DNI Colaborador",
+        "Colaborador",
+        "Curso",
+        "Estado Inscripción",
+        "Fecha Inscripción",
+        "Avance %",
+        "Nota (puntos)",
+        "Fecha Completado",
+        "Asistencia",
+        "Horas",
+        "Fecha Expiración",
+        "Días Hasta Expiración",
+      ],
     ]
     
     reportData.forEach((collab) => {
@@ -199,7 +262,10 @@ export async function GET(request: NextRequest) {
           course.enrollmentStatus,
           course.enrollmentDate,
           `${course.progressPercent}%`,
+          course.score !== null ? `${course.score}` : "-",
           course.completedAt || "-",
+          course.attended ? "Sí" : "No",
+          course.hoursSpent.toString(),
           course.expiresAt || "-",
           daysText,
         ])
@@ -223,7 +289,7 @@ export async function GET(request: NextRequest) {
     ]
     detailSheet["!cols"] = [
       { wch: 12 }, { wch: 25 }, { wch: 30 }, { wch: 15 },
-      { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 18 },
+      { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 15 }, { wch: 18 },
     ]
 
     XLSX.utils.book_append_sheet(workbook, summarySheet, "Resumen")

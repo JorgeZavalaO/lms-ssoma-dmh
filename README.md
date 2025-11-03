@@ -13,6 +13,16 @@ Sistema de Gestión de Aprendizaje (LMS) para Seguridad, Salud Ocupacional y Med
 
 LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacitaciones, colaboradores y recursos relacionados con Seguridad, Salud Ocupacional y Medio Ambiente. El sistema permite administrar usuarios, asignar cursos, gestionar áreas y puestos, y realizar seguimiento del progreso de capacitaciones.
 
+## 🆕 Últimas Actualizaciones
+
+### v2.1.4 - Sistema de Asistencia y Horas (31 Oct 2025)
+- ✅ **Tracking automático de asistencia**: Marca asistencia cuando los colaboradores completan 100% de un curso
+- ⏱️ **Ajuste de horas estandarizado**: Al completar, reemplaza tiempo acumulado con duración oficial del curso
+- 📊 **Reportes Excel mejorados**: Nuevas columnas "Asistencia" (Sí/No) y "Horas" (estandarizadas)
+- 📈 **Cumplimiento SSOMA preciso**: Garantiza reportes con horas oficiales, no tiempos parciales
+
+**Beneficio clave**: Si un curso es de 2 horas y un colaborador lo completa en 1.5h, el sistema registra 2h exactas para cumplimiento oficial.
+
 ## ✨ Características Principales
 
 ### 🔐 Autenticación y Autorización
@@ -61,6 +71,8 @@ Nota técnica: la verificación de acceso está centralizada en `src/lib/access.
   - Seguimiento automático de % visto
   - Marcado de completado configurable
   - Historial de visualizaciones
+  - Anti-salto en servidor: el endpoint de progreso limita aumentos desproporcionados basados en tiempo de reproducción real y duración del recurso (tolerancia hasta 1.6x). El cliente envía `timeDeltaSeconds` y `duration` para validación.
+  - No-Video: botón "Marcar como Completada" disponible tras 3 minutos de actividad real en el recurso (PDF/PPT/HTML/SCORM). Al presionarlo, el cliente envía `manualComplete: true` y el servidor fuerza el completado si la lección no es VIDEO, respetando el `completionThreshold` configurado.
 - **Repositorio de Archivos**:
   - Almacenamiento seguro con Vercel Blob
   - Versionado de archivos
@@ -101,6 +113,7 @@ Nota técnica: el módulo E incluye APIs RESTful para gestión de reglas (`/api/
   - Pool de preguntas por intento
   - Políticas de visualización configurables
   - Estados: BORRADOR, PUBLICADO, ARCHIVADO
+  - **UI Mejorada:** Diseño minimalista y profesional con paleta de colores sobria, indicadores visuales de puntuación (badge + barra de progreso), selección sin bucles de actualización.
 - **Calificación Automática (F3)**:
   - Inicio y envío de intentos con validaciones
   - Calificación automática según tipo de pregunta
@@ -115,11 +128,15 @@ Nota técnica: el módulo E incluye APIs RESTful para gestión de reglas (`/api/
   - Pool de preguntas específico por versión de curso
   - Métricas de dificultad y discriminación
 
-Nota técnica: el módulo F incluye 8 endpoints REST, validaciones Zod en `src/validations/quiz.ts`, y 10+ componentes shadcn/ui para experiencia profesional.
+Nota técnica: el módulo F incluye 8 endpoints REST, validaciones Zod en `src/validations/quiz.ts`, y 10+ componentes shadcn/ui para experiencia profesional. El formulario de cuestionarios implementa selección eficiente sin bucles de React mediante `onCheckedChange` y `stopPropagation`.
 
 ### 📊 Progreso y Cumplimiento (Módulo H)
 - **Tracking de Avance (H1)**:
   - Progreso por curso: porcentaje, tiempo empleado, última actividad
+  - **Sistema de Asistencia Automática**: marca `attended = true` cuando el curso alcanza 100% de completado
+  - **Ajuste de Horas Estandarizado**: al completar 100%, reemplaza `timeSpent` con la duración configurada del curso
+    - Ejemplo: Si acumula 1.5h pero el curso está configurado como 2h → reporta 2h exactas
+    - Garantiza reportes de cumplimiento SSOMA con horas oficiales
   - Progreso por lección: visualizaciones, completado automático
   - Progreso por ruta de aprendizaje: cursos completados/totales
   - Estados: NO_INICIADO, EN_PROGRESO, APROBADO, DESAPROBADO, VENCIDO, EXONERADO
@@ -196,7 +213,7 @@ Nota técnica: el módulo I incluye 11 endpoints REST en `/api/notification-temp
 
 Nota técnica: el módulo K incluye 4 endpoints REST en `/api/certificates/*`, validaciones en `src/validations/certificates.ts`, extensión del modelo `CertificationRecord` con 4 campos nuevos, servicio en `src/lib/certificates.ts` con 6 funciones (240 líneas), componente template en `src/components/certificates/certificate-template.tsx` (260 líneas), 2 páginas (admin + verify), dependencias: @react-pdf/renderer 4.3.1, qrcode 1.5.4, total 1220 líneas de código.
 
-### �📊 Reportes (Áreas, Curso, Cumplimiento) (Módulo J)
+### 📊 Reportes (Áreas, Curso, Cumplimiento) (Módulo J)
 - **Dashboard Ejecutivo (J1)**:
   - 15+ KPIs en tiempo real: % cumplimiento, alertas críticas, intentos promedio, tasa de aprobación, NPS
   - 4 visualizaciones interactivas con recharts: compliance por área (BarChart), distribución de alertas (PieChart), tendencia de inscripciones (AreaChart), tendencia de completados (LineChart)
@@ -209,7 +226,13 @@ Nota técnica: el módulo K incluye 4 endpoints REST en `/api/certificates/*`, v
   - Filtros avanzados: área, sede, posición, estado, curso, rango de fechas
   - Badges semánticos por estado con colores
   - Contador de registros
-  - Botón de exportación XLSX preparado
+  - **Exportación Excel Mejorada**:
+    - 3 hojas: Resumen (KPIs), Colaboradores (overview), Detalle Cursos (información completa)
+    - **Nueva columna "Asistencia"**: Muestra "Sí"/"No" según `attended` field
+    - **Nueva columna "Horas"**: Tiempo estandarizado (usa duración oficial si completado, sino calcula desde `timeSpent`)
+    - **Nueva columna "Nota (%)"**: Mejor calificación obtenida en los exámenes del curso (mejor intento con score)
+    - Columnas adicionales: DNI, nombre, curso, estado, progreso %, fecha completado, expiración, días hasta vencer
+    - Endpoint: `/api/reports/export-collaborators-excel`
 - **Reporte por Curso (J3)**:
   - Estadísticas completas: inscritos, % completado, % aprobación + promedio, tiempo promedio
   - Gráfico de distribución de scores (5 rangos: 0-40, 41-60, 61-80, 81-90, 91-100)
@@ -358,6 +381,7 @@ Nota: muchos componentes de la interfaz se generaron y organizaron usando el flu
 - **Turbopack** - Bundler rápido
 - **ESLint** - Linting
 - **pnpm** - Gestor de paquetes
+- **Vitest** - Pruebas unitarias (lógica de anti-salto cubierta)
 
 ---
 
@@ -530,6 +554,9 @@ pnpm prisma migrate deploy # Ejecutar migraciones en prod
 
 # Linting
 pnpm lint             # Ejecutar ESLint
+
+# Tests
+pnpm test            # Ejecutar pruebas unitarias (Vitest)
 ```
 
 ---
@@ -665,7 +692,8 @@ User                  # Usuarios del sistema
 - `PUT /api/progress/alerts/:id/read` - Marcar alerta como leída
 - `PUT /api/progress/alerts/:id/dismiss` - Descartar alerta
 - `POST /api/progress/alerts/generate` - Generar alertas automáticas (cron/admin)
-- `PUT /api/progress/lessons/:lessonId` - Actualizar progreso de lección
+- `PUT /api/lessons/:id/progress` - Actualizar progreso de lección (oficial)
+  - Nota: el endpoint anterior `/api/progress/lessons/:lessonId` fue deprecado y ahora responde 410 Gone.
 - `GET /api/progress/paths` - Obtener progreso de rutas de aprendizaje
 - `POST /api/progress/paths` - Crear/actualizar progreso de ruta
 
@@ -887,7 +915,20 @@ Ver [CHANGELOG.md](./CHANGELOG.md) para historial de cambios.
 
 ## 📄 Licencia
 
-Propietario - Jorge Zavala Olivares © 2025. Todos los derechos reservados.
+Propietario - DMH © 2025. Todos los derechos reservados.
+
+---
+
+## 📝 Historial de Versiones
+
+Para ver el historial completo de cambios, consulta [CHANGELOG.md](./CHANGELOG.md).
+
+### Versiones Recientes
+- **v2.1.4** (31 Oct 2025) - Sistema de asistencia y horas estandarizadas
+- **v2.1.3** (31 Oct 2025) - Mejoras UX/UI en cuestionarios y corrección de bucles React
+- **v2.1.2** (29 Oct 2025) - Anti-salto en progreso y completado manual para no-video
+- **v2.1.1** (29 Oct 2025) - Enforzamiento de prerrequisitos en servidor
+- **v2.1.0** (27 Oct 2025) - Consolidación de reportes y optimización arquitectónica
 
 ---
 

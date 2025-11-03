@@ -32,6 +32,11 @@ export const LessonUpdateSchema = LessonSchema.partial()
 export const LessonProgressSchema = z.object({
   viewPercentage: z.number().int().min(0).max(100),
   completed: z.boolean().optional(),
+  // Opcionales para validación de ritmo (anti-salto): segundos reales de reproducción y duración total del video
+  timeDeltaSeconds: z.number().int().min(0).max(7200).optional(),
+  duration: z.number().int().min(1).max(24 * 60 * 60).optional(), // en segundos
+  // Marcación manual (no-video) - habilitado desde cliente tras 3 minutos activos
+  manualComplete: z.boolean().optional(),
 })
 
 // D2 - Repositorio de archivos

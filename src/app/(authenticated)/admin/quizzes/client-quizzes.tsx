@@ -133,7 +133,7 @@ export function ClientQuizzes() {
               Nuevo Cuestionario
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-h-[90vh] overflow-y-auto !max-w-[1100px]">
             <DialogHeader>
               <DialogTitle>
                 {selectedQuiz ? "Editar Cuestionario" : "Nuevo Cuestionario"}
@@ -231,7 +231,7 @@ export function ClientQuizzes() {
 
       {/* Preview Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto !max-w-[1100px]">
           <DialogHeader>
             <DialogTitle>Vista Previa: {previewQuiz?.title}</DialogTitle>
           </DialogHeader>

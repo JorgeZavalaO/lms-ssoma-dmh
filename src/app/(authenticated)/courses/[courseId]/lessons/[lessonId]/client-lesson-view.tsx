@@ -63,6 +63,8 @@ export function ClientLessonView({
   const router = useRouter()
   const [viewPercentage, setViewPercentage] = useState(progress?.viewPercentage || 0)
   const [isCompleted, setIsCompleted] = useState(progress?.completed || false)
+  // Tiempo activo en el documento (para no-video), en segundos
+  const [docElapsedSeconds, setDocElapsedSeconds] = useState<number>(0)
 
   // Calcular lecciones completadas
   const totalLessons = allUnits.reduce((acc, unit) => acc + unit.lessons.length, 0)
@@ -84,13 +86,19 @@ export function ClientLessonView({
     duration,
     completed,
     timeDeltaSeconds,
+    manualComplete,
   }: {
     percentage: number
     currentTime: number
     duration: number
     completed: boolean
     timeDeltaSeconds: number
+    manualComplete?: boolean
   }) => {
+    // Para lecciones que no son video, aprovechar el tiempo acumulado del tracker
+    if (lesson.type !== "VIDEO") {
+      setDocElapsedSeconds(currentTime)
+    }
     // Evitar retroceso de porcentaje (debounce en cliente)
     if (percentage < viewPercentage && !completed) {
       return // No enviar si el porcentaje retrocede
@@ -109,9 +117,12 @@ export function ClientLessonView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           viewPercentage: percentage,
-          // Campos extra no son requeridos por el esquema del servidor,
-          // pero no afectan si están presentes; enviamos solo lo necesario.
+          // Soporte anti-salto en servidor
+          duration,
+          timeDeltaSeconds,
           completed,
+          // Marcación manual solo aplica a no-video
+          manualComplete,
         }),
       })
 
@@ -130,12 +141,14 @@ export function ClientLessonView({
   }
 
   const handleMarkComplete = async () => {
+    const isVideo = lesson.type === "VIDEO"
     await handleProgressCallback({
       percentage: 100,
-      currentTime: 0,
-      duration: 0,
+      currentTime: isVideo ? 0 : docElapsedSeconds,
+      duration: isVideo ? 0 : (lesson.duration ? lesson.duration * 60 : 0),
       completed: true,
       timeDeltaSeconds: 0,
+      manualComplete: !isVideo, // para no-video forzamos completado en servidor
     })
   }
 
@@ -417,15 +430,31 @@ export function ClientLessonView({
             </div>
 
             {/* Botón de marcar como completada */}
-            {!isCompleted && viewPercentage >= lesson.completionThreshold && (
-              <Button
-                onClick={handleMarkComplete}
-                className="w-full sm:w-auto"
-                size="lg"
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Marcar como Completada
-              </Button>
+            {!isCompleted && (
+              <>
+                {lesson.type === "VIDEO" ? (
+                  // Para video: botón habilitado al superar el umbral configurado
+                  viewPercentage >= lesson.completionThreshold && (
+                    <Button onClick={handleMarkComplete} className="w-full sm:w-auto" size="lg">
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Marcar como Completada
+                    </Button>
+                  )
+                ) : (
+                  // Para no-video: botón aparece deshabilitado hasta cumplir 3 minutos activos
+                  <Button
+                    onClick={handleMarkComplete}
+                    className="w-full sm:w-auto"
+                    size="lg"
+                    disabled={docElapsedSeconds < 180}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    {docElapsedSeconds < 180
+                      ? "Marcar como Completada (disponible tras 3 min)"
+                      : "Marcar como Completada"}
+                  </Button>
+                )}
+              </>
             )}
 
             {/* Información adicional */}

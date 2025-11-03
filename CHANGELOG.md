@@ -7,6 +7,163 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [2.1.4] - 2025-10-31
+
+### Agregado - Sistema de Asistencia y Horas de Participación
+
+- **Tracking Automático de Asistencia en Cursos Completados:**
+  - Nuevo campo `attended Boolean @default(false)` en modelo `CourseProgress`
+  - Marcado automático de asistencia cuando el progreso alcanza 100%
+  - Fecha de asistencia registrada en `completedAt`
+  - Lógica implementada en endpoint de progreso de lecciones
+
+- **Ajuste de Horas según Duración Configurada:**
+  - Al completar un curso (100%), el sistema reemplaza `timeSpent` con la duración configurada del curso
+  - Ejemplo: Si `timeSpent` acumulado es 1.5h pero el curso está configurado como 2h, al completar se registran 2h
+  - Conversión automática: `timeSpent = course.duration * 3600` (horas a segundos)
+  - Garantiza horas estandarizadas para reportes de cumplimiento
+
+- **Reporte de Excel Mejorado:**
+  - Nueva columna "Asistencia" en hoja "Detalle Cursos"
+  - Valores: "Sí" (attended=true) / "No" (attended=false)
+  - Nueva columna "Horas" con tiempo de participación estandarizado
+  - Lógica de horas: muestra duración configurada si attended=true, sino calcula desde timeSpent
+  - Redondeo a 2 decimales para presentación limpia
+  - Nueva columna "Nota (puntos)" con la mejor calificación obtenida en los exámenes del curso (mejor intento con pointsEarned)
+
+- **Modificaciones en Lógica de Progreso:**
+  - Endpoint `/api/lessons/[lessonId]/progress`:
+    - Fetch de `course.duration` al detectar 100% de completado
+    - Actualización de `attended` a `true` cuando se completa
+    - Override de `timeSpent` con valor estandarizado
+    - Preserva comportamiento existente para cursos en progreso
+
+- **API de Reportes Actualizada:**
+  - `/api/reports/export-collaborators-excel`:
+    - Extendida consulta Prisma para incluir `course.duration`
+    - Cálculo de `hoursSpent` con lógica condicional
+    - Cálculo de `score` por curso a partir de `QuizAttempt` (mejor score por curso y colaborador con `pointsEarned != null`)
+    - Interface `CollaboratorProgressData` extendida con campos:
+      - `attended: boolean`
+      - `hoursSpent: number`
+      - `courseDuration: number | null`
+      - `score: number | null`
+    - Ancho de columnas ajustado para nuevas columnas
+
+- **Migración de Base de Datos:**
+  - Migración: `20251031220206_add_attended_to_course_progress`
+  - Añadido campo `attended` a tabla `course_progress`
+  - Campo opcional con valor por defecto `false`
+  - Compatible con registros existentes (migración no destructiva)
+
+### Técnico
+
+- **Archivos modificados:**
+  - `prisma/schema.prisma`: Campo `attended` en modelo `CourseProgress`
+  - `src/app/api/lessons/[lessonId]/progress/route.ts`: Lógica de asistencia y ajuste de horas
+  - `src/app/api/reports/export-collaborators-excel/route.ts`: Columnas y cálculos de reporte
+
+- **Build exitoso:**
+  - Compilación: ✓ Exitosa sin errores
+  - Migración aplicada correctamente
+  - Tests: Sin regresiones
+
+### Beneficios de la Implementación
+
+- ✅ **Cumplimiento estandarizado**: Horas reportadas coinciden con duración oficial del curso
+- ✅ **Auditoría mejorada**: Registro claro de asistencia completada
+- ✅ **Reportes precisos**: Excel muestra información consistente para cumplimiento SSOMA
+- ✅ **Automatización total**: Sin intervención manual, ajuste automático al 100%
+- ✅ **Retrocompatibilidad**: Cursos en progreso mantienen comportamiento original
+
+---
+
+## [2.1.3] - 2025-10-31
+
+### Mejorado - UX/UI del Módulo de Cuestionarios y Corrección de Loop de React
+
+- **Corrección de Runtime Error:** Eliminado bucle "Maximum update depth exceeded" en la selección de preguntas del formulario de cuestionarios.
+  - Problema: doble toggle del Checkbox causado por handlers redundantes (onClick del contenedor + onClick del checkbox).
+  - Solución: refactor a control único mediante `onCheckedChange` con `stopPropagation`.
+  
+- **Diseño Minimalista y Profesional:**
+  - Paleta de colores sobria (escala gris neutral: `slate-50`, `slate-100`, `slate-900/30`).
+  - Tipografía con jerarquía clara: labels uppercase con tracking, títulos de sección con peso semibold.
+  - Espaciado generoso: `space-y-8` entre secciones, separadores gradient en lugar de líneas simples.
+  - Componentes Switch y opciones de configuración con fondos sutiles y transiciones suaves.
+  - Ítems de lista con color dinámico: seleccionado destaca, hover interactivo.
+
+- **Indicadores Visuales Avanzados:**
+  - Badge de puntuación dinámico: verde (20/20), rojo (exceso), gris (en construcción).
+  - Barra de progreso refinada hacia meta de 20 puntos.
+  - Etiqueta "Excede 20" por pregunta para avisar antes de seleccionar.
+  - Mensaje contextual: "Restantes", "Exceso" o "Meta alcanzada".
+
+- **Diálogo Más Ancho:**
+  - Cambio de `max-w-4xl` a `!max-w-[1100px]` para mejor espaciado.
+  - Sin impacto en otros diálogos de la aplicación.
+
+Archivos modificados:
+- `src/app/(authenticated)/admin/quizzes/quiz-form.tsx`: refactor de selección, mejoras de espaciado y tipografía, indicadores visuales.
+- `src/app/(authenticated)/admin/quizzes/client-quizzes.tsx`: ampliación del ancho del diálogo.
+
+Calidad y verificación:
+- Build: PASS (Next.js 15.5.5, 7.4s). Sin errores nuevos, solo warnings previos de ESLint.
+- Tests: PASS (Vitest) — 6 tests en `src/lib/progress.test.ts`, regresión cero.
+- Accesibilidad: soporta light/dark mode automáticamente; labels y aria-labels preservados.
+
+---
+
+## [2.1.2] - 2025-10-29
+
+### Agregado - Salvaguarda Anti-Salto en Progreso de Lecciones (Octubre 29, 2025)
+
+- El endpoint oficial `/api/lessons/[lessonId]/progress` ahora limita incrementos de `viewPercentage` según tiempo de reproducción real.
+  - Considera delta observado por servidor desde `lastViewedAt` y delta reportado por cliente (`timeDeltaSeconds`), con tolerancia de +3s y hasta 1.6x de playback.
+  - Con duración conocida (`duration` en segundos), el máximo avance permitido por update es `ceil((delta/duration)*100*1.6)`; sin duración, fallback de `5%` por cada `30s` efectivos.
+  - Nunca decrece progreso; nunca supera `100%`.
+- El cliente de lecciones envía nuevos campos opcionales: `timeDeltaSeconds` y `duration`.
+- Esquema Zod extendido: `LessonProgressSchema` acepta `timeDeltaSeconds` y `duration` (opcionales).
+- Lógica extraída a función pura `capLessonProgress()` para pruebas unitarias.
+
+Archivos relevantes:
+- `src/lib/progress.ts`: nueva función `capLessonProgress(prev, requested, serverDeltaSec, clientDeltaSec, duration?)` con contrato claro.
+- `src/app/api/lessons/[lessonId]/progress/route.ts`: refactor para usar `capLessonProgress` antes de persistir.
+- `src/validations/content.ts`: añade `timeDeltaSeconds` y `duration` a `LessonProgressSchema`.
+- `src/app/(authenticated)/courses/[courseId]/lessons/[lessonId]/client-lesson-view.tsx`: cliente envía los nuevos campos y mantiene PUT consolidado.
+- `src/lib/progress.test.ts`: pruebas unitarias (Vitest) cubriendo escenarios clave.
+- `vitest.config.ts`: configuración mínima con entorno node y PostCSS desactivado.
+
+Documentación:
+- `README.md`: actualizado para reflejar anti-salto, script `pnpm test`, y la ruta oficial del endpoint.
+
+Calidad y verificación:
+- Build: PASS (Next.js 15.5.5). Solo warnings previos de ESLint, sin nuevos errores.
+- Tests: PASS (Vitest) — 6 tests, 1 archivo de pruebas.
+
+### Agregado - Completado Manual en No-Video (Opción A)
+
+- Nuevo botón en lecciones que no son video: "Marcar como Completada", visible pero deshabilitado hasta cumplir 3 minutos de actividad real en el recurso.
+- Cliente envía `manualComplete: true` al endpoint oficial. El servidor, solo cuando `lesson.type !== "VIDEO"`, fuerza `completed = true` y ajusta `viewPercentage` al máximo entre el valor previo, el solicitado y el `completionThreshold` (sin aplicar capping anti-salto para esta marcación manual).
+- Mantiene anti-salto intacto para lecciones de video.
+
+Archivos relevantes:
+- `src/app/(authenticated)/courses/[courseId]/lessons/[lessonId]/client-lesson-view.tsx`: botón y envío de `manualComplete` para no-video.
+- `src/app/api/lessons/[lessonId]/progress/route.ts`: rama para forzar completado en no-video cuando `manualComplete` es verdadero.
+- `src/validations/content.ts`: `LessonProgressSchema` extendido con campo opcional `manualComplete`.
+- `README.md`: documenta el comportamiento del botón y el parámetro `manualComplete`.
+
+Calidad y verificación:
+- Build: PASS (Next.js 15.5.5) tras integrar `manualComplete`.
+- Tests: PASS (Vitest) — regresión negativa no observada; la lógica anti-salto permanece cubierta por 6 pruebas unitarias.
+
+### Cambiado - Consolidación de Endpoint de Progreso de Lecciones
+
+- Se reafirma la ruta oficial: `PUT /api/lessons/:id/progress`.
+- La ruta antigua `PUT /api/progress/lessons/:lessonId` queda deprecada y responde `410 Gone` en todas las operaciones.
+
+---
+
 ## [2.1.1] - 2025-10-29
 
 ### Agregado - Enforzamiento de Prerrequisitos en Servidor (Octubre 29, 2025)

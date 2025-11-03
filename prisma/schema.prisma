@@ -778,6 +778,7 @@ model CourseProgress {
   progressPercent Int            @default(0) // 0-100
   timeSpent       Int            @default(0) // segundos totales
   lastActivityAt  DateTime?
+  attended        Boolean        @default(false) // Asistencia completada
   
   // H3 - Fechas por estado
   startedAt       DateTime?
