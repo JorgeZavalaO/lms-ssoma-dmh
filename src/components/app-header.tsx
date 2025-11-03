@@ -37,7 +37,7 @@ const routeNames: Record<string, string> = {
   "/": "Inicio",
   "/dashboard": "Dashboard",
   "/my-courses": "Mis Cursos",
-  "/admin": "Administración",
+  "/admin/dashboard": "Dashboard Admin",
   "/admin/collaborators": "Colaboradores",
   "/admin/areas": "Áreas",
   "/admin/positions": "Puestos",
@@ -89,6 +89,10 @@ export function AppHeader() {
   let currentPath = ""
   pathSegments.forEach((segment) => {
     currentPath += `/${segment}`
+    // Omitir /admin del breadcrumb ya que no es una página visible
+    if (currentPath === "/admin") {
+      return
+    }
     const label = routeNames[currentPath] || segment.charAt(0).toUpperCase() + segment.slice(1)
     const icon = routeIcons[currentPath]
     breadcrumbItems.push({ href: currentPath, label, icon })
