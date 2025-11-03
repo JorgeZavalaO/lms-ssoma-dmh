@@ -32,7 +32,6 @@ export function CreateUnitDialog({ courseId, onCreated }: CreateUnitDialogProps)
     defaultValues: {
       title: "",
       description: "",
-      order: 1,
     },
   })
 
@@ -73,7 +72,7 @@ export function CreateUnitDialog({ courseId, onCreated }: CreateUnitDialogProps)
         <DialogHeader>
           <DialogTitle>Crear Unidad</DialogTitle>
           <DialogDescription>
-            Crea una nueva unidad didáctica para organizar las lecciones del curso
+            Crea una nueva unidad didáctica. El orden se asignará automáticamente al final.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -93,16 +92,6 @@ export function CreateUnitDialog({ courseId, onCreated }: CreateUnitDialogProps)
               {...form.register("description")}
               placeholder="Descripción de la unidad"
               rows={3}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="order">Orden *</Label>
-            <Input
-              id="order"
-              type="number"
-              {...form.register("order", { valueAsNumber: true })}
-              min={1}
             />
           </div>
 
@@ -136,7 +125,6 @@ export function EditUnitDialog({ unit, onEdited }: EditUnitDialogProps) {
     defaultValues: {
       title: unit.title,
       description: unit.description || "",
-      order: unit.order,
     },
   })
 
@@ -146,7 +134,7 @@ export function EditUnitDialog({ unit, onEdited }: EditUnitDialogProps) {
       const res = await fetch(`/api/units/${unit.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, order: unit.order }),
       })
 
       if (!res.ok) {
@@ -172,6 +160,9 @@ export function EditUnitDialog({ unit, onEdited }: EditUnitDialogProps) {
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Editar Unidad</DialogTitle>
+          <DialogDescription>
+            Modifica los datos de la unidad. Usa el arrastre para cambiar el orden.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
@@ -190,16 +181,6 @@ export function EditUnitDialog({ unit, onEdited }: EditUnitDialogProps) {
               {...form.register("description")}
               placeholder="Descripción de la unidad"
               rows={3}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="order">Orden *</Label>
-            <Input
-              id="order"
-              type="number"
-              {...form.register("order", { valueAsNumber: true })}
-              min={1}
             />
           </div>
 

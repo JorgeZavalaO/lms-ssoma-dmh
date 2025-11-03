@@ -41,7 +41,6 @@ export function CreateLessonDialog({ unitId, onCreated }: CreateLessonDialogProp
       title: "",
       description: "",
       type: "VIDEO",
-      order: 1,
       videoUrl: "",
       fileUrl: "",
       htmlContent: "",
@@ -87,7 +86,7 @@ export function CreateLessonDialog({ unitId, onCreated }: CreateLessonDialogProp
         <DialogHeader>
           <DialogTitle>Crear Lección</DialogTitle>
           <DialogDescription>
-            Agrega una nueva lección a esta unidad
+            Agrega una nueva lección. El orden se asignará automáticamente al final.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -171,17 +170,7 @@ export function CreateLessonDialog({ unitId, onCreated }: CreateLessonDialogProp
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="order">Orden *</Label>
-              <Input
-                id="order"
-                type="number"
-                {...form.register("order", { valueAsNumber: true })}
-                min={1}
-              />
-            </div>
-
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="duration">Duración (min)</Label>
               <Input
@@ -242,7 +231,6 @@ export function EditLessonDialog({ lesson, onEdited }: EditLessonDialogProps) {
       title: lesson.title,
       description: lesson.description || "",
       type: lesson.type,
-      order: lesson.order,
       duration: lesson.duration || 0,
       completionThreshold: lesson.completionThreshold,
       videoUrl: lesson.videoUrl || "",
@@ -257,7 +245,7 @@ export function EditLessonDialog({ lesson, onEdited }: EditLessonDialogProps) {
       const res = await fetch(`/api/lessons/${lesson.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, order: lesson.order }),
       })
 
       if (!res.ok) {
@@ -283,6 +271,9 @@ export function EditLessonDialog({ lesson, onEdited }: EditLessonDialogProps) {
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar Lección</DialogTitle>
+          <DialogDescription>
+            Modifica los datos de la lección. Usa el arrastre para cambiar el orden.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -328,17 +319,7 @@ export function EditLessonDialog({ lesson, onEdited }: EditLessonDialogProps) {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="order">Orden *</Label>
-              <Input
-                id="order"
-                type="number"
-                {...form.register("order", { valueAsNumber: true })}
-                min={1}
-              />
-            </div>
-
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="duration">Duración (min)</Label>
               <Input

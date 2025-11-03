@@ -52,7 +52,19 @@ export async function POST(
 
     const { id } = await params
     const body = await req.json()
-    const validated = UnitSchema.parse(body)
+    
+    // Calcular el orden automáticamente si no se proporciona
+    let order = body.order
+    if (!order) {
+      const maxOrderUnit = await prisma.unit.findFirst({
+        where: { courseId: id },
+        orderBy: { order: 'desc' },
+        select: { order: true }
+      })
+      order = maxOrderUnit ? maxOrderUnit.order + 1 : 1
+    }
+    
+    const validated = UnitSchema.parse({ ...body, order })
 
     const unit = await prisma.unit.create({
       data: {

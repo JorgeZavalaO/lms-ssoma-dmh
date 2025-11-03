@@ -49,7 +49,19 @@ export async function POST(
 
     const { unitId } = await params
     const body = await req.json()
-    const validated = LessonSchema.parse(body)
+    
+    // Calcular el orden automáticamente si no se proporciona
+    let order = body.order
+    if (!order) {
+      const maxOrderLesson = await prisma.lesson.findFirst({
+        where: { unitId },
+        orderBy: { order: 'desc' },
+        select: { order: true }
+      })
+      order = maxOrderLesson ? maxOrderLesson.order + 1 : 1
+    }
+    
+    const validated = LessonSchema.parse({ ...body, order })
 
     const lesson = await prisma.lesson.create({
       data: {
