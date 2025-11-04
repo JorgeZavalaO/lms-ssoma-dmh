@@ -150,12 +150,6 @@ export default function ClientEnrollments({
     <div className="space-y-6">
       {/* Header con botones */}
       <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-semibold">Inscripciones</h2>
-          <p className="text-sm text-muted-foreground">
-            {enrollments.length} inscripción{enrollments.length !== 1 ? "es" : ""}
-          </p>
-        </div>
         <div className="flex gap-2">
           <EnrollIndividualDialog
             courses={courses}
