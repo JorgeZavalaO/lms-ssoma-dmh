@@ -7,11 +7,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { CheckCircle, AlertCircle, Clock, Search, Download, RefreshCw, Award, XCircle, RotateCcw } from "lucide-react"
-import { format, differenceInDays, addMonths } from "date-fns"
+import { format, differenceInDays } from "date-fns"
 import { es } from "date-fns/locale"
 import { toast } from "sonner"
 
@@ -63,13 +63,18 @@ export function ClientCertifications() {
     try {
       setLoading(true)
       const response = await fetch("/api/progress/certifications")
-      if (response.ok) {
-        const data = await response.json()
-        setCertifications(data.certifications || [])
-        calculateStats(data.certifications || [])
+      const data = await response.json() as { certifications?: Certification[]; error?: string }
+      
+      if (!response.ok) {
+        throw new Error(data.error || "Error al cargar certificaciones")
       }
+
+      setCertifications(data.certifications || [])
+      calculateStats(data.certifications || [])
     } catch (error) {
-      console.error("Error loading certifications:", error)
+      const message = error instanceof Error ? error.message : "Error al cargar certificaciones"
+      console.error("Error cargando certificaciones:", error)
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -120,10 +125,10 @@ export function ClientCertifications() {
   }
 
   const statusConfig = {
-    valid: { label: "Vigente", color: "bg-green-500", icon: CheckCircle },
-    expiring: { label: "Por Vencer", color: "bg-yellow-500", icon: Clock },
-    expired: { label: "Vencida", color: "bg-red-500", icon: AlertCircle },
-    revoked: { label: "Revocada", color: "bg-gray-500", icon: XCircle },
+    valid: { label: "Vigente", color: "bg-emerald-600", badge: "bg-emerald-100 text-emerald-900" },
+    expiring: { label: "Por Vencer", color: "bg-amber-600", badge: "bg-amber-100 text-amber-900" },
+    expired: { label: "Vencida", color: "bg-red-600", badge: "bg-red-100 text-red-900" },
+    revoked: { label: "Revocada", color: "bg-slate-600", badge: "bg-slate-100 text-slate-900" },
   }
 
   const filteredCertifications = certifications.filter(cert => {
@@ -228,7 +233,7 @@ export function ClientCertifications() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Certificaciones</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Certificaciones</h1>
           <p className="text-muted-foreground mt-2">
             Gestiona las certificaciones y recertificaciones de los colaboradores
           </p>
@@ -246,43 +251,43 @@ export function ClientCertifications() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-4">
-        <Card>
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="border-emerald-200">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Vigentes</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Vigentes</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.valid}</div>
+            <div className="text-2xl font-semibold text-emerald-600">{stats.valid}</div>
             <p className="text-xs text-muted-foreground mt-1">Válidas actualmente</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-amber-200">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Por Vencer</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Por Vencer</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.expiringSoon}</div>
+            <div className="text-2xl font-semibold text-amber-600">{stats.expiringSoon}</div>
             <p className="text-xs text-muted-foreground mt-1">En 30 días</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-red-200">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Vencidas</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Vencidas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.expired}</div>
+            <div className="text-2xl font-semibold text-red-600">{stats.expired}</div>
             <p className="text-xs text-muted-foreground mt-1">Requieren recertificación</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-slate-200">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Revocadas</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Revocadas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-600">{stats.revoked}</div>
+            <div className="text-2xl font-semibold text-slate-600">{stats.revoked}</div>
             <p className="text-xs text-muted-foreground mt-1">Certificados anulados</p>
           </CardContent>
         </Card>
@@ -359,7 +364,6 @@ export function ClientCertifications() {
                   filteredCertifications.map((cert) => {
                     const status = getCertStatus(cert)
                     const config = statusConfig[status as keyof typeof statusConfig]
-                    const Icon = config.icon
                     const daysRemaining = cert.expiresAt ? differenceInDays(new Date(cert.expiresAt), new Date()) : null
 
                     return (
@@ -379,8 +383,7 @@ export function ClientCertifications() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={config.color}>
-                            <Icon className="h-3 w-3 mr-1" />
+                          <Badge variant="outline" className={statusConfig[status as keyof typeof statusConfig].badge}>
                             {config.label}
                           </Badge>
                         </TableCell>

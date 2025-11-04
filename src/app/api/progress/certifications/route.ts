@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
           select: { id: true, fullName: true, email: true, dni: true },
         },
         course: {
-          select: { id: true, code: true, name: true },
+          select: { id: true, code: true, name: true, validity: true },
         },
         previousCert: {
           select: { id: true, certificateNumber: true, issuedAt: true },
@@ -37,7 +37,35 @@ export async function GET(req: NextRequest) {
       orderBy: { issuedAt: "desc" },
     });
 
-    return NextResponse.json(certifications);
+    // Transformar datos al formato esperado por el cliente
+    const transformedCertifications = certifications.map(cert => {
+      const nameParts = cert.collaborator.fullName.split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ');
+
+      return {
+        id: cert.id,
+        collaborator: {
+          id: cert.collaborator.id,
+          firstName,
+          lastName,
+          email: cert.collaborator.email,
+        },
+        course: {
+          id: cert.course.id,
+          name: cert.course.name,
+          code: cert.course.code,
+          validityMonths: cert.course.validity,
+        },
+        issuedAt: cert.issuedAt,
+        expiresAt: cert.expiresAt,
+        revokedAt: cert.revokedAt,
+        revokedBy: cert.revokedBy,
+        revocationReason: cert.revocationReason,
+      };
+    });
+
+    return NextResponse.json({ certifications: transformedCertifications });
   } catch (error: any) {
     console.error("Error fetching certifications:", error);
     return NextResponse.json(

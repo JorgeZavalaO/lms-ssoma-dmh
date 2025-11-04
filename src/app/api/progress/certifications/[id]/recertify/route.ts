@@ -88,13 +88,39 @@ export async function POST(
           select: { id: true, fullName: true, email: true },
         },
         course: {
-          select: { id: true, code: true, name: true },
+          select: { id: true, code: true, name: true, validity: true },
         },
         previousCert: {
           select: { id: true, certificateNumber: true, issuedAt: true },
         },
       },
     });
+
+    // Transformar datos al formato esperado por el cliente
+    const nameParts = newCertification.collaborator.fullName.split(' ');
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(' ');
+
+    const transformedCertification = {
+      id: newCertification.id,
+      collaborator: {
+        id: newCertification.collaborator.id,
+        firstName,
+        lastName,
+        email: newCertification.collaborator.email,
+      },
+      course: {
+        id: newCertification.course.id,
+        name: newCertification.course.name,
+        code: newCertification.course.code,
+        validityMonths: newCertification.course.validity,
+      },
+      issuedAt: newCertification.issuedAt,
+      expiresAt: newCertification.expiresAt,
+      revokedAt: newCertification.revokedAt,
+      revokedBy: newCertification.revokedBy,
+      revocationReason: newCertification.revocationReason,
+    };
 
     // Actualizar progreso con fecha de certificación
     await prisma.courseProgress.update({
@@ -105,7 +131,7 @@ export async function POST(
       },
     });
 
-    return NextResponse.json(newCertification, { status: 201 });
+    return NextResponse.json(transformedCertification, { status: 201 });
   } catch (error: any) {
     console.error("Error creating recertification:", error);
     return NextResponse.json(
