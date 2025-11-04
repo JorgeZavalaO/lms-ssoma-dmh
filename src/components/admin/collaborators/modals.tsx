@@ -201,7 +201,7 @@ export function CreateCollaboratorDialog({ onCreated }: CreateCollaboratorDialog
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => copyToClipboard(generatedPassword)}
+                  onClick={() => copyToClipboard(generatedPassword!)}
                   className="border-green-300 hover:bg-green-100"
                 >
                   <Copy className="h-4 w-4" />

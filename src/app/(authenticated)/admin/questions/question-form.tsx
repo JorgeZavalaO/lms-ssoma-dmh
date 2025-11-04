@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
-import { QuestionPreviewDialog } from "@/components/admin/question-preview-dialog";
+import { QuestionPreviewDialog } from "@/components/admin/questions/preview-dialog";
 
 type QuestionFormProps = {
   question?: any;

@@ -2,11 +2,11 @@
 
 import * as React from "react"
 import { ColumnDef } from "@tanstack/react-table"
-import { DataTable } from "@/components/data-table"
+import { DataTable } from "@/components/common/data-table"
 import { Button } from "@/components/ui/button"
 import { Download } from "lucide-react"
 import { ChangeRoleDialog } from "./widgets/change-role-dialog"
-import { CreateCollaboratorDialog, EditCollaboratorDialog, DeleteCollaboratorDialog, ImportCollaboratorsDialog } from "@/components/admin/collaborator-modals"
+import { CreateCollaboratorDialog, EditCollaboratorDialog, DeleteCollaboratorDialog, ImportCollaboratorsDialog } from "@/components/admin/collaborators/modals"
 import { CollaboratorPill, ExportCollaboratorsButton } from "@/components/admin/collaborators"
 
 type Role = "SUPERADMIN" | "ADMIN" | "COLLABORATOR"

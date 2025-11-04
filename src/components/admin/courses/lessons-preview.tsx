@@ -17,7 +17,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Video } from "lucide-react"
-import { LessonPreviewDialog } from "./lesson-preview-dialog"
+import { LessonPreviewDialog } from "@/components/admin/lessons/preview-dialog"
 import { toast } from "sonner"
 
 interface CourseLessonsPreviewProps {

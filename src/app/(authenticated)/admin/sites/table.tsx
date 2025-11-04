@@ -2,8 +2,8 @@
 
 import * as React from "react"
 import { ColumnDef } from "@tanstack/react-table"
-import { DataTable } from "@/components/data-table"
-import { CreateSiteDialog, EditSiteDialog, DeleteSiteDialog } from "@/components/admin/site-modals"
+import { DataTable } from "@/components/common/data-table"
+import { CreateSiteDialog, EditSiteDialog, DeleteSiteDialog } from "@/components/admin/sites/modals"
 
 type Row = {
   id: string

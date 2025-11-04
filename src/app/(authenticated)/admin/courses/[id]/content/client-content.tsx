@@ -11,9 +11,9 @@ import {
 } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
 import { Plus, FileText, Video, File, Code, Package, GripVertical, AlertCircle, CheckCircle2 } from "lucide-react"
-import { CreateUnitDialog, EditUnitDialog, DeleteUnitDialog } from "@/components/admin/content-modals"
-import { CreateLessonDialog, EditLessonDialog, DeleteLessonDialog } from "@/components/admin/lesson-modals"
-import { LessonPreviewDialog } from "@/components/admin/lesson-preview-dialog"
+import { CreateUnitDialog, EditUnitDialog, DeleteUnitDialog } from "@/components/admin/courses/units/modals"
+import { CreateLessonDialog, EditLessonDialog, DeleteLessonDialog } from "@/components/admin/lessons/modals"
+import { LessonPreviewDialog } from "@/components/admin/lessons/preview-dialog"
 import {
   DndContext,
   closestCenter,

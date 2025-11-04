@@ -2,9 +2,9 @@
 
 import * as React from "react"
 import { ColumnDef } from "@tanstack/react-table"
-import { DataTable } from "@/components/data-table"
+import { DataTable } from "@/components/common/data-table"
 import { Input } from "@/components/ui/input"
-import { CreatePositionDialog, EditPositionDialog, DeletePositionDialog } from "@/components/admin/position-modals"
+import { CreatePositionDialog, EditPositionDialog, DeletePositionDialog } from "@/components/admin/positions/modals"
 
 type Row = { id: string; name: string; area: { id: string; name: string; code: string } }
 

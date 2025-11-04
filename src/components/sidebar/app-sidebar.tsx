@@ -52,7 +52,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { NavUser } from "./nav-user"
-import { NotificationsBadge } from "@/components/notifications-badge"
+import { NotificationsBadge } from "@/components/notifications/notifications-badge"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session, status } = useSession()

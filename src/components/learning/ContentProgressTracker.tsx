@@ -1,4 +1,4 @@
-// src/components/ContentProgressTracker.tsx
+// src/components/learning/ContentProgressTracker.tsx
 "use client"
 import { useEffect, useRef } from "react"
 
@@ -32,6 +32,8 @@ export function ContentProgressTracker({
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const estimatedDurationSeconds = estimatedDurationMinutes * 60
+  // Referencia explícita para evitar warning de variable no usada
+  void lessonType
 
   useEffect(() => {
     if (!autoStart) return

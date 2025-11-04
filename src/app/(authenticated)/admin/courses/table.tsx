@@ -2,12 +2,12 @@
 
 import * as React from "react"
 import { ColumnDef } from "@tanstack/react-table"
-import { DataTable } from "@/components/data-table"
+import { DataTable } from "@/components/common/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CreateCourseDialog, EditCourseDialog, DeleteCourseDialog, ViewVersionsDialog } from "@/components/admin/course-modals"
-import { EnrollToCourseDialog } from "@/components/admin/enrollment-modals"
-import { CourseLessonsPreviewDialog } from "@/components/admin/course-lessons-preview"
+import { CreateCourseDialog, EditCourseDialog, DeleteCourseDialog, ViewVersionsDialog } from "@/components/admin/courses/modals"
+import { EnrollToCourseDialog } from "@/components/admin/enrollments/modals"
+import { CourseLessonsPreviewDialog } from "@/components/admin/courses/lessons-preview"
 import Link from "next/link"
 import { BookOpen } from "lucide-react"
 

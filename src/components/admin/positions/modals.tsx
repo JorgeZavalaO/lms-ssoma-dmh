@@ -13,40 +13,56 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { AreaSchema } from "@/validations/areas"
+import { PositionSchema } from "@/validations/positions"
 import { toast } from "sonner"
 
-interface CreateAreaDialogProps {
+type Area = { id: string; code: string; name: string }
+
+interface CreatePositionDialogProps {
   onCreated: () => void
 }
 
-export function CreateAreaDialog({ onCreated }: CreateAreaDialogProps) {
+export function CreatePositionDialog({ onCreated }: CreatePositionDialogProps) {
   const [open, setOpen] = React.useState(false)
+  const [areas, setAreas] = React.useState<Area[]>([])
   const [loading, setLoading] = React.useState(false)
 
   const form = useForm({
     defaultValues: {
       name: "",
-      code: "",
+      areaId: "",
     },
   })
 
-  const onSubmit = async (data: z.infer<typeof AreaSchema>) => {
-    const validated = AreaSchema.parse(data)
+  React.useEffect(() => {
+    if (open) {
+      fetch("/api/areas").then(r => r.json()).then(setAreas)
+    }
+  }, [open])
+
+  const onSubmit = async (data: z.infer<typeof PositionSchema>) => {
+    const validated = PositionSchema.parse(data)
     setLoading(true)
     try {
-      const res = await fetch("/api/areas", {
+      const res = await fetch("/api/positions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(validated),
       })
       if (!res.ok) {
         const error = await res.json()
-        throw new Error(error.error || "Error creating area")
+        throw new Error(error.error || "Error creating position")
       }
-      toast.success("Área creada exitosamente")
+      toast.success("Puesto creado exitosamente")
       setOpen(false)
       form.reset()
       onCreated()
@@ -60,27 +76,16 @@ export function CreateAreaDialog({ onCreated }: CreateAreaDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Crear Área</Button>
+        <Button>Crear Puesto</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Crear Área</DialogTitle>
+          <DialogTitle>Crear Puesto</DialogTitle>
           <DialogDescription>
-            Agrega una nueva área al sistema.
+            Agrega un nuevo puesto al sistema.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="code" className="text-right">
-              Código
-            </Label>
-            <Input
-              id="code"
-              {...form.register("code")}
-              className="col-span-3"
-              placeholder="ADM"
-            />
-          </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="name" className="text-right">
               Nombre
@@ -89,8 +94,25 @@ export function CreateAreaDialog({ onCreated }: CreateAreaDialogProps) {
               id="name"
               {...form.register("name")}
               className="col-span-3"
-              placeholder="Administración"
+              placeholder="Gerente"
             />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="areaId" className="text-right">
+              Área
+            </Label>
+            <Select onValueChange={(value) => form.setValue("areaId", value)}>
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Seleccionar área" />
+              </SelectTrigger>
+              <SelectContent>
+                {areas.map((area) => (
+                  <SelectItem key={area.id} value={area.id}>
+                    {area.code} - {area.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <DialogFooter>
             <Button type="submit" disabled={loading}>
@@ -103,36 +125,43 @@ export function CreateAreaDialog({ onCreated }: CreateAreaDialogProps) {
   )
 }
 
-interface EditAreaDialogProps {
-  area: { id: string; name: string; code: string }
+interface EditPositionDialogProps {
+  position: { id: string; name: string; area: { id: string; code: string; name: string } }
   onEdited: () => void
 }
 
-export function EditAreaDialog({ area, onEdited }: EditAreaDialogProps) {
+export function EditPositionDialog({ position, onEdited }: EditPositionDialogProps) {
   const [open, setOpen] = React.useState(false)
+  const [areas, setAreas] = React.useState<Area[]>([])
   const [loading, setLoading] = React.useState(false)
 
   const form = useForm({
     defaultValues: {
-      name: area.name,
-      code: area.code,
+      name: position.name,
+      areaId: position.area.id,
     },
   })
 
-  const onSubmit = async (data: z.infer<typeof AreaSchema>) => {
-    const validated = AreaSchema.parse(data)
+  React.useEffect(() => {
+    if (open) {
+      fetch("/api/areas").then(r => r.json()).then(setAreas)
+    }
+  }, [open])
+
+  const onSubmit = async (data: z.infer<typeof PositionSchema>) => {
+    const validated = PositionSchema.parse(data)
     setLoading(true)
     try {
-      const res = await fetch(`/api/areas/${area.id}`, {
+      const res = await fetch(`/api/positions/${position.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(validated),
       })
       if (!res.ok) {
         const error = await res.json()
-        throw new Error(error.error || "Error updating area")
+        throw new Error(error.error || "Error updating position")
       }
-      toast.success("Área actualizada exitosamente")
+      toast.success("Puesto actualizado exitosamente")
       setOpen(false)
       onEdited()
     } catch (error) {
@@ -149,22 +178,12 @@ export function EditAreaDialog({ area, onEdited }: EditAreaDialogProps) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Editar Área</DialogTitle>
+          <DialogTitle>Editar Puesto</DialogTitle>
           <DialogDescription>
-            Modifica los datos del área.
+            Modifica los datos del puesto.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="code" className="text-right">
-              Código
-            </Label>
-            <Input
-              id="code"
-              {...form.register("code")}
-              className="col-span-3"
-            />
-          </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="name" className="text-right">
               Nombre
@@ -174,6 +193,23 @@ export function EditAreaDialog({ area, onEdited }: EditAreaDialogProps) {
               {...form.register("name")}
               className="col-span-3"
             />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="areaId" className="text-right">
+              Área
+            </Label>
+            <Select value={form.watch("areaId")} onValueChange={(value) => form.setValue("areaId", value)}>
+              <SelectTrigger className="col-span-3">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {areas.map((area) => (
+                  <SelectItem key={area.id} value={area.id}>
+                    {area.code} - {area.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <DialogFooter>
             <Button type="submit" disabled={loading}>
@@ -186,26 +222,26 @@ export function EditAreaDialog({ area, onEdited }: EditAreaDialogProps) {
   )
 }
 
-interface DeleteAreaDialogProps {
-  area: { id: string; name: string }
+interface DeletePositionDialogProps {
+  position: { id: string; name: string }
   onDeleted: () => void
 }
 
-export function DeleteAreaDialog({ area, onDeleted }: DeleteAreaDialogProps) {
+export function DeletePositionDialog({ position, onDeleted }: DeletePositionDialogProps) {
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
 
   const onConfirm = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/areas/${area.id}`, {
+      const res = await fetch(`/api/positions/${position.id}`, {
         method: "DELETE",
       })
       if (!res.ok) {
         const error = await res.json()
-        throw new Error(error.error || "Error deleting area")
+        throw new Error(error.error || "Error deleting position")
       }
-      toast.success("Área eliminada exitosamente")
+      toast.success("Puesto eliminado exitosamente")
       setOpen(false)
       onDeleted()
     } catch (error) {
@@ -222,9 +258,9 @@ export function DeleteAreaDialog({ area, onDeleted }: DeleteAreaDialogProps) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Eliminar Área</DialogTitle>
+          <DialogTitle>Eliminar Puesto</DialogTitle>
           <DialogDescription>
-            ¿Estás seguro de que quieres eliminar el área {area.name}? Esta acción no se puede deshacer.
+            ¿Estás seguro de que quieres eliminar el puesto {position.name}? Esta acción no se puede deshacer.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

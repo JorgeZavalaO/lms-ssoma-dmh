@@ -1,7 +1,7 @@
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/sidebar/app-sidebar"
-import { AppHeader } from "@/components/app-header"
-import { AppFooter } from "@/components/app-footer"
+import { AppHeader } from "@/components/layout/app-header"
+import { AppFooter } from "@/components/layout/app-footer"
 
 export default function AuthenticatedLayout({
   children,

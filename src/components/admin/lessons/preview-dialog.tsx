@@ -141,7 +141,7 @@ export function LessonPreviewDialog({ lesson }: LessonPreviewDialogProps) {
                     height="100%"
                     src={embedUrl}
                     title={lesson.title}
-                    frameBorder="0"
+                    frameBorder={0}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                     className="w-full h-full"

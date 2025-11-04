@@ -2,9 +2,9 @@
 
 import * as React from "react"
 import { ColumnDef } from "@tanstack/react-table"
-import { DataTable } from "@/components/data-table"
+import { DataTable } from "@/components/common/data-table"
 import { ChangeHeadDialog } from "./widgets/change-head-dialog"
-import { CreateAreaDialog, EditAreaDialog, DeleteAreaDialog } from "@/components/admin/area-modals"
+import { CreateAreaDialog, EditAreaDialog, DeleteAreaDialog } from "@/components/admin/areas/modals"
 
 type Row = {
   id: string

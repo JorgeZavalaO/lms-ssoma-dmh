@@ -2,9 +2,9 @@
 
 import * as React from "react"
 import { ColumnDef } from "@tanstack/react-table"
-import { DataTable } from "@/components/data-table"
+import { DataTable } from "@/components/common/data-table"
 import { Badge } from "@/components/ui/badge"
-import { CreateLearningPathDialog, EditLearningPathDialog, DeleteLearningPathDialog, ManageCoursesDialog } from "@/components/admin/learning-path-modals"
+import { CreateLearningPathDialog, EditLearningPathDialog, DeleteLearningPathDialog, ManageCoursesDialog } from "@/components/admin/learning-paths/modals"
 
 interface LearningPath {
   id: string

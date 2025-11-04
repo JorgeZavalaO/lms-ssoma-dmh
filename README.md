@@ -14,6 +14,25 @@ Sistema de Gestión de Aprendizaje (LMS) para Seguridad, Salud Ocupacional y Med
 LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacitaciones, colaboradores y recursos relacionados con Seguridad, Salud Ocupacional y Medio Ambiente. El sistema permite administrar usuarios, asignar cursos, gestionar áreas y puestos, y realizar seguimiento del progreso de capacitaciones.
 
 ## 🆕 Últimas Actualizaciones
+### v2.2.2 - Organización de Componentes (4 Nov 2025)
+
+- ♻️ Reubicación de componentes compartidos para una arquitectura más clara:
+  - `AppHeader` y `AppFooter` → `src/components/layout/`
+  - `DataTable` → `src/components/common/`
+  - `NotificationsBadge` → `src/components/notifications/`
+  - `ContentProgressTracker` → `src/components/learning/`
+  - `YouTubePlayer` → `src/components/media/`
+- 🔗 Actualizados todos los imports en páginas y componentes.
+- 🧹 Componentes `nav-main.tsx` y `nav-projects.tsx` marcados como deprecados (sin usos); pendientes de eliminación física si el entorno lo permite.
+
+### v2.2.1 - Modularización Admin y Limpieza (4 Nov 2025)
+
+- ✅ Componentes de administración modularizados por dominio en `src/components/admin/<modulo>/...` (áreas, colaboradores, cursos, unidades/lecciones, rutas, sedes, puestos, inscripciones, preguntas).
+- ✅ Rewired de imports en páginas y tablas de `/admin/*` para usar los nuevos paths modulares.
+- 🧹 Archivos centralizados anteriores marcados como deprecados y excluidos del lint para evitar ruido, manteniendo compatibilidad. Ya no existen referencias activas a:
+  - `components/admin/*-modals.tsx`, `course-lessons-preview.tsx`, `question-preview-dialog.tsx`
+- 🧪 Validación completa: lint sin errores, build exitoso, tests unitarios OK.
+
 ### v2.2.0 - Mejora UI Módulo Colaboradores (4 Nov 2025)
 
 - ✅ **Módulo de Colaboradores rediseñado**: Aplicada estética minimalista consistente:
@@ -614,9 +633,17 @@ lms-ssoma-dmh/
 │   │   │   ├── nav-user.tsx
 │   │   │   └── index.ts
 │   │   ├── ui/                # Componentes shadcn/ui
-│   │   ├── app-header.tsx     # Header global
-│   │   ├── app-footer.tsx     # Footer global
-│   │   └── data-table.tsx     # Tabla reutilizable
+│   │   ├── layout/            # Layout global
+│   │   │   ├── app-header.tsx
+│   │   │   └── app-footer.tsx
+│   │   ├── common/            # Componentes compartidos
+│   │   │   └── data-table.tsx
+│   │   ├── notifications/     # Notificaciones
+│   │   │   └── notifications-badge.tsx
+│   │   ├── learning/          # Aprendizaje/Tracking
+│   │   │   └── ContentProgressTracker.tsx
+│   │   └── media/             # Multimedia
+│   │       └── YouTubePlayer.tsx
 │   ├── lib/
 │   │   ├── prisma.ts          # Cliente Prisma
 │   │   └── utils.ts           # Utilidades

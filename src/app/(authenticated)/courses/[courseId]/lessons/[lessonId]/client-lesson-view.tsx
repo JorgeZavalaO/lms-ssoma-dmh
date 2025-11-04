@@ -26,8 +26,8 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { YouTubePlayer } from "@/components/YouTubePlayer"
-import { ContentProgressTracker } from "@/components/ContentProgressTracker"
+import { YouTubePlayer } from "@/components/media/YouTubePlayer"
+import { ContentProgressTracker } from "@/components/learning/ContentProgressTracker"
 
 interface ClientLessonViewProps {
   lesson: any

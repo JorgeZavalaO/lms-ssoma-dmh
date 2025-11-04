@@ -21,7 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { QuestionForm } from "./question-form";
-import { QuestionPreviewDialog } from "@/components/admin/question-preview-dialog";
+import { QuestionPreviewDialog } from "@/components/admin/questions/preview-dialog";
 
 type Question = {
   id: string;
