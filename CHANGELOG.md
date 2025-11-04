@@ -7,6 +7,80 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [2.1.9] - 2025-11-04
+
+### Mejora UI - Diálogos y Módulo de Contenido
+
+- ✅ **Dialog "Editar Curso" rediseñado**
+  - Aplicada estética minimalista igual que el dialog crear (iconos, secciones agrupadas, colores emerald).
+  - Secciones lógicas: Identificación, Nombre, Objetivo, Descripción, Configuración, Requisitos.
+  - Spinner animado en botón submit.
+
+- ✅ **Dialog "Inscribir Colaboradores" mejorado**
+  - Nuevo diseño consistente con minimalista.
+  - Header con icono Users y nombre del curso destacado.
+  - Búsqueda con indicador de carga integrado.
+  - Lista en fondo sutil (`bg-slate-50/30`) con mejor contraste.
+  - Sección Notas con icono MessageSquare.
+  - Botón CTA dinámico mostrando cantidad seleccionada.
+
+- ✅ **Módulo de Contenido (Unidades/Lecciones) refactor**
+  - Header mejorado: icono BookOpen, título 3xl, descripción clara, card informativa con tips.
+  - Badges coloreados: Unidades (emerald-50/700), Lecciones (blue-50/700).
+  - Cards vacías mejoradas: dashed borders, iconos grandes, spacing consistente.
+  - Mejor spacing vertical (`space-y-8`), text truncation, flexbox improvements.
+  - Componentes SortableUnit y SortableLesson actualizados con paleta minimalista.
+
+- ✅ **Build validado**: Compilación exitosa en 8.9s, 78 páginas, 0 errores.
+
+## [2.1.8] - 2025-11-04
+
+### Mejora UI - Dialog Crear Curso
+
+- ✅ **Dialog rediseñado con estética minimalista**
+  - Bordes sutiles (`border-slate-200`), colores emerald para CTA (`bg-emerald-600`).
+  - Iconos descriptivos en cada sección (BookOpen, FileText, Users, Clock, AlertCircle, CheckCircle2).
+  - Mejor legibilidad y escaneo visual del formulario.
+
+- ✅ **Organización mejorada de campos**
+  - Sección "Estado" con indicadores visuales (puntos de color para Draft/Published/Archived).
+  - Sección "Configuración de Tiempo" agrupa Duración, Modalidad y Vigencia bajo un header común.
+  - Requisitos Previos en sección aparte con descripción clara.
+
+- ✅ **UX mejorada en interacciones**
+  - Placeholder y Labels con ejemplos concretos ("Ej: Seguridad Industrial Avanzada").
+  - Spinner animado en botón submit durante creación.
+  - Botón Cancelar ahora visible en footer.
+
+- ✅ **Build validado**: Compilación exitosa, 78 páginas, 0 errores.
+
+## [2.1.7] - 2025-11-04
+
+### Agregado / Corregido - Módulo de Certificaciones
+
+- ✅ **API: Transformación y compatibilidad**
+  - `GET /api/progress/certifications` ahora devuelve un objeto envuelto `{ certifications: [...] }` y transforma los datos para el cliente:
+    - `collaborator.fullName` se divide en `firstName` y `lastName`.
+    - `course.validity` se expone como `course.validityMonths`.
+  - Se aplicó la misma transformación en los endpoints:
+    - `POST /api/progress/certifications/[id]/recertify` → respuesta transformada y wrapped
+    - `POST /api/progress/certifications/[id]/revoke` → respuesta transformada y wrapped
+  - Beneficio: compatibilidad con el cliente y patrón uniforme de respuesta en los módulos de progreso/alerts.
+
+- ✅ **Admin UI: Refactor y mejoras UX**
+  - Nuevo componente `ClientCertifications` (`src/app/(authenticated)/admin/certifications/client-certifications.tsx`) que reemplaza lógica inline en `page.tsx`.
+  - Añade: stats cards (total/válidos/invalidos/por vencer), búsqueda, filtros por estado, acciones (generar, descargar, verificar), estados de carga y mensajes con `sonner`.
+  - Estética minimalista: bordes de cards coloreados (emerald/amber/red/slate), tipografía `font-semibold` y spacing estandarizado.
+
+- ✅ **Public Verify Page**
+  - `src/app/(public)/verify/[code]/page.tsx` rediseñada con estilo minimalista (bg-slate-50, cards con border-slate-200, badges sobrios) y mejor presentación de la información pública mínima del certificado.
+
+- ✅ **Correcciones y limpieza**
+  - Eliminación de imports no usados y eliminación de `any` innecesarios en el componente cliente.
+  - Mejora de manejo de errores con toasts en `loadCertifications`, `handleGenerate`, etc.
+
+- ✅ **Build validado**: Compilación exitosa tras cambios (78 páginas, 0 errores). Se mantienen warnings ESLint preexistentes.
+
 ## [2.1.6] - 2025-11-03
 
 ### Agregado - Mejoras en Gestión de Colaboradores

@@ -14,6 +14,61 @@ Sistema de Gestión de Aprendizaje (LMS) para Seguridad, Salud Ocupacional y Med
 LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacitaciones, colaboradores y recursos relacionados con Seguridad, Salud Ocupacional y Medio Ambiente. El sistema permite administrar usuarios, asignar cursos, gestionar áreas y puestos, y realizar seguimiento del progreso de capacitaciones.
 
 ## 🆕 Últimas Actualizaciones
+### v2.1.9 - Mejoras UI en Diálogos y Módulo de Contenido (4 Nov 2025)
+
+- ✅ **Dialog "Editar Curso" rediseñado**: Aplicada la misma estética minimalista que el dialog de crear curso:
+  - Secciones organizadas (Identificación, Nombre, Objetivo, Descripción, Configuración de Tiempo, Requisitos).
+  - Iconos descriptivos con colores minimalista (emerald para CTA, slate para elementos secundarios).
+  - Spinner animado en botón submit.
+
+- ✅ **Dialog "Inscribir Colaboradores" mejorado**: Nuevo diseño consistente con minimalista:
+  - Header con icono de grupo (Users) y información clara del curso.
+  - Búsqueda mejorada con indicador de carga integrado.
+  - Lista de colaboradores con fondo sutil (`bg-slate-50/30`) y mejor legibilidad.
+  - Notas sección con icono MessageSquare.
+  - Botón CTA dinámico mostrando cantidad de colaboradores seleccionados.
+
+- ✅ **Módulo de Contenido (Unidades/Lecciones) refactor completo**:
+  - Header mejorado con icono BookOpen, título grande (3xl font), descripción clara y card informativa con tips.
+  - Badges coloreados: Unidades en emerald-50/700, Lecciones en blue-50/700.
+  - Cards vacías mejoradas (dashed borders, iconos más grandes, spacing better).
+  - Mejor spacing vertical (`space-y-8` en lugar de `space-y-6`).
+  - Componentes SortableUnit y SortableLesson actualizados con colores slate/emerald/blue.
+  - Text truncation y flexbox improvements para mejor responsividad.
+
+- ✅ **Build validado**: Compilación exitosa en 8.9s, 78 páginas, 0 errores.
+
+### v2.1.8 - Mejora UI Dialog Crear Curso (4 Nov 2025)
+
+- ✅ **Dialog "Crear Nuevo Curso" rediseñado**: Estética minimalista con bordes sutiles y colores en paleta emergente (`border-emerald-500`, `bg-emerald-600` para CTA).
+- ✅ **Iconos descriptivos**: Cada sección etiquetada con icono (BookOpen, FileText, Users, Clock, AlertCircle, CheckCircle2) para mejor escaneo visual.
+- ✅ **Mejor organización de campos**: 
+  - Sección "Estado" con indicadores de color (puntos animados para Draft/Published/Archived).
+  - Sección "Configuración de Tiempo" agrupando Duración, Modalidad y Vigencia con etiquetas secundarias.
+  - Requisitos en sección aparte con descripción clara.
+- ✅ **Indicador visual de carga**: Spinner animado en botón submit cuando se está creando el curso.
+- ✅ **Tooltips y placeholders mejorados**: Ejemplos concretos ("Ej: Seguridad Industrial Avanzada") para guiar al usuario.
+- ✅ **Build validado**: Compilación exitosa, 78 páginas, 0 errores.
+
+### v2.1.7 - Ajustes y mejoras en Certificaciones (4 Nov 2025)
+
+- ✅ **Refactor Admin Certificaciones**: Se creó un componente cliente modular `ClientCertifications` (`src/app/(authenticated)/admin/certifications/client-certifications.tsx`) que reemplaza la implementación inline en `page.tsx`. Incluye:
+  - Cards de estadísticas (Total, Válidos, Inválidos, Por vencer) con bordes coloreados y paleta minimalista.
+  - Búsqueda y filtros (por estado: vigente/por vencer/vencida/revocada).
+  - Tabla con acciones: generar certificado, descargar PDF y ver verificación pública.
+  - Estados de carga y vacíos, y notificaciones con `sonner`.
+
+- ✅ **API: Transformación y compatibilidad**: Los endpoints de certificaciones ahora transforman la respuesta al formato esperado por el cliente:
+  - `fullName` → `firstName` / `lastName` (split automático)
+  - `course.validity` expuesto como `course.validityMonths`
+  - Respuestas envueltas en `{ certifications: [...] }` para mantener consistencia con otros módulos (p.ej. progress/alerts).
+  - Endpoints actualizados: `GET /api/progress/certifications`, `POST /api/progress/certifications/[id]/recertify`, `POST /api/progress/certifications/[id]/revoke`.
+
+- ✅ **Página pública de verificación actualizada**: `src/app/(public)/verify/[code]/page.tsx` rediseñada con estética minimalista (fondo `bg-slate-50`, cards con `border-slate-200`, badges sobrios) y mejor accesibilidad de la información pública.
+
+- ✅ **Correcciones TypeScript y limpieza**: Se eliminaron imports no usados, se mejoró manejo de errores (toasts) y se eliminaron `any` innecesarios en el nuevo componente.
+
+- ✅ **Build validado**: Compilación exitosa tras cambios (78 páginas, 0 errores). Varios warnings de ESLint existentes permanecen documentados.
 
 ### v2.1.6 - Mejoras en Gestión de Colaboradores (3 Nov 2025)
 - ✅ **Validación de Contraseña Condicional**: Password requerida solo cuando `createUser=true` en diálogo de creación

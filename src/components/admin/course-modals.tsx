@@ -25,7 +25,7 @@ import { useForm } from "react-hook-form"
 import { CourseSchema, CourseFormData } from "@/validations/courses"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
-import { Eye } from "lucide-react"
+import { Eye, BookOpen, Clock, Users, FileText, AlertCircle, CheckCircle2 } from "lucide-react"
 
 // Create Course Dialog
 interface CreateCourseDialogProps {
@@ -83,112 +83,207 @@ export function CreateCourseDialog({ onCreated }: CreateCourseDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Crear Curso</Button>
+        <Button className="gap-2">
+          <BookOpen className="h-4 w-4" />
+          Crear Curso
+        </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Crear Nuevo Curso</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-emerald-600" />
+            Crear Nuevo Curso
+          </DialogTitle>
           <DialogDescription>
-            Completa los datos del curso. El código se generará automáticamente (CRS-XXX).
+            Completa la información del curso. El código se generará automáticamente (CRS-XXX).
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="status">Estado *</Label>
+        
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          {/* Estado */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-slate-500" />
+              <Label htmlFor="status" className="font-semibold">
+                Estado
+              </Label>
+            </div>
             <Select
               value={form.watch("status")}
               onValueChange={(value) => form.setValue("status", value as any)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="border-slate-200 focus:border-emerald-500">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="DRAFT">Borrador</SelectItem>
-                <SelectItem value="PUBLISHED">Publicado</SelectItem>
-                <SelectItem value="ARCHIVED">Archivado</SelectItem>
+                <SelectItem value="DRAFT">
+                  <span className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-slate-400" />
+                    Borrador
+                  </span>
+                </SelectItem>
+                <SelectItem value="PUBLISHED">
+                  <span className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                    Publicado
+                  </span>
+                </SelectItem>
+                <SelectItem value="ARCHIVED">
+                  <span className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-slate-300" />
+                    Archivado
+                  </span>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="name">Nombre *</Label>
+          {/* Nombre */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-slate-500" />
+              <Label htmlFor="name" className="font-semibold">
+                Nombre del Curso *
+              </Label>
+            </div>
             <Input
               id="name"
               {...form.register("name")}
-              placeholder="Nombre del curso"
+              placeholder="Ej: Seguridad Industrial Avanzada"
+              className="border-slate-200 focus:border-emerald-500"
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="objective">Objetivo</Label>
+          {/* Objetivo */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-slate-500" />
+              <Label htmlFor="objective" className="font-semibold">
+                Objetivo
+              </Label>
+            </div>
             <Textarea
               id="objective"
               {...form.register("objective")}
-              placeholder="Objetivo del curso"
+              placeholder="¿Qué aprenderán los participantes?"
               rows={2}
+              className="border-slate-200 focus:border-emerald-500 resize-none"
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Descripción</Label>
+          {/* Descripción */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-slate-500" />
+              <Label htmlFor="description" className="font-semibold">
+                Descripción
+              </Label>
+            </div>
             <Textarea
               id="description"
               {...form.register("description")}
-              placeholder="Descripción detallada"
+              placeholder="Información detallada sobre el contenido del curso"
               rows={3}
+              className="border-slate-200 focus:border-emerald-500 resize-none"
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="duration">Duración (horas)</Label>
-              <Input
-                id="duration"
-                type="number"
-                {...form.register("duration")}
-                placeholder="8"
-              />
+          {/* Grid: Duración, Modalidad, Vigencia */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-slate-500" />
+              <Label className="font-semibold">
+                Configuración de Tiempo
+              </Label>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="modality">Modalidad</Label>
-              <Select
-                value={form.watch("modality")}
-                onValueChange={(value) => form.setValue("modality", value as any)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ASYNCHRONOUS">Asíncrono</SelectItem>
-                  <SelectItem value="SYNCHRONOUS">Síncrono</SelectItem>
-                  <SelectItem value="BLENDED">Mixto</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="validity">Vigencia (meses)</Label>
-              <Input
-                id="validity"
-                type="number"
-                {...form.register("validity")}
-                placeholder="12"
-              />
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="duration" className="text-sm text-slate-600">
+                  Duración (horas)
+                </Label>
+                <Input
+                  id="duration"
+                  type="number"
+                  {...form.register("duration")}
+                  placeholder="8"
+                  className="border-slate-200 focus:border-emerald-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="modality" className="text-sm text-slate-600">
+                  Modalidad
+                </Label>
+                <Select
+                  value={form.watch("modality")}
+                  onValueChange={(value) => form.setValue("modality", value as any)}
+                >
+                  <SelectTrigger className="border-slate-200 focus:border-emerald-500">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ASYNCHRONOUS">Asíncrono</SelectItem>
+                    <SelectItem value="SYNCHRONOUS">Síncrono</SelectItem>
+                    <SelectItem value="BLENDED">Mixto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="validity" className="text-sm text-slate-600">
+                  Vigencia (meses)
+                </Label>
+                <Input
+                  id="validity"
+                  type="number"
+                  {...form.register("validity")}
+                  placeholder="12"
+                  className="border-slate-200 focus:border-emerald-500"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="requirements">Requisitos</Label>
+          {/* Requisitos */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-slate-500" />
+              <Label htmlFor="requirements" className="font-semibold">
+                Requisitos Previos
+              </Label>
+            </div>
             <Textarea
               id="requirements"
               {...form.register("requirements")}
-              placeholder="Requisitos previos"
+              placeholder="Conocimientos o experiencia requerida"
               rows={2}
+              className="border-slate-200 focus:border-emerald-500 resize-none"
             />
           </div>
 
-          <DialogFooter>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Creando..." : "Crear Curso"}
+          <DialogFooter className="gap-3 pt-4 border-t border-slate-200">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              className="border-slate-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="bg-emerald-600 hover:bg-emerald-700 gap-2"
+            >
+              {loading ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
+                  Creando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4" />
+                  Crear Curso
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>
@@ -264,113 +359,212 @@ export function EditCourseDialog({ course, onEdited }: EditCourseDialogProps) {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">Editar</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Editar Curso</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-emerald-600" />
+            Editar Curso
+          </DialogTitle>
           <DialogDescription>
             Los cambios significativos crearán una nueva versión automáticamente.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="code">Código *</Label>
-              <Input
-                id="code"
-                {...form.register("code")}
-              />
+        
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          {/* Código y Estado */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-slate-500" />
+              <Label className="font-semibold">
+                Identificación del Curso
+              </Label>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Estado *</Label>
-              <Select
-                value={form.watch("status")}
-                onValueChange={(value) => form.setValue("status", value as any)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DRAFT">Borrador</SelectItem>
-                  <SelectItem value="PUBLISHED">Publicado</SelectItem>
-                  <SelectItem value="ARCHIVED">Archivado</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="code" className="text-sm text-slate-600">
+                  Código *
+                </Label>
+                <Input
+                  id="code"
+                  {...form.register("code")}
+                  className="border-slate-200 focus:border-emerald-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status" className="text-sm text-slate-600">
+                  Estado *
+                </Label>
+                <Select
+                  value={form.watch("status")}
+                  onValueChange={(value) => form.setValue("status", value as any)}
+                >
+                  <SelectTrigger className="border-slate-200 focus:border-emerald-500">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DRAFT">
+                      <span className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-slate-400" />
+                        Borrador
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="PUBLISHED">
+                      <span className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                        Publicado
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="ARCHIVED">
+                      <span className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-slate-300" />
+                        Archivado
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="name">Nombre *</Label>
+          {/* Nombre */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-slate-500" />
+              <Label htmlFor="name" className="font-semibold">
+                Nombre del Curso *
+              </Label>
+            </div>
             <Input
               id="name"
               {...form.register("name")}
+              className="border-slate-200 focus:border-emerald-500"
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="objective">Objetivo</Label>
+          {/* Objetivo y Descripción */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-slate-500" />
+              <Label htmlFor="objective" className="font-semibold">
+                Objetivo
+              </Label>
+            </div>
             <Textarea
               id="objective"
               {...form.register("objective")}
               rows={2}
+              className="border-slate-200 focus:border-emerald-500 resize-none"
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Descripción</Label>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-slate-500" />
+              <Label htmlFor="description" className="font-semibold">
+                Descripción
+              </Label>
+            </div>
             <Textarea
               id="description"
               {...form.register("description")}
               rows={3}
+              className="border-slate-200 focus:border-emerald-500 resize-none"
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="duration">Duración (horas)</Label>
-              <Input
-                id="duration"
-                type="number"
-                {...form.register("duration")}
-              />
+          {/* Grid: Duración, Modalidad, Vigencia */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-slate-500" />
+              <Label className="font-semibold">
+                Configuración de Tiempo
+              </Label>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="modality">Modalidad</Label>
-              <Select
-                value={form.watch("modality")}
-                onValueChange={(value) => form.setValue("modality", value as any)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ASYNCHRONOUS">Asíncrono</SelectItem>
-                  <SelectItem value="SYNCHRONOUS">Síncrono</SelectItem>
-                  <SelectItem value="BLENDED">Mixto</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="validity">Vigencia (meses)</Label>
-              <Input
-                id="validity"
-                type="number"
-                {...form.register("validity")}
-              />
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="duration" className="text-sm text-slate-600">
+                  Duración (horas)
+                </Label>
+                <Input
+                  id="duration"
+                  type="number"
+                  {...form.register("duration")}
+                  className="border-slate-200 focus:border-emerald-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="modality" className="text-sm text-slate-600">
+                  Modalidad
+                </Label>
+                <Select
+                  value={form.watch("modality")}
+                  onValueChange={(value) => form.setValue("modality", value as any)}
+                >
+                  <SelectTrigger className="border-slate-200 focus:border-emerald-500">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ASYNCHRONOUS">Asíncrono</SelectItem>
+                    <SelectItem value="SYNCHRONOUS">Síncrono</SelectItem>
+                    <SelectItem value="BLENDED">Mixto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="validity" className="text-sm text-slate-600">
+                  Vigencia (meses)
+                </Label>
+                <Input
+                  id="validity"
+                  type="number"
+                  {...form.register("validity")}
+                  className="border-slate-200 focus:border-emerald-500"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="requirements">Requisitos</Label>
+          {/* Requisitos */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-slate-500" />
+              <Label htmlFor="requirements" className="font-semibold">
+                Requisitos Previos
+              </Label>
+            </div>
             <Textarea
               id="requirements"
               {...form.register("requirements")}
               rows={2}
+              className="border-slate-200 focus:border-emerald-500 resize-none"
             />
           </div>
 
-          <DialogFooter>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Actualizando..." : "Actualizar Curso"}
+          <DialogFooter className="gap-3 pt-4 border-t border-slate-200">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              className="border-slate-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="bg-emerald-600 hover:bg-emerald-700 gap-2"
+            >
+              {loading ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
+                  Actualizando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4" />
+                  Actualizar Curso
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>

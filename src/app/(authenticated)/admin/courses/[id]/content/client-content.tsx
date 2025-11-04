@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   Accordion,
   AccordionContent,
@@ -10,7 +10,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
-import { Plus, FileText, Video, File, Code, Package, GripVertical } from "lucide-react"
+import { Plus, FileText, Video, File, Code, Package, GripVertical, BookOpen, AlertCircle, CheckCircle2 } from "lucide-react"
 import { CreateUnitDialog, EditUnitDialog, DeleteUnitDialog } from "@/components/admin/content-modals"
 import { CreateLessonDialog, EditLessonDialog, DeleteLessonDialog } from "@/components/admin/lesson-modals"
 import { LessonPreviewDialog } from "@/components/admin/lesson-preview-dialog"
@@ -113,21 +113,21 @@ function SortableUnit({
                   {...attributes}
                   {...listeners}
                 >
-                  <GripVertical className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+                  <GripVertical className="h-5 w-5 text-slate-400 hover:text-slate-600" />
                 </div>
-                <Badge variant="outline" className="font-mono">
+                <Badge variant="outline" className="font-mono bg-emerald-50 text-emerald-700 border-emerald-200">
                   U{unit.order}
                 </Badge>
                 <div className="text-left">
-                  <h3 className="font-semibold">{unit.title}</h3>
+                  <h3 className="font-semibold text-slate-900">{unit.title}</h3>
                   {unit.description && (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-slate-600">
                       {unit.description}
                     </p>
                   )}
                 </div>
               </div>
-              <Badge variant="secondary">
+              <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                 {unit._count.lessons} lección{unit._count.lessons !== 1 ? "es" : ""}
               </Badge>
             </div>
@@ -136,7 +136,7 @@ function SortableUnit({
           <AccordionContent>
             <CardContent className="pt-4">
               <div className="flex justify-between items-center mb-4">
-                <h4 className="text-sm font-medium">Lecciones</h4>
+                <h4 className="text-sm font-semibold text-slate-900">Lecciones</h4>
                 <div className="flex gap-2">
                   <CreateLessonDialog unitId={unit.id} onCreated={refreshUnits} />
                   <EditUnitDialog unit={unit} onEdited={refreshUnits} />
@@ -145,9 +145,9 @@ function SortableUnit({
               </div>
 
               {unit.lessons.length === 0 ? (
-                <div className="text-center py-8 border-2 border-dashed rounded-lg">
-                  <FileText className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">
+                <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-lg">
+                  <FileText className="h-8 w-8 mx-auto text-slate-300 mb-2" />
+                  <p className="text-sm text-slate-500">
                     No hay lecciones en esta unidad
                   </p>
                 </div>
@@ -194,30 +194,30 @@ function SortableLesson({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+      className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0">
         <div
           className="cursor-grab active:cursor-grabbing touch-none"
           {...attributes}
           {...listeners}
         >
-          <GripVertical className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+          <GripVertical className="h-4 w-4 text-slate-400 hover:text-slate-600" />
         </div>
-        <Badge variant="outline" className="font-mono w-12">
+        <Badge variant="outline" className="font-mono bg-blue-50 text-blue-700 border-blue-200 flex-shrink-0">
           L{lesson.order}
         </Badge>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-        <div>
-          <div className="font-medium">{lesson.title}</div>
-          <div className="text-sm text-muted-foreground">
+        <Icon className="h-4 w-4 text-slate-500 flex-shrink-0" />
+        <div className="min-w-0">
+          <div className="font-medium text-slate-900 truncate">{lesson.title}</div>
+          <div className="text-sm text-slate-600 truncate">
             {lessonTypeLabels[lesson.type as keyof typeof lessonTypeLabels]}
             {lesson.duration && ` • ${lesson.duration} min`}
-            {` • ${lesson.completionThreshold}% completado`}
+            {`• ${lesson.completionThreshold}% completado`}
           </div>
         </div>
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-shrink-0">
         <LessonPreviewDialog lesson={lesson} />
         <EditLessonDialog lesson={lesson} onEdited={refreshUnits} />
         <DeleteLessonDialog lessonId={lesson.id} onDeleted={refreshUnits} />
@@ -367,28 +367,47 @@ export default function ClientCourseContent({ courseId, initialUnits }: ClientCo
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-semibold">Unidades y Lecciones</h2>
-          <p className="text-sm text-muted-foreground">
-            Organiza el contenido del curso en unidades y lecciones. Arrastra para reordenar.
-          </p>
+    <div className="space-y-8">
+      {/* Header Section */}
+      <div className="space-y-4">
+        <div className="flex items-start justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-6 w-6 text-emerald-600" />
+              <h2 className="text-3xl font-bold text-slate-900">Unidades y Lecciones</h2>
+            </div>
+            <p className="text-sm text-slate-600 ml-8">
+              Organiza el contenido del curso en unidades y lecciones. Arrastra para reordenar fácilmente.
+            </p>
+          </div>
+          <CreateUnitDialog courseId={courseId} onCreated={refreshUnits} />
         </div>
-        <CreateUnitDialog courseId={courseId} onCreated={refreshUnits} />
+        
+        {/* Info Card */}
+        <div className="ml-8 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-emerald-800">
+              <span className="font-semibold">Tip:</span> Usa el icono de agarre para reordenar unidades y lecciones.
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Units List */}
       {units.length === 0 ? (
-        <Card>
-          <CardContent className="py-12">
-            <div className="text-center">
-              <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No hay unidades</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Comienza creando la primera unidad del curso
-              </p>
+        <Card className="border-dashed border-2 border-slate-200">
+          <CardContent className="py-16">
+            <div className="text-center space-y-4">
+              <div className="flex justify-center">
+                <Package className="h-16 w-16 text-slate-300" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-1">No hay unidades</h3>
+                <p className="text-sm text-slate-600">
+                  Comienza creando la primera unidad del curso
+                </p>
+              </div>
               <CreateUnitDialog courseId={courseId} onCreated={refreshUnits} />
             </div>
           </CardContent>
@@ -403,7 +422,7 @@ export default function ClientCourseContent({ courseId, initialUnits }: ClientCo
             items={units.map((u) => u.id)}
             strategy={verticalListSortingStrategy}
           >
-            <Accordion type="single" collapsible className="space-y-4">
+            <Accordion type="single" collapsible className="space-y-3">
               {units.map((unit) => (
                 <SortableUnit 
                   key={unit.id} 
@@ -416,27 +435,27 @@ export default function ClientCourseContent({ courseId, initialUnits }: ClientCo
         </DndContext>
       ) : (
         // Fallback SSR sin DnD para evitar hydration mismatch
-        <Accordion type="single" collapsible className="space-y-4">
+        <Accordion type="single" collapsible className="space-y-3">
           {units.map((unit) => (
             <AccordionItem key={unit.id} value={unit.id} className="border rounded-lg">
               <Card>
                 <AccordionTrigger className="px-6 hover:no-underline">
                   <div className="flex items-center justify-between w-full mr-4">
                     <div className="flex items-center gap-4">
-                      <GripVertical className="h-5 w-5 text-muted-foreground" />
-                      <Badge variant="outline" className="font-mono">
+                      <GripVertical className="h-5 w-5 text-slate-400" />
+                      <Badge variant="outline" className="font-mono bg-emerald-50 text-emerald-700 border-emerald-200">
                         U{unit.order}
                       </Badge>
                       <div className="text-left">
-                        <h3 className="font-semibold">{unit.title}</h3>
+                        <h3 className="font-semibold text-slate-900">{unit.title}</h3>
                         {unit.description && (
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm text-slate-600">
                             {unit.description}
                           </p>
                         )}
                       </div>
                     </div>
-                    <Badge variant="secondary">
+                    <Badge variant="secondary" className="bg-slate-100 text-slate-700">
                       {unit._count.lessons} lección{unit._count.lessons !== 1 ? "es" : ""}
                     </Badge>
                   </div>
@@ -444,7 +463,7 @@ export default function ClientCourseContent({ courseId, initialUnits }: ClientCo
                 <AccordionContent>
                   <CardContent className="pt-4">
                     <div className="flex justify-between items-center mb-4">
-                      <h4 className="text-sm font-medium">Lecciones</h4>
+                      <h4 className="text-sm font-semibold text-slate-900">Lecciones</h4>
                       <div className="flex gap-2">
                         <CreateLessonDialog unitId={unit.id} onCreated={refreshUnits} />
                         <EditUnitDialog unit={unit} onEdited={refreshUnits} />
@@ -453,9 +472,9 @@ export default function ClientCourseContent({ courseId, initialUnits }: ClientCo
                     </div>
 
                     {unit.lessons.length === 0 ? (
-                      <div className="text-center py-8 border-2 border-dashed rounded-lg">
-                        <FileText className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                        <p className="text-sm text-muted-foreground">
+                      <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-lg">
+                        <FileText className="h-8 w-8 mx-auto text-slate-300 mb-2" />
+                        <p className="text-sm text-slate-500">
                           No hay lecciones en esta unidad
                         </p>
                       </div>
@@ -464,23 +483,23 @@ export default function ClientCourseContent({ courseId, initialUnits }: ClientCo
                         {unit.lessons.map((lesson) => {
                           const Icon = lessonTypeIcons[lesson.type as keyof typeof lessonTypeIcons] || FileText
                           return (
-                            <div key={lesson.id} className="flex items-center justify-between p-3 border rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <GripVertical className="h-4 w-4 text-muted-foreground" />
-                                <Badge variant="outline" className="font-mono w-12">
+                            <div key={lesson.id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <GripVertical className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                                <Badge variant="outline" className="font-mono bg-blue-50 text-blue-700 border-blue-200 flex-shrink-0">
                                   L{lesson.order}
                                 </Badge>
-                                <Icon className="h-4 w-4 text-muted-foreground" />
-                                <div>
-                                  <div className="font-medium">{lesson.title}</div>
-                                  <div className="text-sm text-muted-foreground">
+                                <Icon className="h-4 w-4 text-slate-500 flex-shrink-0" />
+                                <div className="min-w-0">
+                                  <div className="font-medium text-slate-900 truncate">{lesson.title}</div>
+                                  <div className="text-sm text-slate-600 truncate">
                                     {lessonTypeLabels[lesson.type as keyof typeof lessonTypeLabels]}
                                     {lesson.duration && ` • ${lesson.duration} min`}
                                     {` • ${lesson.completionThreshold}% completado`}
                                   </div>
                                 </div>
                               </div>
-                              <div className="flex gap-2">
+                              <div className="flex gap-2 flex-shrink-0">
                                 <LessonPreviewDialog lesson={lesson} />
                                 <EditLessonDialog lesson={lesson} onEdited={refreshUnits} />
                                 <DeleteLessonDialog lessonId={lesson.id} onDeleted={refreshUnits} />
