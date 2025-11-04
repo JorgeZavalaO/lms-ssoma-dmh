@@ -14,6 +14,43 @@ Sistema de Gestión de Aprendizaje (LMS) para Seguridad, Salud Ocupacional y Med
 LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacitaciones, colaboradores y recursos relacionados con Seguridad, Salud Ocupacional y Medio Ambiente. El sistema permite administrar usuarios, asignar cursos, gestionar áreas y puestos, y realizar seguimiento del progreso de capacitaciones.
 
 ## 🆕 Últimas Actualizaciones
+### v2.2.0 - Mejora UI Módulo Colaboradores (4 Nov 2025)
+
+- ✅ **Módulo de Colaboradores rediseñado**: Aplicada estética minimalista consistente:
+  - Header mejorado con icono Users, título 3xl y descripción clara (`ml-8` para alineación).
+  - Colores palette: slate (neutral), emerald (primary), blue (secondary), amber/red (warnings).
+
+- ✅ **Componentes reutilizables en `src/components/admin/collaborators/`**:
+  - `CollaboratorPill`: Badge customizable con colores minimalista (default/success/warning/danger).
+  - `ExportCollaboratorsButton`: Botón con loading spinner para descargar colaboradores en Excel.
+  - Exports centralizados en `index.ts`.
+
+- ✅ **Tabla de colaboradores mejorada**:
+  - Colores de texto consistentes: `text-slate-900` (primario), `text-slate-600` (secundario).
+  - Email con link clickable (color emerald-600).
+  - Pills con bordes sutiles y colores de fondo: 
+    - Estado ACTIVE: `bg-emerald-50 text-emerald-700 border-emerald-200`
+    - Estado INACTIVE: `bg-amber-50 text-amber-700 border-amber-200`
+    - Rol SUPERADMIN: rojo, ADMIN: ámbar, COLLABORATOR: gris
+  - Botones "Rol" mejorados con icono Shield y label responsivo.
+
+- ✅ **Dialog "Cambiar Rol" rediseñado** (`change-role-dialog.tsx`):
+  - Header con icono Shield coloreado (emerald-600).
+  - Input de colaborador mejorado: nombre en fondo gris claro (`bg-slate-50`).
+  - Select con estilo minimalista: `border-slate-200 focus:border-emerald-500`.
+  - Estados mejorados (success/error) con iconos CheckCircle2/AlertCircle.
+  - Footer con botones Cancel/Submit (CTA en emerald-600).
+  - Mensaje de deshabilitación mejorado con card informativa.
+
+- ✅ **Descarga en Excel implementada**:
+  - Endpoint `/api/collaborators/export` con soporte a `xlsx` y `csv`.
+  - Traer todos los colaboradores (sin paginación).
+  - Columnas: DNI, Nombre, Email, Estado, Fecha Entrada, Área, Puesto, Sede, Rol.
+  - Nombres de archivo automáticos con fecha: `colaboradores_YYYY-MM-DD.xlsx`.
+  - Botón "Descargar Excel" en header derecho de tabla con loading indicator.
+
+- ✅ **Build validado**: Compilación exitosa en 9.8s, 79 páginas (+1 por export endpoint), 0 errores.
+
 ### v2.1.9 - Mejoras UI en Diálogos y Módulo de Contenido (4 Nov 2025)
 
 - ✅ **Dialog "Editar Curso" rediseñado**: Aplicada la misma estética minimalista que el dialog de crear curso:

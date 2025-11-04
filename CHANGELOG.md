@@ -7,6 +7,46 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [2.2.0] - 2025-11-04
+
+### Mejora UI - Módulo de Colaboradores + Descarga Excel
+
+- ✅ **Módulo de Colaboradores rediseñado**
+  - Header mejorado: icono Users, título 3xl, descripción clara con `ml-8` alineación.
+  - Paleta minimalista aplicada: slate (neutral), emerald (primary), blue (secondary), amber/red (warnings).
+
+- ✅ **Componentes reutilizables creados**
+  - Nueva carpeta: `src/components/admin/collaborators/`
+  - `CollaboratorPill`: Badge con colores minimalista (default/success/warning/danger).
+  - `ExportCollaboratorsButton`: Botón con spinner para descargar Excel.
+  - Exports centralizados en `index.ts` para mejor mantenimiento.
+
+- ✅ **Tabla de colaboradores mejorada**
+  - Colores de texto: `text-slate-900` (primario), `text-slate-600` (secundario).
+  - Email con link clickable en color emerald-600.
+  - Pills con bordes subtiles y fondos coloreados:
+    * ACTIVE: `bg-emerald-50 text-emerald-700 border-emerald-200`
+    * INACTIVE: `bg-amber-50 text-amber-700 border-amber-200`
+    * Rol SUPERADMIN: rojo, ADMIN: ámbar, COLLABORATOR: gris
+  - Botones "Rol" con icono Shield y label responsivo.
+
+- ✅ **Dialog "Cambiar Rol" rediseñado**
+  - Header con icono Shield (emerald-600).
+  - Campo colaborador en fondo gris claro (`bg-slate-50 border-slate-200`).
+  - Select minimalista: `focus:border-emerald-500`.
+  - Estados con iconos (CheckCircle2 ✓, AlertCircle ⚠).
+  - Footer con botones Cancel/Submit (CTA en emerald-600).
+
+- ✅ **Descarga Excel implementada**
+  - Endpoint: `/api/collaborators/export?format=xlsx|csv`
+  - Traer todos los colaboradores sin paginación.
+  - Columnas: DNI, Nombre, Email, Estado, Fecha Entrada, Área, Puesto, Sede, Rol.
+  - Archivos auto-nombrados: `colaboradores_YYYY-MM-DD.xlsx`.
+  - Botón "Descargar Excel" en header derecho con loading spinner.
+  - Soporte dual: XLSX (con lib `xlsx`) y CSV.
+
+- ✅ **Build validado**: Compilación exitosa en 9.8s, 79 páginas (+1 export), 0 errores.
+
 ## [2.1.9] - 2025-11-04
 
 ### Mejora UI - Diálogos y Módulo de Contenido
