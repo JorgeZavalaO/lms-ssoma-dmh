@@ -10,7 +10,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
-import { Plus, FileText, Video, File, Code, Package, GripVertical, BookOpen, AlertCircle, CheckCircle2 } from "lucide-react"
+import { Plus, FileText, Video, File, Code, Package, GripVertical, AlertCircle, CheckCircle2 } from "lucide-react"
 import { CreateUnitDialog, EditUnitDialog, DeleteUnitDialog } from "@/components/admin/content-modals"
 import { CreateLessonDialog, EditLessonDialog, DeleteLessonDialog } from "@/components/admin/lesson-modals"
 import { LessonPreviewDialog } from "@/components/admin/lesson-preview-dialog"
@@ -367,31 +367,20 @@ export default function ClientCourseContent({ courseId, initialUnits }: ClientCo
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header Section */}
-      <div className="space-y-4">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-6 w-6 text-emerald-600" />
-              <h2 className="text-3xl font-bold text-slate-900">Unidades y Lecciones</h2>
-            </div>
-            <p className="text-sm text-slate-600 ml-8">
-              Organiza el contenido del curso en unidades y lecciones. Arrastra para reordenar fácilmente.
-            </p>
-          </div>
-          <CreateUnitDialog courseId={courseId} onCreated={refreshUnits} />
-        </div>
-        
-        {/* Info Card */}
-        <div className="ml-8 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-emerald-800">
-              <span className="font-semibold">Tip:</span> Usa el icono de agarre para reordenar unidades y lecciones.
-            </div>
+    <div className="space-y-4">
+      {/* Info Card */}
+      <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+          <div className="text-sm text-emerald-800">
+            <span className="font-semibold">Tip:</span> Usa el icono de agarre para reordenar unidades y lecciones.
           </div>
         </div>
+      </div>
+      
+      {/* Create Unit Button */}
+      <div className="flex justify-end">
+        <CreateUnitDialog courseId={courseId} onCreated={refreshUnits} />
       </div>
 
       {/* Units List */}
