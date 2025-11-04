@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     if (courseId) where.courseId = courseId;
     if (status) where.status = status;
 
-    const progress = await prisma.courseProgress.findMany({
+    const progressData = await prisma.courseProgress.findMany({
       where,
       include: {
         collaborator: {
@@ -39,7 +39,30 @@ export async function GET(req: NextRequest) {
       orderBy: { updatedAt: "desc" },
     });
 
-    return NextResponse.json(progress);
+    // Transformar los datos para que coincidan con lo que espera el cliente
+    const progress = progressData.map(p => ({
+      id: p.id,
+      collaborator: {
+        id: p.collaborator.id,
+        firstName: p.collaborator.fullName.split(' ')[0] || '',
+        lastName: p.collaborator.fullName.split(' ').slice(1).join(' ') || '',
+        email: p.collaborator.email,
+        dni: p.collaborator.dni,
+      },
+      course: {
+        id: p.course.id,
+        code: p.course.code,
+        name: p.course.name,
+      },
+      status: p.status === 'PASSED' ? 'COMPLETED' : p.status === 'EXEMPTED' ? 'EXEMPT' : p.status,
+      progress: p.progressPercent,
+      startedAt: p.startedAt,
+      completedAt: p.completedAt,
+      exemptReason: p.exemptionReason,
+      certified: p.certifications.length > 0,
+    }));
+
+    return NextResponse.json({ progress });
   } catch (error: any) {
     console.error("Error fetching course progress:", error);
     return NextResponse.json(

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CheckCircle, Clock, AlertCircle, Search, Download, RefreshCw } from "lucide-react"
+import { CheckCircle, Clock, AlertCircle, Search, Download, RefreshCw, Award } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -18,17 +18,19 @@ interface CourseProgress {
     firstName: string
     lastName: string
     email: string
+    dni: string
   }
   course: {
     id: string
     name: string
-    code: string
+    code: string | null
   }
   status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "FAILED" | "EXEMPT"
   progress: number
   startedAt: string | null
   completedAt: string | null
   exemptReason: string | null
+  certified: boolean
 }
 
 interface ProgressStats {
@@ -41,9 +43,9 @@ interface ProgressStats {
 }
 
 const statusConfig = {
-  NOT_STARTED: { label: "No Iniciado", color: "bg-gray-500", icon: Clock },
+  NOT_STARTED: { label: "No Iniciado", color: "bg-slate-500", icon: Clock },
   IN_PROGRESS: { label: "En Progreso", color: "bg-blue-500", icon: Clock },
-  COMPLETED: { label: "Completado", color: "bg-green-500", icon: CheckCircle },
+  COMPLETED: { label: "Completado", color: "bg-emerald-500", icon: CheckCircle },
   FAILED: { label: "Fallido", color: "bg-red-500", icon: AlertCircle },
   EXEMPT: { label: "Exento", color: "bg-purple-500", icon: CheckCircle },
 }
@@ -100,7 +102,7 @@ export function ClientProgress() {
       progress.collaborator.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       progress.collaborator.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       progress.course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      progress.course.code.toLowerCase().includes(searchTerm.toLowerCase())
+      (progress.course.code?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
     
     const matchesStatus = statusFilter === "all" || progress.status === statusFilter
 
@@ -130,83 +132,83 @@ export function ClientProgress() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Tracking de Avance</h1>
-          <p className="text-muted-foreground mt-2">
-            Monitorea el progreso de los colaboradores en sus cursos
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={loadProgress} variant="outline" disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            Actualizar
-          </Button>
-          <Button onClick={exportToCSV} variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Exportar CSV
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-3xl font-semibold tracking-tight">Tracking de Avance</h1>
+        <p className="text-muted-foreground mt-2">
+          Monitorea el progreso de los colaboradores en sus cursos asignados
+        </p>
+      </div>
+
+      {/* Botones de acción */}
+      <div className="flex gap-2">
+        <Button onClick={loadProgress} variant="outline" disabled={loading}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+          Actualizar
+        </Button>
+        <Button onClick={exportToCSV} variant="outline">
+          <Download className="h-4 w-4 mr-2" />
+          Exportar CSV
+        </Button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-6">
-        <Card>
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+        <Card className="border-slate-200">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-2xl font-semibold">{stats.total}</div>
             <p className="text-xs text-muted-foreground mt-1">Inscripciones</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-blue-200">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">En Progreso</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">En Progreso</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
+            <div className="text-2xl font-semibold text-blue-600">{stats.inProgress}</div>
             <p className="text-xs text-muted-foreground mt-1">Activos</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-emerald-200">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Completados</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Completados</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
+            <div className="text-2xl font-semibold text-emerald-600">{stats.completed}</div>
             <p className="text-xs text-muted-foreground mt-1">Finalizados</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-slate-200">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">No Iniciados</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">No Iniciados</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-600">{stats.notStarted}</div>
+            <div className="text-2xl font-semibold text-slate-600">{stats.notStarted}</div>
             <p className="text-xs text-muted-foreground mt-1">Pendientes</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-red-200">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Fallidos</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Fallidos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.failed}</div>
+            <div className="text-2xl font-semibold text-red-600">{stats.failed}</div>
             <p className="text-xs text-muted-foreground mt-1">Reprobados</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-purple-200">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Exentos</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Exentos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-600">{stats.exempt}</div>
+            <div className="text-2xl font-semibold text-purple-600">{stats.exempt}</div>
             <p className="text-xs text-muted-foreground mt-1">Dispensados</p>
           </CardContent>
         </Card>
@@ -288,43 +290,44 @@ export function ClientProgress() {
                     return (
                       <TableRow key={progress.id}>
                         <TableCell className="font-medium">
-                          {progress.collaborator.firstName} {progress.collaborator.lastName}
+                          <div>{progress.collaborator.firstName} {progress.collaborator.lastName}</div>
+                          <div className="text-xs text-muted-foreground">{progress.collaborator.dni}</div>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {progress.collaborator.email}
                         </TableCell>
                         <TableCell>
-                          <div>
-                            <div className="font-medium">{progress.course.name}</div>
-                            <div className="text-xs text-muted-foreground">{progress.course.code}</div>
+                          <div className="font-medium">{progress.course.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {progress.course.code || "Sin código"}
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={config.color}>
+                          <Badge className={`${config.color} text-white`}>
                             <Icon className="h-3 w-3 mr-1" />
                             {config.label}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <div className="w-24 bg-gray-200 rounded-full h-2">
+                            <div className="w-24 bg-slate-200 rounded-full h-2">
                               <div
-                                className={`h-2 rounded-full ${config.color}`}
+                                className={`h-2 rounded-full transition-all ${config.color}`}
                                 style={{ width: `${progress.progress}%` }}
                               />
                             </div>
-                            <span className="text-sm font-medium">{progress.progress}%</span>
+                            <span className="text-sm font-medium w-12 text-right">{progress.progress}%</span>
                           </div>
                         </TableCell>
                         <TableCell>
                           {progress.startedAt
                             ? format(new Date(progress.startedAt), "dd/MM/yyyy", { locale: es })
-                            : "-"}
+                            : "—"}
                         </TableCell>
                         <TableCell>
                           {progress.completedAt
                             ? format(new Date(progress.completedAt), "dd/MM/yyyy", { locale: es })
-                            : "-"}
+                            : "—"}
                         </TableCell>
                       </TableRow>
                     )
