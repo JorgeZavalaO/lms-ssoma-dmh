@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     if (isRead !== null) where.isRead = isRead === "true";
     if (isDismissed !== null) where.isDismissed = isDismissed === "true";
 
-    const alerts = await prisma.progressAlert.findMany({
+    const alertsData = await prisma.progressAlert.findMany({
       where,
       include: {
         collaborator: {
@@ -36,7 +36,27 @@ export async function GET(req: NextRequest) {
       orderBy: [{ severity: "desc" }, { createdAt: "desc" }],
     });
 
-    return NextResponse.json(alerts);
+    // Transformar datos para que coincidan con el cliente
+    const alerts = alertsData.map(alert => ({
+      id: alert.id,
+      collaborator: {
+        id: alert.collaborator.id,
+        firstName: alert.collaborator.fullName.split(' ')[0] || '',
+        lastName: alert.collaborator.fullName.split(' ').slice(1).join(' ') || '',
+        email: alert.collaborator.email,
+      },
+      course: alert.course,
+      type: mapAlertType(alert.type),
+      severity: mapSeverity(alert.severity),
+      message: alert.message,
+      isRead: alert.isRead,
+      isDismissed: alert.isDismissed,
+      createdAt: alert.createdAt,
+      readAt: alert.readAt,
+      dismissedAt: alert.dismissedAt,
+    }));
+
+    return NextResponse.json({ alerts });
   } catch (error: any) {
     console.error("Error fetching alerts:", error);
     return NextResponse.json(
@@ -44,6 +64,29 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Funciones de mapeo
+function mapAlertType(type: string): string {
+  const typeMap: Record<string, string> = {
+    EXPIRING_SOON: 'COURSE_EXPIRING',
+    EXPIRED: 'COURSE_EXPIRED',
+    RECERTIFICATION: 'RECERTIFICATION_REQUIRED',
+    OVERDUE: 'CUSTOM',
+  };
+  return typeMap[type] || 'CUSTOM';
+}
+
+function mapSeverity(severity: any): string {
+  // Si es un número, convertir
+  if (typeof severity === 'number') {
+    if (severity >= 3) return 'CRITICAL';
+    if (severity === 2) return 'HIGH';
+    if (severity === 1) return 'MEDIUM';
+    return 'LOW';
+  }
+  // Si ya es string, retornar como está
+  return severity as string;
 }
 
 // POST /api/progress/alerts - Crear alerta

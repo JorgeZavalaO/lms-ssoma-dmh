@@ -45,10 +45,10 @@ interface AlertStats {
 }
 
 const severityConfig = {
-  CRITICAL: { label: "Crítica", color: "bg-red-600", textColor: "text-red-600" },
-  HIGH: { label: "Alta", color: "bg-orange-500", textColor: "text-orange-500" },
-  MEDIUM: { label: "Media", color: "bg-yellow-500", textColor: "text-yellow-500" },
-  LOW: { label: "Baja", color: "bg-blue-500", textColor: "text-blue-500" },
+  CRITICAL: { label: "Crítica", color: "bg-red-600 text-white", borderColor: "border-red-200" },
+  HIGH: { label: "Alta", color: "bg-orange-600 text-white", borderColor: "border-orange-200" },
+  MEDIUM: { label: "Media", color: "bg-amber-600 text-white", borderColor: "border-amber-200" },
+  LOW: { label: "Baja", color: "bg-blue-600 text-white", borderColor: "border-blue-200" },
 }
 
 const typeConfig = {
@@ -181,73 +181,71 @@ export function ClientAlerts() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Alertas</h1>
-          <p className="text-muted-foreground mt-2">
-            Monitorea alertas de cumplimiento, vencimiento y recertificación
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={loadAlerts} variant="outline" disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            Actualizar
-          </Button>
-          <Button onClick={generateAlerts} disabled={processing}>
-            <AlertCircle className="h-4 w-4 mr-2" />
-            Generar Alertas
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-3xl font-semibold tracking-tight">Alertas</h1>
+        <p className="text-muted-foreground mt-2">
+          Monitorea alertas de cumplimiento, vencimiento y recertificación
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <Button onClick={loadAlerts} variant="outline" disabled={loading}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+          Actualizar
+        </Button>
+        <Button onClick={generateAlerts} disabled={processing}>
+          <AlertCircle className="h-4 w-4 mr-2" />
+          Generar Alertas
+        </Button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-5">
-        <Card>
+      <div className="grid gap-4 md:grid-cols-5">
+        <Card className="border-red-200">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Críticas</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Críticas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.critical}</div>
+            <div className="text-2xl font-semibold text-red-600">{stats.critical}</div>
             <p className="text-xs text-muted-foreground mt-1">Urgente</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-orange-200">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Altas</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Altas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.high}</div>
+            <div className="text-2xl font-semibold text-orange-600">{stats.high}</div>
             <p className="text-xs text-muted-foreground mt-1">Importante</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-amber-200">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Medias</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Medias</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.medium}</div>
+            <div className="text-2xl font-semibold text-amber-600">{stats.medium}</div>
             <p className="text-xs text-muted-foreground mt-1">Advertencia</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-blue-200">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Bajas</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Bajas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.low}</div>
+            <div className="text-2xl font-semibold text-blue-600">{stats.low}</div>
             <p className="text-xs text-muted-foreground mt-1">Informativa</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-slate-200">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">No Leídas</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">No Leídas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.unread}</div>
+            <div className="text-2xl font-semibold">{stats.unread}</div>
             <p className="text-xs text-muted-foreground mt-1">Pendientes</p>
           </CardContent>
         </Card>
@@ -364,7 +362,6 @@ export function ClientAlerts() {
                       <TableRow 
                         key={alert.id} 
                         className={!alert.isRead ? "bg-blue-50/50" : alert.isDismissed ? "opacity-60" : ""}
-                        onMouseEnter={() => !alert.isRead && markAsRead(alert.id)}
                       >
                         <TableCell>
                           {alert.isDismissed ? (
@@ -417,17 +414,30 @@ export function ClientAlerts() {
                           {format(new Date(alert.createdAt), "dd/MM/yyyy HH:mm", { locale: es })}
                         </TableCell>
                         <TableCell className="text-right">
-                          {!alert.isDismissed && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => dismissAlert(alert.id)}
-                              disabled={processing}
-                            >
-                              <X className="h-4 w-4 mr-1" />
-                              Descartar
-                            </Button>
-                          )}
+                          <div className="flex justify-end gap-1">
+                            {!alert.isRead && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => markAsRead(alert.id)}
+                                disabled={processing}
+                                title="Marcar como leído"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {!alert.isDismissed && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => dismissAlert(alert.id)}
+                                disabled={processing}
+                                title="Descartar"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     )
