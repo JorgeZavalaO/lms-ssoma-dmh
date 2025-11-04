@@ -30,5 +30,9 @@ export default async function CoursesPage() {
   
   const courses = await fetchCourses()
   
-  return <ClientCourses initialCourses={courses} />
+  return (
+    <div className="p-6 space-y-4">
+      <ClientCourses initialCourses={courses} />
+    </div>
+  )
 }

@@ -50,5 +50,9 @@ export default async function LearningPathsPage() {
   
   const paths = await fetchLearningPaths()
   
-  return <ClientLearningPaths initialPaths={paths} />
+  return (
+    <div className="p-6 space-y-4">
+      <ClientLearningPaths initialPaths={paths} />
+    </div>
+  )
 }

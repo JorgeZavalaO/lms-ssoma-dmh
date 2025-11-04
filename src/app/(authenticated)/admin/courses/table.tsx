@@ -40,9 +40,9 @@ interface CoursesTableProps {
 }
 
 const statusColors: Record<string, string> = {
-  DRAFT: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-  PUBLISHED: "bg-green-500/10 text-green-500 border-green-500/20",
-  ARCHIVED: "bg-gray-500/10 text-gray-500 border-gray-500/20",
+  DRAFT: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-900",
+  PUBLISHED: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-900",
+  ARCHIVED: "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-900/50 dark:text-slate-400 dark:border-slate-800",
 }
 
 const statusLabels: Record<string, string> = {
@@ -57,6 +57,12 @@ const modalityLabels: Record<string, string> = {
   BLENDED: "Mixto",
 }
 
+const modalityColors: Record<string, string> = {
+  ASYNCHRONOUS: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-900",
+  SYNCHRONOUS: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-900",
+  BLENDED: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-900",
+}
+
 export function CoursesTable({ data, onRefresh }: CoursesTableProps) {
   const refresh = React.useCallback(() => onRefresh(), [onRefresh])
 
@@ -64,16 +70,24 @@ export function CoursesTable({ data, onRefresh }: CoursesTableProps) {
     {
       accessorKey: "code",
       header: "Código",
-      cell: ({ row }) => row.original.code || "-",
+      cell: ({ row }) => (
+        <div className="font-mono text-sm">
+          {row.original.code ? (
+            <span className="font-medium text-foreground">{row.original.code}</span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </div>
+      ),
     },
     {
       accessorKey: "name",
-      header: "Nombre",
+      header: "Nombre del Curso",
       cell: ({ row }) => (
-        <div className="max-w-[300px]">
-          <div className="font-medium">{row.original.name}</div>
+        <div className="max-w-[350px]">
+          <div className="font-medium text-foreground line-clamp-1">{row.original.name}</div>
           {row.original.objective && (
-            <div className="text-sm text-muted-foreground truncate">
+            <div className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
               {row.original.objective}
             </div>
           )}
@@ -83,24 +97,46 @@ export function CoursesTable({ data, onRefresh }: CoursesTableProps) {
     {
       accessorKey: "modality",
       header: "Modalidad",
-      cell: ({ row }) => modalityLabels[row.original.modality] || row.original.modality,
+      cell: ({ row }) => (
+        <Badge variant="outline" className={`${modalityColors[row.original.modality] || ""} text-xs font-normal`}>
+          {modalityLabels[row.original.modality] || row.original.modality}
+        </Badge>
+      ),
     },
     {
       accessorKey: "duration",
       header: "Duración",
-      cell: ({ row }) => row.original.duration ? `${row.original.duration}h` : "-",
+      cell: ({ row }) => (
+        <div className="text-sm">
+          {row.original.duration ? (
+            <span className="text-foreground font-medium">{row.original.duration}h</span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </div>
+      ),
     },
     {
       accessorKey: "validity",
       header: "Vigencia",
-      cell: ({ row }) => row.original.validity ? `${row.original.validity} meses` : "-",
+      cell: ({ row }) => (
+        <div className="text-sm">
+          {row.original.validity ? (
+            <span className="text-foreground font-medium">{row.original.validity}m</span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </div>
+      ),
     },
     {
       accessorKey: "currentVersion",
       header: "Versión",
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
-          <span>v{row.original.currentVersion}</span>
+          <span className="px-2 py-0.5 bg-muted rounded text-sm font-medium text-foreground">
+            v{row.original.currentVersion}
+          </span>
           <ViewVersionsDialog courseId={row.original.id} />
         </div>
       ),
@@ -109,7 +145,7 @@ export function CoursesTable({ data, onRefresh }: CoursesTableProps) {
       accessorKey: "status",
       header: "Estado",
       cell: ({ row }) => (
-        <Badge variant="outline" className={statusColors[row.original.status]}>
+        <Badge variant="outline" className={`${statusColors[row.original.status]} text-xs font-normal`}>
           {statusLabels[row.original.status] || row.original.status}
         </Badge>
       ),
@@ -118,21 +154,29 @@ export function CoursesTable({ data, onRefresh }: CoursesTableProps) {
       id: "assignments",
       header: "Asignaciones",
       cell: ({ row }) => {
-        const areas = row.original._count.areaLinks
-        const positions = row.original._count.posLinks
-        const sites = row.original._count.siteLinks
-        const collaborators = row.original._count.collLinks
-        const paths = row.original._count.pathCourses
+        const areas = row.original._count?.areaLinks ?? 0
+        const positions = row.original._count?.posLinks ?? 0
+        const sites = row.original._count?.siteLinks ?? 0
+        const collaborators = row.original._count?.collLinks ?? 0
+        const paths = row.original._count?.pathCourses ?? 0
         const total = areas + positions + sites + collaborators + paths
         
         return (
-          <div className="text-sm space-y-1">
-            <div className="font-medium">Total: {total}</div>
-            {areas > 0 && <div className="text-xs text-muted-foreground">Áreas: {areas}</div>}
-            {positions > 0 && <div className="text-xs text-muted-foreground">Posiciones: {positions}</div>}
-            {sites > 0 && <div className="text-xs text-muted-foreground">Sitios: {sites}</div>}
-            {collaborators > 0 && <div className="text-xs text-muted-foreground">Colaboradores: {collaborators}</div>}
-            {paths > 0 && <div className="text-xs text-muted-foreground">Rutas: {paths}</div>}
+          <div className="text-sm">
+            <div className="font-medium text-foreground">
+              {total}
+            </div>
+            {total > 0 && (
+              <div className="text-xs text-muted-foreground mt-0.5">
+                {[
+                  areas > 0 && `${areas} área${areas > 1 ? 's' : ''}`,
+                  positions > 0 && `${positions} puesto${positions > 1 ? 's' : ''}`,
+                  sites > 0 && `${sites} sede${sites > 1 ? 's' : ''}`,
+                  collaborators > 0 && `${collaborators} colab.`,
+                  paths > 0 && `${paths} ruta${paths > 1 ? 's' : ''}`
+                ].filter(Boolean).join(', ')}
+              </div>
+            )}
           </div>
         )
       },
