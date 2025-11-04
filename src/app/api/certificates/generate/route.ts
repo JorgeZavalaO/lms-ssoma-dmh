@@ -17,8 +17,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
     }
 
-    // Solo admins pueden generar certificados
-    if (session.user.role !== 'ADMIN') {
+    // Solo admins y superadmins pueden generar certificados
+    if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPERADMIN') {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 

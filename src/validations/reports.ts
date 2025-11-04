@@ -79,7 +79,7 @@ export type AuditTrailFiltersInput = z.infer<typeof AuditTrailFiltersSchema>
 export const ExportReportSchema = z.object({
   type: z.enum(["DASHBOARD", "AREA", "COURSE", "COMPLIANCE", "AUDIT_TRAIL"]),
   format: z.enum(["XLSX", "CSV", "PDF", "JSON"]),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   filters: z.record(z.string(), z.any()), // Filtros específicos de cada tipo de reporte
   name: z.string().optional(), // Nombre personalizado del reporte
 })
@@ -94,7 +94,7 @@ export const CreateReportScheduleSchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
   type: z.enum(["DASHBOARD", "AREA", "COURSE", "COMPLIANCE", "AUDIT_TRAIL"]),
   format: z.enum(["XLSX", "CSV", "PDF", "JSON"]),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   filters: z.record(z.string(), z.any()),
   frequency: z.enum(["DAILY", "WEEKLY", "MONTHLY", "QUARTERLY", "CUSTOM"]),
   cronExpression: z.string().optional(), // Requerido si frequency === CUSTOM

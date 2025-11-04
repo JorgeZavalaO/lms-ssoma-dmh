@@ -19,6 +19,7 @@ export async function GET(
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
     }
 
+    // Admins, superadmins, o el propio colaborador pueden descargar
     const { id } = await params
 
     // Obtener datos del certificado

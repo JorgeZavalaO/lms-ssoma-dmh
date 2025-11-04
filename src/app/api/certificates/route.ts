@@ -15,8 +15,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
     }
 
-    // Solo admins pueden listar todos los certificados
-    if (session.user.role !== 'ADMIN') {
+    // Solo admins y superadmins pueden listar todos los certificados
+    if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPERADMIN') {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 

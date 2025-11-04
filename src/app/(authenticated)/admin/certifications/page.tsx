@@ -1,9 +1,5 @@
-import { ClientCertifications } from "./client-certifications"
+import { UnifiedCertificatesPage } from "./unified-page"
 
 export default function CertificationsPage() {
-  return (
-    <div className="p-6 space-y-4">
-      <ClientCertifications />
-    </div>
-  )
+  return <UnifiedCertificatesPage />
 }

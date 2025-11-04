@@ -362,14 +362,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild>
-                          <Link href="/admin/certificates">
-                            <Shield className="h-4 w-4" />
-                            <span>Certificados (K)</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
                     </SidebarMenuSub>
                   </CollapsibleContent>
                 </SidebarMenuItem>
