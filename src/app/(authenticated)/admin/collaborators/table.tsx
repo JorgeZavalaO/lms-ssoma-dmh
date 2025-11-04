@@ -4,10 +4,9 @@ import * as React from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { DataTable } from "@/components/data-table"
 import { Button } from "@/components/ui/button"
-import { Download, Upload } from "lucide-react"
-import Link from "next/link"
+import { Download } from "lucide-react"
 import { ChangeRoleDialog } from "./widgets/change-role-dialog"
-import { CreateCollaboratorDialog, EditCollaboratorDialog, DeleteCollaboratorDialog } from "@/components/admin/collaborator-modals"
+import { CreateCollaboratorDialog, EditCollaboratorDialog, DeleteCollaboratorDialog, ImportCollaboratorsDialog } from "@/components/admin/collaborator-modals"
 import { cn } from "@/lib/utils"
 
 type Role = "SUPERADMIN" | "ADMIN" | "COLLABORATOR"
@@ -52,7 +51,7 @@ export default function ClientCollaborators({ initial }: { initial: { items: Row
     setData(json.items)
     setTotal(json.total)
     setPage(json.page)
-  }, [page, pageSize, q])
+  }, [pageSize])
 
   const handleSearch = React.useCallback((query: string) => {
     setQ(query)
@@ -103,9 +102,7 @@ export default function ClientCollaborators({ initial }: { initial: { items: Row
   const rightExtra = (
     <div className="flex items-center gap-2">
       <CreateCollaboratorDialog onCreated={() => load()} />
-      <Link href="/admin/collaborators/import">
-        <Button variant="outline"><Upload className="size-4" /> Importar</Button>
-      </Link>
+      <ImportCollaboratorsDialog onImported={() => load()} />
       <a href="/api/collaborators/template?format=xlsx" download>
         <Button variant="outline"><Download className="size-4" /> Template XLSX</Button>
       </a>

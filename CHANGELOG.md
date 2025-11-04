@@ -7,6 +7,108 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [2.1.6] - 2025-11-03
+
+### Agregado - Mejoras en Gestión de Colaboradores
+
+- **Validación de Contraseña Condicional en Creación de Colaboradores**:
+  - Password field es requerida solo cuando `createUser=true` en diálogo de creación
+  - Implementado mediante `.refine()` en Zod schema validando ambas condiciones
+  - Validación manual cliente-side antes de Zod para evitar errores en pasos intermedios
+  - Mensaje de error claro: "La contraseña debe tener mínimo 6 caracteres" solo cuando se valida
+  - Resolución de ZodError que aparecía al navegar entre pasos sin completar password
+
+- **Reestructuración UX del Diálogo de Creación de Colaboradores**:
+  - Flujo lineal de 3 pasos: Información básica → Organización → Datos de cuenta
+  - Botones contextuales: "Siguiente" en pasos 1-2, "Crear Colaborador" solo en paso 3
+  - Validación clara: Solo se habilita submit en paso 3 (cuando password field es visible)
+  - Navigation simplificada: No hay saltos condicionales entre pasos, solo progressión lineal
+  - Field `createUser` mostrado solo en paso 3 para claridad del flujo
+  - Mejor UX: El error de password solo aparece cuando efectivamente se intenta crear usuario
+
+- **Importación de Colaboradores como Modal Dialog**:
+  - Eliminada página separada `/admin/collaborators/import`
+  - Import ahora se abre como dialog modal desde botón "Importar" en tabla de colaboradores
+  - Usuarios permanecen en página de colaboradores, sin navegación innecesaria
+  - Interfaz de drag-and-drop mejorada dentro del modal
+  - Resultados de importación mostrados inline en el dialog
+
+- **Interface de Drag-and-Drop para Importación**:
+  - Área interactiva para soltar archivos con feedback visual
+  - Selector de archivos tradicional como alternativa (click)
+  - Soportados formatos: .xlsx, .xls, .csv
+  - Botón de upload deshabilitado hasta seleccionar archivo
+  - Indicador de loading durante la subida
+  - Botones de descarga de plantillas (XLSX/CSV) disponibles en dialog
+
+- **Resultados de Importación Inline**:
+  - Después de upload exitoso se muestran resultados en 3 tarjetas:
+    - Colaboradores creados (count + icono)
+    - Colaboradores actualizados (count + icono)
+    - Filas omitidas (count + icono)
+  - Tabla expandible con errores detallados:
+    - Número de fila del archivo
+    - Mensaje de error específico
+    - Scroll horizontal para muchos errores
+  - Dialog se cierra automáticamente 2 segundos después de importación exitosa
+  - Toast notification con confirmación de proceso
+
+- **Auto-Refresh Automático de Tabla**:
+  - Callback `onImported()` triggered tras importación exitosa
+  - Tabla de colaboradores se recarga automáticamente sin manual refresh
+  - Nuevos colaboradores aparecen inmediatamente
+  - Paginación reinicia a página 1
+  - Estados y filtros se preservan
+
+### Técnico
+
+- **Archivos modificados principales**:
+  - `src/validations/collaborators.ts`: Schema con `.refine()` para validación condicional de password
+  - `src/components/admin/collaborator-modals.tsx`:
+    - Adición de `ImportCollaboratorsDialog` component (~140 líneas nuevas)
+    - Tipos: `ImportCollaboratorsDialogProps`, `ImportResult`
+    - Features: Drag-drop, file input, upload handler, results display, error table
+    - States: file, result, loading, drag, fileInputRef
+    - Handlers: handleUpload, handleClose, drag events
+  - `src/app/(authenticated)/admin/collaborators/table.tsx`:
+    - Importación agregada: `ImportCollaboratorsDialog`
+    - Reemplazo de botón Link-based: `<Link><Button>Importar</Button></Link>` → `<ImportCollaboratorsDialog onImported={() => load()} />`
+    - Limpieza de imports: Removidos `Upload` (icon) y `Link` (component)
+
+- **Component ImportCollaboratorsDialog**:
+  - Props: `{ onImported?: () => void }`
+  - Estados internos: file (File | null), result (ImportResult | null), loading, drag, fileInputRef
+  - Drag-drop zone con visual feedback (background color on hover)
+  - File input con filtro `.xlsx, .xls, .csv`
+  - Upload button con disabled state y loading indicator
+  - Template download buttons (XLSX, CSV) para referencia
+  - Results grid: 3 cards mostrando created/updated/skipped
+  - Error table: Scrollable con detalles de fallos
+  - Auto-close: setTimeout(2000) después de resultado exitoso
+  - FormData upload a `/api/collaborators/import`
+  - Response interface: `{ created, updated, skipped, errors: [{row, message}] }`
+
+- **Dependencies**:
+  - Ninguna nueva (usa componentes shadcn/ui existentes)
+  - Reutiliza FormData API, fetch API, Dialog component
+
+- **Build exitoso**:
+  - Compilación: ✓ 7.4 segundos
+  - Rutas generadas: 78 páginas
+  - Errores TypeScript: 0
+  - Warnings: Solo pre-existentes ESLint (no nuevos)
+
+### Beneficios de la Implementación
+
+- ✅ **Mejor UX**: Validación inteligente de password, flujo claro en diálogo
+- ✅ **Eficiencia**: Import sin abandonar página actual
+- ✅ **Feedback visual**: Drag-drop intuitivo, resultados inline
+- ✅ **User-friendly**: Plantillas descargarles, error details, auto-refresh
+- ✅ **Robustez**: Validación en cliente y servidor, manejo de errores completo
+- ✅ **Performance**: Build validado, 0 regresiones
+
+---
+
 ## [2.1.5] - 2025-11-03
 
 ### Agregado - Reestructuración Administrativa y Mejoras UX

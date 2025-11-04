@@ -15,6 +15,18 @@ LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacit
 
 ## 🆕 Últimas Actualizaciones
 
+### v2.1.6 - Mejoras en Gestión de Colaboradores (3 Nov 2025)
+- ✅ **Validación de Contraseña Condicional**: Password requerida solo cuando `createUser=true` en diálogo de creación
+- ✅ **Reestructuración UX del Diálogo**: Flujo lineal 3-pasos (info → organización → cuenta) con validación clara
+- ✅ **Botones Contextuales**: "Siguiente" en pasos 1-2, "Crear Colaborador" solo en paso 3 con submit
+- ✅ **Import Masivo como Modal Dialog**: Importación de CSV/XLSX sin navegar a página separada
+- ✅ **Drag-and-Drop en Import**: Área interactiva para soltar archivos + selector de archivos
+- ✅ **Resultados de Importación Inline**: Muestra created/updated/skipped counts y tabla de errores
+- ✅ **Auto-Refresh de Tabla**: Actualización automática de lista de colaboradores tras importación exitosa
+- ✅ **Build Validado**: Compilación exitosa 7.4s, 78 páginas, 0 errores
+
+**Beneficio clave**: Experiencia de usuario mejorada con validación inteligente, flujo claro en diálogo y importación modal sin abandonar la página actual.
+
 ### v2.1.5 - Reestructuración Administrativa y Mejoras UX (3 Nov 2025)
 - ✅ **Reestructuración de /admin**: Eliminada página visible `/admin`, ahora es carpeta organizacional para paneles administrativos
 - ✅ **Breadcrumbs inteligentes**: "Inicio" redirige a dashboard, omite segmento `/admin` en navegación
