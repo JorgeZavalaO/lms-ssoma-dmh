@@ -50,6 +50,28 @@ const statusConfig = {
   EXEMPT: { label: "Exento", color: "bg-purple-500", icon: CheckCircle },
 }
 
+type StatusKey = keyof typeof statusConfig
+
+// Normaliza estados provenientes del backend y brinda un fallback seguro
+function normalizeStatus(status: string | null | undefined): StatusKey {
+  if (!status) return "NOT_STARTED"
+  const s = status.toString().trim().toUpperCase().replace(/\s+/g, "_")
+  if ((statusConfig as Record<string, unknown>)[s]) {
+    return s as StatusKey
+  }
+  const aliases: Record<string, StatusKey> = {
+    NOTSTARTED: "NOT_STARTED",
+    PENDING: "NOT_STARTED",
+    INPROGRESS: "IN_PROGRESS",
+    PROGRESS: "IN_PROGRESS",
+    DONE: "COMPLETED",
+    PASSED: "COMPLETED",
+    FAIL: "FAILED",
+    EXEMPTED: "EXEMPT",
+  }
+  return aliases[s] ?? "NOT_STARTED"
+}
+
 export function ClientProgress() {
   const [progressList, setProgressList] = useState<CourseProgress[]>([])
   const [stats, setStats] = useState<ProgressStats>({
@@ -87,11 +109,11 @@ export function ClientProgress() {
   const calculateStats = (progress: CourseProgress[]) => {
     const stats: ProgressStats = {
       total: progress.length,
-      inProgress: progress.filter(p => p.status === "IN_PROGRESS").length,
-      completed: progress.filter(p => p.status === "COMPLETED").length,
-      notStarted: progress.filter(p => p.status === "NOT_STARTED").length,
-      failed: progress.filter(p => p.status === "FAILED").length,
-      exempt: progress.filter(p => p.status === "EXEMPT").length,
+      inProgress: progress.filter(p => normalizeStatus(p.status) === "IN_PROGRESS").length,
+      completed: progress.filter(p => normalizeStatus(p.status) === "COMPLETED").length,
+      notStarted: progress.filter(p => normalizeStatus(p.status) === "NOT_STARTED").length,
+      failed: progress.filter(p => normalizeStatus(p.status) === "FAILED").length,
+      exempt: progress.filter(p => normalizeStatus(p.status) === "EXEMPT").length,
     }
     setStats(stats)
   }
@@ -104,7 +126,7 @@ export function ClientProgress() {
       progress.course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (progress.course.code?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
     
-    const matchesStatus = statusFilter === "all" || progress.status === statusFilter
+    const matchesStatus = statusFilter === "all" || normalizeStatus(progress.status) === statusFilter
 
     return matchesSearch && matchesStatus
   })
@@ -116,7 +138,7 @@ export function ClientProgress() {
       p.collaborator.email,
       p.course.name,
       p.course.code,
-      statusConfig[p.status].label,
+      statusConfig[normalizeStatus(p.status)].label,
       p.progress.toString(),
       p.startedAt ? format(new Date(p.startedAt), "dd/MM/yyyy", { locale: es }) : "N/A",
       p.completedAt ? format(new Date(p.completedAt), "dd/MM/yyyy", { locale: es }) : "N/A",
@@ -284,7 +306,8 @@ export function ClientProgress() {
                   </TableRow>
                 ) : (
                   filteredProgress.map((progress) => {
-                    const config = statusConfig[progress.status]
+                    const key = normalizeStatus(progress.status)
+                    const config = statusConfig[key]
                     const Icon = config.icon
 
                     return (
