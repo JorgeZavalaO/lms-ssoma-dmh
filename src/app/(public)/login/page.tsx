@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { ShieldAlert } from "lucide-react"
 
 export default function LoginPage() {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")

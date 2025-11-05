@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -68,11 +68,7 @@ export function ClientAlerts() {
   const [showDismissed, setShowDismissed] = useState(false)
   const [processing, setProcessing] = useState(false)
 
-  useEffect(() => {
-    loadAlerts()
-  }, [])
-
-  const loadAlerts = async () => {
+  const loadAlerts = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch("/api/progress/alerts")
@@ -86,7 +82,11 @@ export function ClientAlerts() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadAlerts()
+  }, [loadAlerts])
 
   const calculateStats = (alertList: ProgressAlert[]) => {
     const activeAlerts = alertList.filter(a => !a.isDismissed)

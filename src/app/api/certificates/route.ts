@@ -46,10 +46,11 @@ export async function GET(req: NextRequest) {
       certificates,
       total: certificates.length,
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error listando certificados:', error)
+    const message = error instanceof Error ? error.message : 'Error al listar certificados'
     return NextResponse.json(
-      { error: error.message || 'Error al listar certificados' },
+      { error: message },
       { status: 500 }
     )
   }

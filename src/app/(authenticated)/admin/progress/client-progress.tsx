@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CheckCircle, Clock, AlertCircle, Search, Download, RefreshCw, Award } from "lucide-react"
+import { CheckCircle, Clock, AlertCircle, Search, Download, RefreshCw } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -64,11 +64,7 @@ export function ClientProgress() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
 
-  useEffect(() => {
-    loadProgress()
-  }, [])
-
-  const loadProgress = async () => {
+  const loadProgress = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch("/api/progress/courses")
@@ -82,7 +78,11 @@ export function ClientProgress() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadProgress()
+  }, [loadProgress])
 
   const calculateStats = (progress: CourseProgress[]) => {
     const stats: ProgressStats = {

@@ -85,10 +85,8 @@ const modalityLabels = {
 }
 
 export function ClientMyCourses() {
-  const { data: session } = useSession()
   const [enrollments, setEnrollments] = useState<CourseEnrollment[]>([])
   const [progress, setProgress] = useState<Record<string, CourseProgress>>({})
-  const [recentAttempts, setRecentAttempts] = useState<QuizAttempt[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("all")
 

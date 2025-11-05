@@ -58,7 +58,7 @@ export function ClientQuestions() {
       if (!res.ok) throw new Error("Error al cargar preguntas");
       const data = await res.json();
       setQuestions(data);
-    } catch (error) {
+    } catch {
       toast.error("No se pudieron cargar las preguntas");
     } finally {
       setLoading(false);

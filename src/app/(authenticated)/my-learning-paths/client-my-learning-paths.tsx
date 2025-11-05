@@ -19,11 +19,8 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  Zap,
   Lock,
 } from "lucide-react"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
 import Link from "next/link"
 import { toast } from "sonner"
 
@@ -77,7 +74,6 @@ interface LearningPath {
 }
 
 export function ClientMyLearningPaths() {
-  const { data: session } = useSession()
   const [paths, setPaths] = useState<LearningPath[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("all")

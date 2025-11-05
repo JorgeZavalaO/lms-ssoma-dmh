@@ -25,15 +25,15 @@ type CourseModality = CourseFormData["modality"]
 
 export interface CourseSummary {
   id: string
-  code: string
+  code: string | null
   name: string
   description?: string | null
   objective?: string | null
   duration?: number | null
-  modality: CourseModality
+  modality: CourseModality | string
   validity?: number | null
   requirements?: string | null
-  status: CourseStatus
+  status: CourseStatus | string
   currentVersion: number
 }
 
@@ -48,15 +48,15 @@ export function EditCourseDialog({ course, onEdited }: EditCourseDialogProps) {
 
   const form = useForm<CourseFormData>({
     defaultValues: {
-      code: course.code,
+      code: course.code ?? "",
       name: course.name,
       description: course.description ?? "",
       objective: course.objective ?? "",
       duration: course.duration ?? undefined,
-      modality: course.modality,
+      modality: course.modality as CourseModality,
       validity: course.validity ?? undefined,
       requirements: course.requirements ?? "",
-      status: course.status,
+      status: course.status as CourseStatus,
     },
   })
 

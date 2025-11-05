@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Accordion,
@@ -10,7 +9,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
-import { Plus, FileText, Video, File, Code, Package, GripVertical, AlertCircle, CheckCircle2 } from "lucide-react"
+import { Plus, FileText, Video, File, Code, Package, GripVertical, AlertCircle } from "lucide-react"
 import { CreateUnitDialog, EditUnitDialog, DeleteUnitDialog } from "@/components/admin/courses/units/modals"
 import { CreateLessonDialog, EditLessonDialog, DeleteLessonDialog } from "@/components/admin/lessons/modals"
 import { LessonPreviewDialog } from "@/components/admin/lessons/preview-dialog"

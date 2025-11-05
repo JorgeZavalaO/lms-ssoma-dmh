@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function RegisterPage() {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")

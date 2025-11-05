@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Pencil, Trash2, Settings2 } from "lucide-react"
+import { Plus, Trash2, Settings2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -30,7 +30,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { useForm } from "react-hook-form"
 

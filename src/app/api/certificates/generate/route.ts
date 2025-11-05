@@ -61,10 +61,11 @@ export async function POST(req: NextRequest) {
       pdfUrl, // En producción, esta sería una URL real
       message: 'Certificado generado exitosamente',
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error generando certificado:', error)
+    const message = error instanceof Error ? error.message : 'Error al generar certificado'
     return NextResponse.json(
-      { error: error.message || 'Error al generar certificado' },
+      { error: message },
       { status: 500 }
     )
   }

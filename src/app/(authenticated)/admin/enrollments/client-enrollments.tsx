@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Plus, UserPlus, Users, Trash2 } from "lucide-react"
+import { UserPlus, Users, Trash2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,

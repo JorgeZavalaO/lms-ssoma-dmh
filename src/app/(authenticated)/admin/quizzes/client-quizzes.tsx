@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, Eye, Play } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -63,7 +63,7 @@ export function ClientQuizzes() {
       if (!res.ok) throw new Error("Error al cargar cuestionarios");
       const data = await res.json();
       setQuizzes(data);
-    } catch (error) {
+    } catch {
       toast.error("No se pudieron cargar los cuestionarios");
     } finally {
       setLoading(false);
@@ -107,7 +107,7 @@ export function ClientQuizzes() {
       const data = await res.json();
       setPreviewQuiz(data);
       setPreviewOpen(true);
-    } catch (error) {
+    } catch {
       toast.error("No se pudo cargar la vista previa");
     }
   };

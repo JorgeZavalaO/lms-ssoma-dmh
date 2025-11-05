@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -58,9 +58,7 @@ export function ClientLessonView({
   progress,
   allUnits,
   courseId,
-  collaboratorId,
 }: ClientLessonViewProps) {
-  const router = useRouter()
   const [viewPercentage, setViewPercentage] = useState(progress?.viewPercentage || 0)
   const [isCompleted, setIsCompleted] = useState(progress?.completed || false)
   // Tiempo activo en el documento (para no-video), en segundos
@@ -150,17 +148,6 @@ export function ClientLessonView({
       timeDeltaSeconds: 0,
       manualComplete: !isVideo, // para no-video forzamos completado en servidor
     })
-  }
-
-  const getYoutubeEmbedUrl = (url: string) => {
-    if (url.includes("youtu.be/")) {
-      const videoId = url.split("youtu.be/")[1].split("?")[0]
-      return `https://www.youtube.com/embed/${videoId}`
-    } else if (url.includes("youtube.com/watch?v=")) {
-      const videoId = url.split("v=")[1].split("&")[0]
-      return `https://www.youtube.com/embed/${videoId}`
-    }
-    return url
   }
 
   const getVimeoEmbedUrl = (url: string) => {

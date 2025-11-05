@@ -40,10 +40,11 @@ export async function GET(
         'Content-Length': pdfBuffer.length.toString(),
       },
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error descargando certificado:', error)
+    const message = error instanceof Error ? error.message : 'Error al descargar certificado'
     return NextResponse.json(
-      { error: error.message || 'Error al descargar certificado' },
+      { error: message },
       { status: 500 }
     )
   }
