@@ -277,6 +277,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild>
+                          <Link href="/admin/quiz-attempts">
+                            <FileText className="h-4 w-4" />
+                            <span>Intentos de Evaluación</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
 
                       {/* Sección: Reportes y Análisis */}
                       <div className="px-2 py-2 mt-2">
