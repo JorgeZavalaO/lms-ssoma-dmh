@@ -371,10 +371,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             {/* SUPERADMIN only section */}
             {mounted && session?.user?.role === "SUPERADMIN" && (
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Configuración del Sistema">
-                  <Link href="/super">
-                    <Lock className="h-4 w-4" />
-                    <span>Sistema</span>
+                <SidebarMenuButton asChild tooltip="Panel SuperAdmin">
+                  <Link href="/admin/superadmin">
+                    <Shield className="h-4 w-4" />
+                    <span>SuperAdmin</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
