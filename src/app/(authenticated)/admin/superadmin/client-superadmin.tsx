@@ -130,7 +130,7 @@ export function ClientSuperAdmin() {
   }, [loadData])
 
   const handleCleanTestData = async () => {
-    if (confirmText !== "ELIMINAR DATOS DE PRUEBA") {
+    if (confirmText !== "ELIMINAR TODO EL SISTEMA") {
       toast.error("Debes escribir la frase de confirmación exacta")
       return
     }
@@ -143,18 +143,34 @@ export function ClientSuperAdmin() {
 
       if (response.ok) {
         const data = await response.json()
+        
+        // Calcular total de registros eliminados
+        const totalDeleted = Object.values(data.deleted).reduce((sum: number, count) => {
+          return sum + (typeof count === 'number' ? count : 0)
+        }, 0) as number
+
         toast.success(
-          <div>
-            <p className="font-semibold">✓ Datos de prueba eliminados</p>
-            <p className="text-xs mt-1">{data.message}</p>
-          </div>
+          <div className="space-y-2">
+            <p className="font-semibold">✓ Sistema limpiado exitosamente</p>
+            <p className="text-xs">Total de registros eliminados: {totalDeleted.toLocaleString()}</p>
+            {data.details && (
+              <div className="text-xs space-y-1 pt-2 border-t">
+                <p>📊 Desglose:</p>
+                <p>• {data.details.usuarios?.colaboradores || 0} colaboradores</p>
+                <p>• {data.details.organizacion?.areas || 0} áreas, {data.details.organizacion?.puestos || 0} puestos, {data.details.organizacion?.sedes || 0} sedes</p>
+                <p>• {data.details.contenido?.cursos || 0} cursos, {data.details.contenido?.lecciones || 0} lecciones</p>
+                <p>• {data.details.evaluaciones?.preguntas || 0} preguntas, {data.details.evaluaciones?.quizzes || 0} exámenes</p>
+              </div>
+            )}
+          </div>,
+          { duration: 8000 }
         )
         setShowCleanDialog(false)
         setConfirmText("")
         loadData()
       } else {
         const error = await response.json()
-        toast.error(error.error || "Error al eliminar datos de prueba")
+        toast.error(error.error || "Error al eliminar datos")
       }
     } catch (error) {
       console.error("Error cleaning test data:", error)
@@ -341,10 +357,13 @@ export function ClientSuperAdmin() {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div>
-              <h4 className="font-semibold">Eliminar Datos de Prueba</h4>
+              <h4 className="font-semibold text-red-700">Eliminar TODO el Contenido del Sistema</h4>
               <p className="text-sm text-muted-foreground mt-1">
-                Elimina colaboradores de prueba, inscripciones, certificaciones y progreso de ejemplo.
-                Mantiene cursos, rutas, áreas y usuarios administrativos.
+                ⚠️ ELIMINA COMPLETAMENTE: colaboradores, áreas, puestos, sedes, cursos, rutas de aprendizaje,
+                preguntas, quizzes, reglas automáticas, inscripciones, certificaciones, progreso y todo el contenido.
+              </p>
+              <p className="text-xs text-red-600 font-medium mt-2">
+                Solo se mantienen: usuarios administrativos (ADMIN y SUPERADMIN)
               </p>
             </div>
             <Button 
@@ -436,36 +455,87 @@ export function ClientSuperAdmin() {
               ¿Eliminar todos los datos de prueba?
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-4">
-              <p>
-                Esta acción eliminará PERMANENTEMENTE:
-              </p>
-              <ul className="list-disc list-inside space-y-1 text-sm">
-                <li>Todos los colaboradores de prueba</li>
-                <li>Todas las inscripciones a cursos</li>
-                <li>Todas las certificaciones emitidas</li>
-                <li>Todo el progreso de cursos</li>
-                <li>Todos los intentos de quizzes</li>
-                <li>Todas las alertas generadas</li>
-              </ul>
-              <p className="font-semibold text-red-600">
-                Se MANTENDRÁN:
-              </p>
-              <ul className="list-disc list-inside space-y-1 text-sm">
-                <li>Cursos y contenido educativo</li>
-                <li>Rutas de aprendizaje</li>
-                <li>Áreas y puestos</li>
-                <li>Usuarios administrativos (admins y superadmins)</li>
-                <li>Configuraciones del sistema</li>
-              </ul>
-              <div className="pt-4">
-                <Label htmlFor="confirm-text">
-                  Para confirmar, escribe: <span className="font-mono font-semibold">ELIMINAR DATOS DE PRUEBA</span>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="font-semibold text-red-900 mb-2">
+                  ⚠️ ADVERTENCIA CRÍTICA: Esta acción es IRREVERSIBLE
+                </p>
+                <p className="text-sm text-red-700">
+                  Se eliminará PERMANENTEMENTE todo el contenido del sistema, dejándolo como recién instalado.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-semibold text-red-600">SE ELIMINARÁN:</p>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="space-y-1">
+                    <p className="font-medium">👥 Usuarios y Organización:</p>
+                    <ul className="list-disc list-inside pl-2 space-y-0.5 text-xs">
+                      <li>Todos los colaboradores</li>
+                      <li>Todas las áreas</li>
+                      <li>Todos los puestos</li>
+                      <li>Todas las sedes</li>
+                      <li>Reglas de inscripción automática</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <p className="font-medium">📚 Contenido Educativo:</p>
+                    <ul className="list-disc list-inside pl-2 space-y-0.5 text-xs">
+                      <li>Todos los cursos</li>
+                      <li>Todas las rutas de aprendizaje</li>
+                      <li>Todas las unidades y lecciones</li>
+                      <li>Todas las actividades</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <p className="font-medium">📝 Evaluaciones:</p>
+                    <ul className="list-disc list-inside pl-2 space-y-0.5 text-xs">
+                      <li>Todas las preguntas del banco</li>
+                      <li>Todas las opciones de preguntas</li>
+                      <li>Todos los quizzes/exámenes</li>
+                      <li>Intentos de evaluaciones</li>
+                      <li>Intentos de actividades</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <p className="font-medium">📊 Progreso y Registros:</p>
+                    <ul className="list-disc list-inside pl-2 space-y-0.5 text-xs">
+                      <li>Todas las inscripciones</li>
+                      <li>Todas las certificaciones</li>
+                      <li>Todo el progreso de cursos</li>
+                      <li>Todo el progreso de lecciones</li>
+                      <li>Todas las alertas</li>
+                      <li>Todas las notificaciones</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                <p className="font-semibold text-emerald-900 mb-2">
+                  ✅ SE MANTENDRÁN únicamente:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-emerald-700">
+                  <li>Usuarios ADMIN y SUPERADMIN (tú y otros administradores)</li>
+                  <li>Configuraciones del sistema</li>
+                  <li>Plantillas de notificaciones</li>
+                </ul>
+              </div>
+
+              <div className="pt-4 border-t">
+                <Label htmlFor="confirm-text" className="text-base">
+                  Para confirmar esta acción destructiva, escribe exactamente:
+                  <span className="block font-mono font-bold text-red-600 mt-1">
+                    ELIMINAR TODO EL SISTEMA
+                  </span>
                 </Label>
                 <Input
                   id="confirm-text"
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
-                  placeholder="Escribe la frase exacta"
+                  placeholder="Escribe la frase exacta aquí..."
                   className="mt-2"
                 />
               </div>
@@ -477,18 +547,18 @@ export function ClientSuperAdmin() {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleCleanTestData}
-              disabled={cleaningData || confirmText !== "ELIMINAR DATOS DE PRUEBA"}
+              disabled={cleaningData || confirmText !== "ELIMINAR TODO EL SISTEMA"}
               className="bg-red-600 hover:bg-red-700"
             >
               {cleaningData ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Eliminando...
+                  Eliminando todo el sistema...
                 </>
               ) : (
                 <>
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Eliminar Datos
+                  ELIMINAR TODO
                 </>
               )}
             </AlertDialogAction>
