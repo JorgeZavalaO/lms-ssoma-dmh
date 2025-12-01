@@ -3,6 +3,7 @@ import * as XLSX from "xlsx"
 import { prisma } from "@/lib/prisma"
 import { CollaboratorSchema } from "@/validations/collaborators"
 import { auth } from "@/auth"
+import bcrypt from "bcryptjs"
 
 export const maxDuration = 60 
 
@@ -26,16 +27,21 @@ export async function POST(req: Request) {
 
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i]
-    // Espera columnas: DNI, Nombres, Email, Area, Puesto, Sede, Estado, FechaIngreso(YYYY-MM-DD)
+    // Espera columnas: DNI, Nombres, Email, Password, Area, Puesto, Sede, Estado, FechaIngreso(YYYY-MM-DD)
+    const email = String(r.Email ?? "").trim()
+    const password = String(r.Password ?? r.Contraseña ?? "").trim()
+    
     const parsed = CollaboratorSchema.safeParse({
       dni: String(r.DNI).trim(),
       fullName: String(r.Nombres ?? r.Nombre ?? "").trim(),
-      email: String(r.Email ?? "").trim(),
+      email: email.length > 0 ? email : "",
       areaCode: r.Area ? String(r.Area).trim() : null,
       positionName: r.Puesto ? String(r.Puesto).trim() : null,
       siteCode: r.Sede ? String(r.Sede).trim() : null,
       status: String(r.Estado ?? "ACTIVE").toUpperCase() === "INACTIVO" ? "INACTIVE" : "ACTIVE",
       entryDate: r.FechaIngreso ?? r.Fecha_de_Ingreso ?? r["Fecha Ingreso"],
+      password: password.length > 0 ? password : "",
+      createUser: email.length > 0 && password.length >= 6,
     })
 
     if (!parsed.success) {
@@ -69,25 +75,40 @@ export async function POST(req: Request) {
       })
 
       if (!existing) {
-        await prisma.collaborator.create({
-          data: {
-            dni: data.dni,
-            fullName: data.fullName,
-            email: data.email,
-            status: data.status,
-            entryDate: data.entryDate,
-            siteId: site?.id,
-            areaId: area?.id,
-            positionId: position?.id,
-            history: {
-              create: {
-                siteId: site?.id,
-                areaId: area?.id,
-                positionId: position?.id,
-              },
+        // Crear colaborador con o sin usuario
+        const collaboratorData: any = {
+          dni: data.dni,
+          fullName: data.fullName,
+          email: data.email && data.email.length > 0 ? data.email : `${data.dni}@noemail.local`,
+          status: data.status,
+          entryDate: data.entryDate,
+          siteId: site?.id,
+          areaId: area?.id,
+          positionId: position?.id,
+          history: {
+            create: {
+              siteId: site?.id,
+              areaId: area?.id,
+              positionId: position?.id,
             },
           },
-        })
+        }
+        
+        // Si hay email y password válidos, crear usuario
+        if (data.email && data.email.length > 0 && data.password && data.password.length >= 6) {
+          const hashedPassword = await bcrypt.hash(data.password, 10)
+          
+          collaboratorData.user = {
+            create: {
+              email: data.email,
+              name: data.fullName,
+              hashedPassword,
+              role: data.role || "COLLABORATOR",
+            },
+          }
+        }
+        
+        await prisma.collaborator.create({ data: collaboratorData })
         created++
       } else {
         await prisma.$transaction([

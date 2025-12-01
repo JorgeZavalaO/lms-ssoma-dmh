@@ -42,28 +42,29 @@ export async function GET(request: NextRequest) {
 }
 
 function exportToCSV(collaborators: any[]) {
+  // Formato CSV para re-importación (con códigos)
   const headers = [
     "DNI",
-    "Nombre Completo",
+    "Nombres",
     "Email",
-    "Estado",
-    "Fecha de Entrada",
-    "Área",
+    "Password",
+    "Area",
     "Puesto",
     "Sede",
-    "Rol",
+    "Estado",
+    "FechaIngreso",
   ]
 
   const rows = collaborators.map(c => [
     c.dni,
     c.fullName,
-    c.email,
-    c.status,
-    new Date(c.entryDate).toLocaleDateString("es-PE"),
-    c.area?.name || "",
+    c.email && !c.email.includes('@noemail.local') ? c.email : "",
+    "", // Password vacío por seguridad
+    c.area?.code || "",
     c.position?.name || "",
-    c.site?.name || "",
-    c.user?.role || "N/A",
+    c.site?.code || "",
+    c.status === "ACTIVE" ? "ACTIVO" : "INACTIVO",
+    c.entryDate ? new Date(c.entryDate).toISOString().split('T')[0] : "",
   ])
 
   const csv = [
@@ -80,36 +81,68 @@ function exportToCSV(collaborators: any[]) {
 }
 
 function exportToExcel(collaborators: any[]) {
-  const data = collaborators.map(c => ({
+  // Formato para re-importación (con códigos)
+  const dataForImport = collaborators.map(c => ({
+    DNI: c.dni,
+    Nombres: c.fullName,
+    Email: c.email && !c.email.includes('@noemail.local') ? c.email : "",
+    Password: "", // Vacío por seguridad - debe llenarse manualmente si se requiere
+    Area: c.area?.code || "",
+    Puesto: c.position?.name || "",
+    Sede: c.site?.code || "",
+    Estado: c.status === "ACTIVE" ? "ACTIVO" : "INACTIVO",
+    FechaIngreso: c.entryDate ? new Date(c.entryDate).toISOString().split('T')[0] : "",
+  }))
+  
+  // Formato detallado (con nombres legibles)
+  const dataDetailed = collaborators.map(c => ({
     DNI: c.dni,
     "Nombre Completo": c.fullName,
     Email: c.email,
     Estado: c.status === "ACTIVE" ? "Activo" : "Inactivo",
-    "Fecha de Entrada": new Date(c.entryDate).toLocaleDateString("es-PE"),
-    Área: c.area?.name || "",
-    Puesto: c.position?.name || "",
-    Sede: c.site?.name || "",
-    Rol: c.user?.role || "N/A",
+    "Fecha Ingreso": new Date(c.entryDate).toLocaleDateString("es-PE"),
+    "Área (Código)": c.area?.code || "",
+    "Área (Nombre)": c.area?.name || "",
+    "Puesto": c.position?.name || "",
+    "Sede (Código)": c.site?.code || "",
+    "Sede (Nombre)": c.site?.name || "",
+    "Rol Usuario": c.user?.role || "Sin usuario",
   }))
 
   const workbook = XLSX.utils.book_new()
-  const worksheet = XLSX.utils.json_to_sheet(data)
   
-  // Ajustar ancho de columnas
-  const colWidths = [
+  // Hoja 1: Formato para re-importación directa
+  const wsImport = XLSX.utils.json_to_sheet(dataForImport)
+  wsImport["!cols"] = [
     { wch: 12 }, // DNI
-    { wch: 25 }, // Nombre Completo
-    { wch: 25 }, // Email
-    { wch: 12 }, // Estado
-    { wch: 15 }, // Fecha de Entrada
-    { wch: 15 }, // Área
+    { wch: 25 }, // Nombres
+    { wch: 30 }, // Email
+    { wch: 15 }, // Password
+    { wch: 10 }, // Area
     { wch: 15 }, // Puesto
     { wch: 15 }, // Sede
-    { wch: 12 }, // Rol
+    { wch: 10 }, // Estado
+    { wch: 15 }, // FechaIngreso
   ]
-  worksheet["!cols"] = colWidths
+  
+  // Hoja 2: Formato detallado con nombres completos
+  const wsDetailed = XLSX.utils.json_to_sheet(dataDetailed)
+  wsDetailed["!cols"] = [
+    { wch: 12 }, // DNI
+    { wch: 25 }, // Nombre Completo
+    { wch: 30 }, // Email
+    { wch: 12 }, // Estado
+    { wch: 15 }, // Fecha Ingreso
+    { wch: 12 }, // Área (Código)
+    { wch: 20 }, // Área (Nombre)
+    { wch: 18 }, // Puesto
+    { wch: 12 }, // Sede (Código)
+    { wch: 20 }, // Sede (Nombre)
+    { wch: 15 }, // Rol Usuario
+  ]
 
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Colaboradores")
+  XLSX.utils.book_append_sheet(workbook, wsImport, "Para Reimportar")
+  XLSX.utils.book_append_sheet(workbook, wsDetailed, "Datos Detallados")
   
   const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" })
   

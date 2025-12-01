@@ -3,7 +3,7 @@ import { z } from "zod"
 export const CollaboratorSchema = z.object({
   dni: z.string().min(8).max(15),
   fullName: z.string().min(3),
-  email: z.string().email(),
+  email: z.string().email().optional().or(z.literal("")),
   siteCode: z.string().optional().nullable(),
   areaCode: z.string().optional().nullable(),
   positionName: z.string().optional().nullable(),
@@ -15,14 +15,26 @@ export const CollaboratorSchema = z.object({
   role: z.enum(["COLLABORATOR", "ADMIN", "SUPERADMIN"]).optional().default("COLLABORATOR"),
 }).refine(
   (data) => {
-    // Si createUser es true, password es requerido y debe tener mínimo 6 caracteres
-    if (data.createUser === true) {
+    // Si hay password, debe tener email para crear usuario
+    if (data.password && data.password.length >= 6) {
+      return data.email && data.email.length > 0
+    }
+    return true
+  },
+  {
+    message: "El email es obligatorio cuando se proporciona contraseña",
+    path: ["email"],
+  }
+).refine(
+  (data) => {
+    // Si createUser es true y hay email, password es requerido
+    if (data.createUser === true && data.email && data.email.length > 0) {
       return data.password && data.password.length >= 6
     }
     return true
   },
   {
-    message: "La contraseña es obligatoria cuando se crea usuario",
+    message: "La contraseña es obligatoria cuando se crea usuario con email",
     path: ["password"],
   }
 )

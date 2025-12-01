@@ -7,6 +7,136 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [2.2.3] - 2025-12-01
+
+### Agregado - Sistema de Templates de Colaboradores con Gestión de Contraseñas
+
+- ✅ **Email opcional en creación de colaboradores**
+  - Email convertido a opcional en schema Zod (`z.string().email().optional().or(z.literal(""))`)
+  - Refine rule 1: Si hay password, email es obligatorio
+  - Refine rule 2: Si createUser=true y hay email, password es obligatorio
+  - Email placeholder automático: `${dni}@noemail.local` para colaboradores sin cuenta
+  - Usuario creado solo si email y password válidos están presentes
+  - Validación condicional en cliente y servidor
+
+- ✅ **Campo Password agregado al template Excel**
+  - Template expandido de 8 a 9 columnas totales
+  - Headers: DNI, Nombres, Email, **Password (nuevo)**, Area, Puesto, Sede, Estado, FechaIngreso
+  - 3 ejemplos incluidos en template:
+    - 2 ejemplos con email + password (para crear usuarios)
+    - 1 ejemplo sin email/password (colaborador sin cuenta)
+  - Hoja "Instrucciones" expandida con 12 filas explicativas:
+    - Documentación de campo Email: "Condicional", "OBLIGATORIO si se proporciona Password"
+    - Documentación de campo Password: "Condicional", "Requiere Email. Dejar vacío si no necesita cuenta"
+    - Notas importantes sobre relación entre Email y Password
+  - Anchos de columna ajustados para incluir Password (15 wch)
+
+- ✅ **Import con creación automática de usuarios**
+  - Lectura de columnas Email y Password del archivo Excel
+  - Import estático de bcrypt: `import bcrypt from "bcryptjs"`
+  - Hash seguro de contraseñas: `await bcrypt.hash(password, 10)`
+  - Lógica condicional de creación de usuario:
+    ```typescript
+    if (data.email && data.email.length > 0 && data.password && data.password.length >= 6) {
+      const hashedPassword = await bcrypt.hash(data.password, 10)
+      collaboratorData.user = {
+        create: {
+          email: data.email,
+          hashedPassword,
+          role: "COLLABORATOR",
+        }
+      }
+    }
+    ```
+  - Validación de password mínimo 6 caracteres
+  - Email placeholder si no se proporciona: `${dni}@noemail.local`
+
+- ✅ **Export con formato reimportable**
+  - Nueva estructura de 2 hojas en Excel:
+    - **Hoja 1 "Para Reimportar"**: 9 columnas con códigos (area.code, site.code)
+    - **Hoja 2 "Datos Detallados"**: 11 columnas con nombres completos + códigos
+  - Columna Password agregada (vacía por seguridad)
+  - Filtrado de emails generados internamente:
+    ```typescript
+    c.email && !c.email.includes('@noemail.local') ? c.email : ""
+    ```
+  - Export CSV actualizado con misma estructura que hoja 1
+  - Anchos de columna optimizados para legibilidad
+
+- ✅ **API de colaboradores actualizada**
+  - Endpoint `/api/collaborators/route.ts` modificado:
+    - Email con fallback: `email: data.email || \`${data.dni}@noemail.local\``
+    - Validación para creación de usuario: `if (data.createUser !== false && data.email && data.email.length > 0)`
+  - Endpoint `/api/collaborators/import/route.ts` modificado:
+    - Import de bcrypt agregado
+    - Lectura de Password del Excel
+    - Creación condicional de usuario con hash
+  - Endpoint `/api/collaborators/export/route.ts` modificado:
+    - 2 hojas con códigos para reimportación
+    - Filtrado de emails placeholder
+  - Endpoint `/api/collaborators/template/route.ts` modificado:
+    - 9 columnas incluyendo Password
+    - Hoja de instrucciones expandida
+
+### Cambiado
+
+- **Validaciones de colaboradores** (`src/validations/collaborators.ts`):
+  - Email de obligatorio a opcional
+  - Password agregado como campo opcional con validación mínima
+  - 2 refine rules para interdependencia email-password
+
+- **Schema Prisma** (`prisma/schema.prisma`):
+  - Comentario actualizado en campo email: "Email único (puede ser generado internamente si no se proporciona)"
+  - Sin cambios estructurales (campo sigue siendo único a nivel DB)
+
+### Corregido
+
+- **Error de compilación**: `require()` style import forbidden
+  - Solución: Cambiado de `const bcrypt = require("bcryptjs")` a `import bcrypt from "bcryptjs"`
+  - Ubicación: `/app/api/collaborators/import/route.ts`
+
+- **Error de tipos TypeScript**: `Type 'string | undefined' is not assignable to type 'string'`
+  - Problema: Email opcional pero Prisma espera string
+  - Solución 1: Email con fallback `|| \`${dni}@noemail.local\``
+  - Solución 2: Validación adicional antes de crear usuario
+  - Ubicación: `/app/api/collaborators/route.ts` línea 104
+
+### Técnico
+
+- **Archivos modificados** (8 archivos en total):
+  1. `src/validations/collaborators.ts` - Schema con refine rules
+  2. `src/app/api/collaborators/template/route.ts` - Template 9 columnas + instrucciones
+  3. `src/app/api/collaborators/import/route.ts` - Import con bcrypt
+  4. `src/app/api/collaborators/export/route.ts` - Export 2 hojas con filtrado
+  5. `src/app/api/collaborators/route.ts` - Email fallback + validación usuario
+  6. `prisma/schema.prisma` - Comentario actualizado
+  7. `README.md` - Documentación actualizada
+  8. `CHANGELOG.md` - Historial de cambios
+
+- **Dependencias**:
+  - `bcryptjs`: Ya existente, ahora usado en import
+  - `xlsx` (SheetJS): Ya existente para Excel
+  - `zod`: Ya existente para validaciones
+
+- **Build exitoso**:
+  - Compilación: ✓ 7.4 segundos
+  - Rutas generadas: 77 páginas
+  - Errores TypeScript: 0
+  - Warnings: Solo pre-existentes ESLint (no nuevos)
+  - Correcciones aplicadas: 3 (require import, tipo undefined, validación condicional)
+
+### Beneficios de la Implementación
+
+- ✅ **Flexibilidad**: Colaboradores con o sin cuenta de acceso
+- ✅ **Seguridad**: Hash bcrypt de contraseñas, validación en múltiples capas
+- ✅ **UX mejorada**: Template con ejemplos e instrucciones claras
+- ✅ **Reimportación fácil**: Export con códigos para reimportar sin pérdida de datos
+- ✅ **Gestión masiva**: Creación de usuarios en lote con importación Excel
+- ✅ **Validación robusta**: Email y password interdependientes con mensajes claros
+- ✅ **Compatibilidad**: Sistema funciona con colaboradores existentes
+
+---
+
 ## [2.2.0] - 2025-11-04
 
 ### Mejora UI - Módulo de Colaboradores + Descarga Excel

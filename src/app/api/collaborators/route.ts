@@ -101,7 +101,7 @@ export async function POST(req: Request) {
       data: {
         dni: data.dni,
         fullName: data.fullName,
-        email: data.email,
+        email: data.email || `${data.dni}@noemail.local`, // Generar email si no se proporciona
         status: data.status,
         entryDate: data.entryDate,
         siteId: site?.id,
@@ -119,8 +119,8 @@ export async function POST(req: Request) {
       include: { site: true, area: true, position: true },
     })
 
-    // 2. Crear usuario asociado si createUser es true
-    if (data.createUser !== false) {
+    // 2. Crear usuario asociado si createUser es true y hay email válido
+    if (data.createUser !== false && data.email && data.email.length > 0) {
       await tx.user.create({
         data: {
           email: data.email,

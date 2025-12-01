@@ -14,6 +14,39 @@ Sistema de Gestión de Aprendizaje (LMS) para Seguridad, Salud Ocupacional y Med
 LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacitaciones, colaboradores y recursos relacionados con Seguridad, Salud Ocupacional y Medio Ambiente. El sistema permite administrar usuarios, asignar cursos, gestionar áreas y puestos, y realizar seguimiento del progreso de capacitaciones.
 
 ## 🆕 Últimas Actualizaciones
+### v2.2.3 - Sistema de Templates de Colaboradores con Gestión de Contraseñas (1 Dic 2025)
+
+- ✅ **Email opcional y campo Password agregado**:
+  - Email convertido a opcional en validaciones y formularios
+  - Nueva columna "Password" en template Excel (9 columnas totales)
+  - Email placeholder automático `${dni}@noemail.local` para colaboradores sin cuenta
+  - Validaciones Zod con refine rules: email obligatorio si hay password
+
+- ✅ **Template Excel mejorado con instrucciones**:
+  - 3 ejemplos incluidos: 2 con credenciales, 1 sin credenciales
+  - Hoja "Instrucciones" expandida con 12 filas explicativas
+  - Documentación inline de relación Email-Password
+  - Anchos de columna ajustados para mejor legibilidad
+
+- ✅ **Import con creación automática de usuarios**:
+  - Lectura de columnas Email y Password del Excel
+  - Hash seguro de contraseñas con bcrypt (10 salt rounds)
+  - Creación de usuario con rol COLLABORATOR solo si email+password presentes
+  - Validación de password mínimo 6 caracteres
+
+- ✅ **Export con códigos para reimportación**:
+  - Hoja 1 "Para Reimportar": códigos (area.code, site.code) + columna Password vacía
+  - Hoja 2 "Datos Detallados": nombres completos + códigos para auditoría
+  - Filtrado automático de emails generados (`@noemail.local` no se exportan)
+  - Formato CSV actualizado con misma estructura
+
+- ✅ **API de colaboradores actualizada**:
+  - Email con fallback automático en creación
+  - Validación condicional para creación de usuario
+  - Compatibilidad con colaboradores sin cuenta de acceso
+
+- ✅ **Build validado**: Compilación exitosa tras 3 correcciones de tipos, 0 errores
+
 ### v2.2.2 - Organización de Componentes (4 Nov 2025)
 
 - ♻️ Reubicación de componentes compartidos para una arquitectura más clara:
@@ -169,7 +202,13 @@ LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacit
 
 ### 👥 Gestión de Colaboradores
 - CRUD completo de colaboradores
-- Importación masiva (CSV/XLSX)
+- **Email opcional**: Colaboradores pueden existir sin cuenta de acceso
+- **Importación masiva (CSV/XLSX)** con creación automática de usuarios:
+  - Template Excel con 9 columnas (incluye Password)
+  - Hash seguro de contraseñas con bcrypt
+  - Email y Password condicionales (interdependientes)
+  - Validación en cliente y servidor
+- **Exportación con códigos**: Formato reimportable con area.code, site.code
 - Asignación a áreas, sedes y puestos
 - Historial de cambios
 - Cambio de roles por administrador
@@ -763,12 +802,13 @@ User                  # Usuarios del sistema
 
 ### Colaboradores
 - `GET /api/collaborators` - Listar colaboradores (paginado)
-- `POST /api/collaborators` - Crear colaborador
+- `POST /api/collaborators` - Crear colaborador (email opcional, genera placeholder si no se provee)
 - `GET /api/collaborators/:id` - Obtener colaborador
 - `PUT /api/collaborators/:id` - Actualizar colaborador
 - `DELETE /api/collaborators/:id` - Eliminar colaborador
-- `POST /api/collaborators/import` - Importar desde CSV/XLSX
-- `GET /api/collaborators/template` - Descargar plantilla
+- `POST /api/collaborators/import` - Importar desde CSV/XLSX con creación de usuarios (lee Email y Password, hash con bcrypt)
+- `GET /api/collaborators/template` - Descargar plantilla Excel con 9 columnas + hoja de instrucciones
+- `GET /api/collaborators/export` - Exportar en formato reimportable (2 hojas: códigos + detalles)
 
 ### Cursos
 - `GET /api/courses` - Listar cursos (filtros por estado)
@@ -1068,12 +1108,12 @@ Propietario - DMH © 2025. Todos los derechos reservados.
 Para ver el historial completo de cambios, consulta [CHANGELOG.md](./CHANGELOG.md).
 
 ### Versiones Recientes
+- **v2.2.3** (1 Dic 2025) - Sistema de templates de colaboradores con gestión de contraseñas
+- **v2.2.2** (4 Nov 2025) - Organización de componentes compartidos
+- **v2.2.1** (4 Nov 2025) - Modularización admin y limpieza
+- **v2.2.0** (4 Nov 2025) - Mejora UI módulo de colaboradores + descarga Excel
 - **v2.1.5** (3 Nov 2025) - Reestructuración administrativa y mejoras UX
 - **v2.1.4** (31 Oct 2025) - Sistema de asistencia y horas estandarizadas
-- **v2.1.3** (31 Oct 2025) - Mejoras UX/UI en cuestionarios y corrección de bucles React
-- **v2.1.2** (29 Oct 2025) - Anti-salto en progreso y completado manual para no-video
-- **v2.1.1** (29 Oct 2025) - Enforzamiento de prerrequisitos en servidor
-- **v2.1.0** (27 Oct 2025) - Consolidación de reportes y optimización arquitectónica
 
 ---
 
