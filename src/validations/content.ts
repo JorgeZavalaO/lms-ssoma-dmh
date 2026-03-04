@@ -24,9 +24,74 @@ export const LessonSchema = z.object({
   htmlContent: z.string().optional(),
   completionThreshold: z.number().int().min(0).max(100).default(80),
   duration: z.number().int().positive().optional(),
+}).superRefine((data, ctx) => {
+  const fileUrl = data.fileUrl?.trim()
+  const videoUrl = data.videoUrl?.trim()
+  const htmlContent = data.htmlContent?.trim()
+
+  if (data.type === "VIDEO" && !videoUrl) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["videoUrl"],
+      message: "La URL del video es requerida para lecciones de tipo VIDEO",
+    })
+  }
+
+  if ((data.type === "PPT" || data.type === "SCORM") && !fileUrl) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["fileUrl"],
+      message: "La URL del archivo es requerida para este tipo de lección",
+    })
+  }
+
+  if (data.type === "PDF") {
+    if (!fileUrl) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["fileUrl"],
+        message: "La URL del PDF es requerida",
+      })
+    } else if (!/\.pdf($|[?#])/i.test(fileUrl)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["fileUrl"],
+        message: "La URL debe apuntar a un archivo PDF",
+      })
+    }
+  }
+
+  if (data.type === "HTML" && !htmlContent) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["htmlContent"],
+      message: "El contenido HTML es requerido para lecciones de tipo HTML",
+    })
+  }
 })
 
-export const LessonUpdateSchema = LessonSchema.partial()
+export const LessonUpdateSchema = LessonSchema.partial().superRefine((data, ctx) => {
+  const fileUrl = data.fileUrl?.trim()
+
+  if (data.type === "PDF") {
+    if (!fileUrl) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["fileUrl"],
+        message: "La URL del PDF es requerida",
+      })
+      return
+    }
+
+    if (!/\.pdf($|[?#])/i.test(fileUrl)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["fileUrl"],
+        message: "La URL debe apuntar a un archivo PDF",
+      })
+    }
+  }
+})
 
 // D1 - Progreso de lecciones
 export const LessonProgressSchema = z.object({

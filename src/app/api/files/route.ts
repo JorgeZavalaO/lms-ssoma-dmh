@@ -47,16 +47,32 @@ export async function POST(req: NextRequest) {
     const name = formData.get("name") as string
     const description = formData.get("description") as string | null
     const fileType = formData.get("fileType") as string
-    const tags = JSON.parse(formData.get("tags") as string || "[]")
+    const rawTags = formData.get("tags") as string | null
     const previousVersionId = formData.get("previousVersionId") as string | null
+
+    const tags = rawTags ? JSON.parse(rawTags) : []
 
     if (!file) {
       return NextResponse.json({ error: "No se proporcionó archivo" }, { status: 400 })
     }
 
+    const normalizedFileType = (fileType || "").toUpperCase()
+    const allowedFileTypes = ["PDF", "PPT", "IMAGE", "VIDEO", "DOCUMENT", "OTHER"] as const
+
+    if (!allowedFileTypes.includes(normalizedFileType as typeof allowedFileTypes[number])) {
+      return NextResponse.json({ error: "Tipo de archivo inválido" }, { status: 400 })
+    }
+
     // Límite de 10MB
     if (file.size > 10 * 1024 * 1024) {
       return NextResponse.json({ error: "El archivo excede el límite de 10MB" }, { status: 400 })
+    }
+
+    if (normalizedFileType === "PDF") {
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
+      if (!isPdf) {
+        return NextResponse.json({ error: "El archivo debe ser un PDF válido" }, { status: 400 })
+      }
     }
 
     // Subir a Vercel Blob
@@ -81,7 +97,7 @@ export async function POST(req: NextRequest) {
       data: {
         name: name || file.name,
         description,
-        fileType: fileType as "PDF" | "PPT" | "IMAGE" | "VIDEO" | "DOCUMENT" | "OTHER",
+        fileType: normalizedFileType as "PDF" | "PPT" | "IMAGE" | "VIDEO" | "DOCUMENT" | "OTHER",
         blobUrl: blob.url,
         size: file.size,
         mimeType: file.type,
