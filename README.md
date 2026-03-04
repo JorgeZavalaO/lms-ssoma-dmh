@@ -1120,7 +1120,7 @@ Para ver el historial completo de cambios, consulta [CHANGELOG.md](./CHANGELOG.m
 ## 🆘 Soporte
 
 Para soporte y preguntas:
-- Email: soporte@dmh.com
+- Email: analista@dimahisac.com
 - Documentación interna: [Enlace pendiente]
 
 ---

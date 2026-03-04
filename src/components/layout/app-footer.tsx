@@ -66,8 +66,8 @@ export function AppFooter() {
           <div className="space-y-3">
             <h4 className="text-sm font-semibold">Contacto</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>Email: soporte@dmh.com</li>
-              <li>Tel: +51 XXX XXX XXX</li>
+              <li>Email: analista@dimahisac.com</li>
+              <li>Tel: +51 955098406</li>
             </ul>
           </div>
         </div>
