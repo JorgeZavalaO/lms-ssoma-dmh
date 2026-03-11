@@ -14,6 +14,23 @@ Sistema de Gestión de Aprendizaje (LMS) para Seguridad, Salud Ocupacional y Med
 LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacitaciones, colaboradores y recursos relacionados con Seguridad, Salud Ocupacional y Medio Ambiente. El sistema permite administrar usuarios, asignar cursos, gestionar áreas y puestos, y realizar seguimiento del progreso de capacitaciones.
 
 ## 🆕 Últimas Actualizaciones
+### v2.2.6 - Repositorio de Archivos V3 con Deshabilitado y Eliminación Segura (11 Mar 2026)
+
+- ✅ **Ciclo de vida seguro para archivos en `/admin/files`**:
+  - Estados persistentes `Activo`, `Deshabilitado` y `Eliminado`
+  - Deshabilitado con motivo obligatorio para sacar archivos de circulación sin romper referencias existentes
+  - Reactivación rápida para revertir bloqueos operativos por error
+
+- ✅ **Eliminación física protegida**:
+  - El blob solo puede eliminarse si el archivo ya está deshabilitado
+  - La eliminación queda bloqueada si existen referencias directas o heurísticas detectadas
+  - El registro se conserva como historial de auditoría después del borrado físico
+
+- ✅ **Sin reset, con migración aditiva segura**:
+  - Nueva migración Prisma para persistir el ciclo de vida del archivo
+  - Sin necesidad de resetear la base ni borrar datos productivos
+  - Los listados operativos (`/api/files`) solo exponen archivos `ACTIVE`
+
 ### v2.2.5 - Repositorio de Archivos V2 con Exportación y Priorización de Revisión (11 Mar 2026)
 
 - ✅ **V2 del módulo `/admin/files`**:
@@ -296,6 +313,7 @@ Nota técnica: la verificación de acceso está centralizada en `src/lib/access.
   - **Inventario admin V1** con trazabilidad segura en `/admin/files`
   - Detección de uso directo vs heurístico antes de cualquier limpieza operativa
   - **V2** con exportación filtrada y priorización de revisión manual
+  - **V3** con deshabilitado administrativo, reactivación y eliminación física bloqueada por dependencias detectadas
 - **Actividades Interactivas**:
   - Contenido HTML con componentes shadcn
   - Registro de intentos
@@ -902,6 +920,8 @@ User                  # Usuarios del sistema
 - `POST /api/files` - Subir archivo
 - `GET /api/admin/files` - Inventario enriquecido de archivos con trazabilidad y filtros admin
 - `GET /api/admin/files/:id` - Detalle contextual de un archivo con referencias detectadas
+- `PATCH /api/admin/files/:id` - Deshabilitar o reactivar archivo con reglas de ciclo de vida
+- `DELETE /api/admin/files/:id` - Eliminar blob solo cuando no haya referencias detectadas y el archivo esté deshabilitado
 - `GET /api/admin/files/export` - Exportar auditoría filtrada del inventario en CSV/XLSX
 - `GET /api/activities` - Listar actividades interactivas
 - `POST /api/activities` - Crear actividad
@@ -1168,6 +1188,7 @@ Propietario - DMH © 2025. Todos los derechos reservados.
 Para ver el historial completo de cambios, consulta [CHANGELOG.md](./CHANGELOG.md).
 
 ### Versiones Recientes
+- **v2.2.6** (11 Mar 2026) - Repositorio de archivos V3 con deshabilitado y eliminación segura
 - **v2.2.5** (11 Mar 2026) - Repositorio de archivos V2 con exportación y priorización de revisión
 - **v2.2.4** (11 Mar 2026) - Repositorio de archivos V1 con trazabilidad segura para producción
 - **v2.2.3** (1 Dic 2025) - Sistema de templates de colaboradores con gestión de contraseñas

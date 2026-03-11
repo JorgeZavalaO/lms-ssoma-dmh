@@ -9,6 +9,7 @@ const ExportQuerySchema = z.object({
   q: z.string().optional(),
   fileType: z.enum(["ALL", "PDF", "PPT", "IMAGE", "VIDEO", "DOCUMENT", "OTHER"]).optional(),
   usageState: z.enum(["ALL", "IN_USE", "UNUSED", "HEURISTIC_ONLY"]).optional(),
+  lifecycleStatus: z.enum(["ALL", "ACTIVE", "DISABLED", "DELETED"]).optional(),
   tag: z.string().optional(),
 })
 
@@ -84,6 +85,7 @@ export async function GET(request: NextRequest) {
       q: request.nextUrl.searchParams.get("q") ?? undefined,
       fileType: request.nextUrl.searchParams.get("fileType") ?? undefined,
       usageState: request.nextUrl.searchParams.get("usageState") ?? undefined,
+      lifecycleStatus: request.nextUrl.searchParams.get("lifecycleStatus") ?? undefined,
       tag: request.nextUrl.searchParams.get("tag") ?? undefined,
     })
 
@@ -96,8 +98,10 @@ export async function GET(request: NextRequest) {
       Nombre: item.name,
       Tipo: item.fileType,
       TamañoBytes: item.size,
+      CicloVida: item.lifecycleStatus,
       EstadoUso: item.usageState,
       PrioridadRevision: item.reviewPriority,
+      Eliminable: item.canDelete ? "Sí" : "No",
       DiasDesdeCarga: item.daysSinceUpload,
       ReferenciasDirectas: item.directUsageCount,
       ReferenciasHeuristicas: item.heuristicUsageCount,
@@ -107,6 +111,8 @@ export async function GET(request: NextRequest) {
       Recomendacion: item.reviewRecommendation,
       FechaCarga: item.uploadedAt,
       BlobUrl: item.blobUrl,
+      MotivoDeshabilitado: item.disableReason ?? "",
+      MotivoEliminacion: item.deleteReason ?? "",
     }))
 
     if (parsed.format === "csv") {
@@ -115,10 +121,14 @@ export async function GET(request: NextRequest) {
 
     const summary = {
       TotalArchivos: inventory.stats.totalFiles,
+      Activos: inventory.stats.activeFiles,
+      Deshabilitados: inventory.stats.disabledFiles,
+      Eliminados: inventory.stats.deletedFiles,
       UsoDirecto: inventory.stats.inUseFiles,
       SinUsoDetectado: inventory.stats.unusedFiles,
       Heuristicos: inventory.stats.heuristicOnlyFiles,
       CandidatosRevision: inventory.stats.reviewCandidates,
+      Eliminables: inventory.stats.deletableFiles,
       BytesSinUso: inventory.stats.unusedBytes,
       BytesHeuristicos: inventory.stats.heuristicBytes,
     }

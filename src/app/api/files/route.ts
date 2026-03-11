@@ -15,7 +15,11 @@ export async function GET(req: NextRequest) {
     const tags = searchParams.get("tags")?.split(",") || []
     const fileType = searchParams.get("fileType") as "PDF" | "PPT" | "IMAGE" | "VIDEO" | "DOCUMENT" | "OTHER" | null
 
-    const where: { fileType?: "PDF" | "PPT" | "IMAGE" | "VIDEO" | "DOCUMENT" | "OTHER"; tags?: { hasSome: string[] } } = {}
+    const where: {
+      status: "ACTIVE"
+      fileType?: "PDF" | "PPT" | "IMAGE" | "VIDEO" | "DOCUMENT" | "OTHER"
+      tags?: { hasSome: string[] }
+    } = { status: "ACTIVE" }
     if (fileType) where.fileType = fileType
     if (tags.length > 0) where.tags = { hasSome: tags }
 
@@ -105,6 +109,7 @@ export async function POST(req: NextRequest) {
         version,
         previousVersionId,
         uploadedBy: session.user.id,
+        status: "ACTIVE",
       },
     })
 

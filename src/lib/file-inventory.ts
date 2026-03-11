@@ -1,10 +1,23 @@
-import { FileType } from "@prisma/client"
+import { del } from "@vercel/blob"
+import { FileLifecycleStatus, FileType } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 
 export type FileUsageConfidence = "DIRECT" | "HEURISTIC"
 export type FileUsageSource = "LESSON_FILE" | "LESSON_HTML" | "CERTIFICATE_PDF" | "CERTIFICATE_URL" | "INTERACTIVE_ACTIVITY"
 export type FileUsageState = "IN_USE" | "UNUSED" | "HEURISTIC_ONLY"
 export type FileReviewPriority = "HIGH" | "MEDIUM" | "LOW"
+export type FileMutationAction = "DISABLE" | "RESTORE" | "DELETE"
+
+export class FileLifecycleError extends Error {
+  constructor(
+    message: string,
+    public code: "NOT_FOUND" | "INVALID_STATE" | "DELETE_BLOCKED" | "BAD_REQUEST",
+    public details: string[] = []
+  ) {
+    super(message)
+    this.name = "FileLifecycleError"
+  }
+}
 
 export type FileInventoryQuery = {
   page?: number
@@ -12,6 +25,7 @@ export type FileInventoryQuery = {
   q?: string
   fileType?: FileType | "ALL"
   usageState?: FileUsageState | "ALL"
+  lifecycleStatus?: FileLifecycleStatus | "ALL"
   tag?: string | "ALL"
 }
 
@@ -47,6 +61,13 @@ export type FileInventoryItem = {
   previousVersionId: string | null
   uploadedBy: string
   uploadedAt: string
+  lifecycleStatus: FileLifecycleStatus
+  disabledAt: string | null
+  disabledBy: string | null
+  disableReason: string | null
+  deletedAt: string | null
+  deletedBy: string | null
+  deleteReason: string | null
   usageState: FileUsageState
   usageCount: number
   directUsageCount: number
@@ -54,17 +75,26 @@ export type FileInventoryItem = {
   primaryLocation: string
   relatedCourseName: string | null
   confidenceSummary: string
+  lifecycleSummary: string
   reviewPriority: FileReviewPriority
   reviewRecommendation: string
   daysSinceUpload: number
+  canDisable: boolean
+  canRestore: boolean
+  canDelete: boolean
+  deleteBlockers: string[]
 }
 
 export type FileInventoryStats = {
   totalFiles: number
+  activeFiles: number
+  disabledFiles: number
+  deletedFiles: number
   inUseFiles: number
   unusedFiles: number
   heuristicOnlyFiles: number
   reviewCandidates: number
+  deletableFiles: number
   unusedBytes: number
   heuristicBytes: number
 }
@@ -101,6 +131,13 @@ type RawFile = {
   previousVersionId: string | null
   uploadedBy: string
   uploadedAt: Date
+  status: FileLifecycleStatus
+  disabledAt: Date | null
+  disabledBy: string | null
+  disableReason: string | null
+  deletedAt: Date | null
+  deletedBy: string | null
+  deleteReason: string | null
 }
 
 type FileInventoryComputedEntry = {
@@ -115,6 +152,7 @@ function normalizeQuery(query: FileInventoryQuery) {
     q: query.q?.trim().toLowerCase() ?? "",
     fileType: query.fileType && query.fileType !== "ALL" ? query.fileType : undefined,
     usageState: query.usageState && query.usageState !== "ALL" ? query.usageState : undefined,
+    lifecycleStatus: query.lifecycleStatus && query.lifecycleStatus !== "ALL" ? query.lifecycleStatus : undefined,
     tag: query.tag && query.tag !== "ALL" ? query.tag : undefined,
   }
 }
@@ -149,12 +187,55 @@ function getConfidenceSummary(usageState: FileUsageState): string {
   }
 }
 
+function getDeleteBlockers(file: RawFile, usages: FileUsageReference[]) {
+  const blockers: string[] = []
+
+  if (file.status === "DELETED") {
+    blockers.push("El archivo ya fue eliminado del blob y solo conserva su registro de auditoría.")
+    return blockers
+  }
+
+  if (file.status !== "DISABLED") {
+    blockers.push("Primero debes deshabilitar el archivo antes de intentar eliminarlo.")
+  }
+
+  const directUsageCount = usages.filter((usage) => usage.confidence === "DIRECT").length
+  const heuristicUsageCount = usages.filter((usage) => usage.confidence === "HEURISTIC").length
+
+  if (directUsageCount > 0) {
+    blockers.push(`Se detectaron ${directUsageCount} referencia(s) directa(s) activas en el sistema.`)
+  }
+
+  if (heuristicUsageCount > 0) {
+    blockers.push(`Se detectaron ${heuristicUsageCount} referencia(s) heurística(s); valida manualmente antes de borrar.`)
+  }
+
+  return blockers
+}
+
+function getLifecycleSummary(file: RawFile, canDelete: boolean, deleteBlockers: string[]) {
+  switch (file.status) {
+    case "ACTIVE":
+      return "Activo y disponible para uso operativo."
+    case "DISABLED":
+      return canDelete
+        ? "Deshabilitado. Ya no aparece en listados operativos y puede eliminarse del blob de forma segura."
+        : `Deshabilitado. Aún no puede eliminarse: ${deleteBlockers[0] ?? "revisar dependencias detectadas."}`
+    case "DELETED":
+      return "El blob fue eliminado y este registro se conserva solo como trazabilidad histórica."
+    default:
+      return "Estado no reconocido."
+  }
+}
+
 function getDaysSinceUpload(uploadedAt: Date) {
   const millisecondsPerDay = 1000 * 60 * 60 * 24
   return Math.max(0, Math.floor((Date.now() - uploadedAt.getTime()) / millisecondsPerDay))
 }
 
 function getReviewPriority(file: RawFile, usageState: FileUsageState, daysSinceUpload: number): FileReviewPriority {
+  if (file.status === "DELETED") return "LOW"
+  if (file.status === "DISABLED") return usageState === "IN_USE" ? "MEDIUM" : "LOW"
   if (usageState === "IN_USE") return "LOW"
   if (usageState === "HEURISTIC_ONLY") return daysSinceUpload >= 30 ? "MEDIUM" : "LOW"
   if (file.previousVersionId) return "HIGH"
@@ -163,6 +244,16 @@ function getReviewPriority(file: RawFile, usageState: FileUsageState, daysSinceU
 }
 
 function getReviewRecommendation(file: RawFile, usageState: FileUsageState, reviewPriority: FileReviewPriority) {
+  if (file.status === "DELETED") {
+    return "Registro histórico conservado después de la eliminación física del blob."
+  }
+
+  if (file.status === "DISABLED") {
+    return usageState === "UNUSED"
+      ? "Deshabilitado correctamente. Si mantienes cero referencias, ya puedes eliminarlo físicamente."
+      : "Deshabilitado, pero aún requiere limpiar o validar referencias antes de borrar."
+  }
+
   if (usageState === "IN_USE") {
     return "Mantener. El archivo tiene referencias activas confirmadas."
   }
@@ -188,6 +279,8 @@ function buildFileInventoryItem(file: RawFile, usages: FileUsageReference[]): Fi
   const directUsageCount = usages.filter((usage) => usage.confidence === "DIRECT").length
   const heuristicUsageCount = usages.filter((usage) => usage.confidence === "HEURISTIC").length
   const daysSinceUpload = getDaysSinceUpload(file.uploadedAt)
+  const deleteBlockers = getDeleteBlockers(file, usages)
+  const canDelete = deleteBlockers.length === 0
   const reviewPriority = getReviewPriority(file, usageState, daysSinceUpload)
 
   return {
@@ -203,6 +296,13 @@ function buildFileInventoryItem(file: RawFile, usages: FileUsageReference[]): Fi
     previousVersionId: file.previousVersionId,
     uploadedBy: file.uploadedBy,
     uploadedAt: file.uploadedAt.toISOString(),
+    lifecycleStatus: file.status,
+    disabledAt: file.disabledAt?.toISOString() ?? null,
+    disabledBy: file.disabledBy,
+    disableReason: file.disableReason,
+    deletedAt: file.deletedAt?.toISOString() ?? null,
+    deletedBy: file.deletedBy,
+    deleteReason: file.deleteReason,
     usageState,
     usageCount: usages.length,
     directUsageCount,
@@ -210,9 +310,14 @@ function buildFileInventoryItem(file: RawFile, usages: FileUsageReference[]): Fi
     primaryLocation: getPrimaryLocation(usages),
     relatedCourseName: relatedCourse?.courseName ?? null,
     confidenceSummary: getConfidenceSummary(usageState),
+    lifecycleSummary: getLifecycleSummary(file, canDelete, deleteBlockers),
     reviewPriority,
     reviewRecommendation: getReviewRecommendation(file, usageState, reviewPriority),
     daysSinceUpload,
+    canDisable: file.status === "ACTIVE",
+    canRestore: file.status === "DISABLED",
+    canDelete,
+    deleteBlockers,
   }
 }
 
@@ -464,6 +569,7 @@ async function computeFileInventoryEntries(query: FileInventoryQuery = {}): Prom
   const files = await prisma.fileRepository.findMany({
     where: {
       ...(normalized.fileType ? { fileType: normalized.fileType } : {}),
+      ...(normalized.lifecycleStatus ? { status: normalized.lifecycleStatus } : {}),
       ...(normalized.tag ? { tags: { has: normalized.tag } } : {}),
     },
     orderBy: { uploadedAt: "desc" },
@@ -495,19 +601,27 @@ export async function listFileInventory(query: FileInventoryQuery = {}): Promise
 
   const stats = filtered.reduce<FileInventoryStats>((acc, entry) => {
     acc.totalFiles += 1
+    if (entry.item.lifecycleStatus === "ACTIVE") acc.activeFiles += 1
+    if (entry.item.lifecycleStatus === "DISABLED") acc.disabledFiles += 1
+    if (entry.item.lifecycleStatus === "DELETED") acc.deletedFiles += 1
     if (entry.item.usageState === "IN_USE") acc.inUseFiles += 1
     if (entry.item.usageState === "UNUSED") acc.unusedFiles += 1
     if (entry.item.usageState === "HEURISTIC_ONLY") acc.heuristicOnlyFiles += 1
     if (entry.item.reviewPriority !== "LOW") acc.reviewCandidates += 1
+    if (entry.item.canDelete) acc.deletableFiles += 1
     if (entry.item.usageState === "UNUSED") acc.unusedBytes += entry.item.size
     if (entry.item.usageState === "HEURISTIC_ONLY") acc.heuristicBytes += entry.item.size
     return acc
   }, {
     totalFiles: 0,
+    activeFiles: 0,
+    disabledFiles: 0,
+    deletedFiles: 0,
     inUseFiles: 0,
     unusedFiles: 0,
     heuristicOnlyFiles: 0,
     reviewCandidates: 0,
+    deletableFiles: 0,
     unusedBytes: 0,
     heuristicBytes: 0,
   })
@@ -561,4 +675,108 @@ export async function getFileInventoryDetail(id: string): Promise<FileInventoryD
     usages,
     relatedCourses,
   }
+}
+
+type FileMutationInput = {
+  id: string
+  actorId: string
+  reason?: string
+}
+
+function normalizeReason(reason?: string) {
+  return reason?.trim() ?? ""
+}
+
+async function getFileWithComputedDetail(id: string) {
+  const file = await prisma.fileRepository.findUnique({ where: { id } })
+  if (!file) {
+    throw new FileLifecycleError("Archivo no encontrado", "NOT_FOUND")
+  }
+
+  const usageMap = await collectUsageMap([file])
+  const usages = usageMap.get(file.blobUrl) ?? []
+  const item = buildFileInventoryItem(file, usages)
+
+  return { file, usages, item }
+}
+
+export async function disableFileForOperations({ id, actorId, reason }: FileMutationInput) {
+  const normalizedReason = normalizeReason(reason)
+  if (normalizedReason.length < 10) {
+    throw new FileLifecycleError("Debes indicar un motivo más específico para deshabilitar el archivo", "BAD_REQUEST")
+  }
+
+  const { file } = await getFileWithComputedDetail(id)
+
+  if (file.status === "DELETED") {
+    throw new FileLifecycleError("No puedes deshabilitar un archivo ya eliminado", "INVALID_STATE")
+  }
+
+  if (file.status === "DISABLED") {
+    throw new FileLifecycleError("El archivo ya está deshabilitado", "INVALID_STATE")
+  }
+
+  await prisma.fileRepository.update({
+    where: { id },
+    data: {
+      status: "DISABLED",
+      disabledAt: new Date(),
+      disabledBy: actorId,
+      disableReason: normalizedReason,
+    },
+  })
+
+  return getFileInventoryDetail(id)
+}
+
+export async function restoreFileForOperations({ id }: Omit<FileMutationInput, "actorId" | "reason">) {
+  const { file } = await getFileWithComputedDetail(id)
+
+  if (file.status === "DELETED") {
+    throw new FileLifecycleError("No puedes reactivar un archivo ya eliminado", "INVALID_STATE")
+  }
+
+  if (file.status !== "DISABLED") {
+    throw new FileLifecycleError("Solo los archivos deshabilitados pueden reactivarse", "INVALID_STATE")
+  }
+
+  await prisma.fileRepository.update({
+    where: { id },
+    data: {
+      status: "ACTIVE",
+      disabledAt: null,
+      disabledBy: null,
+      disableReason: null,
+    },
+  })
+
+  return getFileInventoryDetail(id)
+}
+
+export async function deleteFileSafely({ id, actorId, reason }: FileMutationInput) {
+  const normalizedReason = normalizeReason(reason)
+  if (normalizedReason.length < 10) {
+    throw new FileLifecycleError("Debes registrar un motivo claro antes de eliminar el archivo", "BAD_REQUEST")
+  }
+
+  const { file, usages } = await getFileWithComputedDetail(id)
+  const blockers = getDeleteBlockers(file, usages)
+
+  if (blockers.length > 0) {
+    throw new FileLifecycleError("El archivo no puede eliminarse todavía", "DELETE_BLOCKED", blockers)
+  }
+
+  await del(file.blobUrl)
+
+  await prisma.fileRepository.update({
+    where: { id },
+    data: {
+      status: "DELETED",
+      deletedAt: new Date(),
+      deletedBy: actorId,
+      deleteReason: normalizedReason,
+    },
+  })
+
+  return getFileInventoryDetail(id)
 }

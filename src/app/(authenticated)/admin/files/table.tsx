@@ -8,21 +8,25 @@ import { Copy, Download, ExternalLink, FileArchive, FileSearch, FileText, Folder
 import { toast } from "sonner"
 import { DataTable } from "@/components/common/data-table"
 import { FileDetailDialog } from "@/components/admin/files/file-detail-dialog"
+import { FileLifecycleBadge } from "@/components/admin/files/file-lifecycle-badge"
 import { FileReviewBadge } from "@/components/admin/files/file-review-badge"
 import { FileUsageBadge } from "@/components/admin/files/file-usage-badge"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import type { FileLifecycleStatus } from "@prisma/client"
 import type { FileInventoryItem, FileInventoryListResponse, FileUsageState } from "@/lib/file-inventory"
 
 type FileTypeFilter = "ALL" | "PDF" | "PPT" | "IMAGE" | "VIDEO" | "DOCUMENT" | "OTHER"
 type UsageFilter = "ALL" | FileUsageState
+type LifecycleFilter = "ALL" | FileLifecycleStatus
 
 type InitialData = FileInventoryListResponse & {
   filters: {
     fileType: FileTypeFilter
     usageState: UsageFilter
+    lifecycleStatus: LifecycleFilter
     tag: string
     q: string
   }
@@ -36,11 +40,12 @@ function formatBytes(bytes: number) {
   return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`
 }
 
-function buildExportUrl(params: { q: string; fileType: FileTypeFilter; usageState: UsageFilter; tag: string; format: "csv" | "xlsx" }) {
+function buildExportUrl(params: { q: string; fileType: FileTypeFilter; usageState: UsageFilter; lifecycleStatus: LifecycleFilter; tag: string; format: "csv" | "xlsx" }) {
   const searchParams = new URLSearchParams({ format: params.format })
   if (params.q.trim()) searchParams.set("q", params.q.trim())
   if (params.fileType !== "ALL") searchParams.set("fileType", params.fileType)
   if (params.usageState !== "ALL") searchParams.set("usageState", params.usageState)
+  if (params.lifecycleStatus !== "ALL") searchParams.set("lifecycleStatus", params.lifecycleStatus)
   if (params.tag && params.tag !== "ALL") searchParams.set("tag", params.tag)
   return `/api/admin/files/export?${searchParams.toString()}`
 }
@@ -73,16 +78,18 @@ export default function ClientFiles({ initial }: { initial: InitialData }) {
   const [q, setQ] = React.useState(initial.filters.q)
   const [fileType, setFileType] = React.useState<FileTypeFilter>(initial.filters.fileType)
   const [usageState, setUsageState] = React.useState<UsageFilter>(initial.filters.usageState)
+  const [lifecycleStatus, setLifecycleStatus] = React.useState<LifecycleFilter>(initial.filters.lifecycleStatus)
   const [tag, setTag] = React.useState(initial.filters.tag)
 
-  const exportXlsxUrl = buildExportUrl({ q, fileType, usageState, tag, format: "xlsx" })
-  const exportCsvUrl = buildExportUrl({ q, fileType, usageState, tag, format: "csv" })
+  const exportXlsxUrl = buildExportUrl({ q, fileType, usageState, lifecycleStatus, tag, format: "xlsx" })
+  const exportCsvUrl = buildExportUrl({ q, fileType, usageState, lifecycleStatus, tag, format: "csv" })
 
-  const load = React.useCallback(async ({ nextPage = page, nextQ = q, nextFileType = fileType, nextUsageState = usageState, nextTag = tag }: {
+  const load = React.useCallback(async ({ nextPage = page, nextQ = q, nextFileType = fileType, nextUsageState = usageState, nextLifecycleStatus = lifecycleStatus, nextTag = tag }: {
     nextPage?: number
     nextQ?: string
     nextFileType?: FileTypeFilter
     nextUsageState?: UsageFilter
+    nextLifecycleStatus?: LifecycleFilter
     nextTag?: string
   } = {}) => {
     setLoading(true)
@@ -95,6 +102,7 @@ export default function ClientFiles({ initial }: { initial: InitialData }) {
       if (nextQ.trim()) params.set("q", nextQ.trim())
       if (nextFileType !== "ALL") params.set("fileType", nextFileType)
       if (nextUsageState !== "ALL") params.set("usageState", nextUsageState)
+      if (nextLifecycleStatus !== "ALL") params.set("lifecycleStatus", nextLifecycleStatus)
       if (nextTag && nextTag !== "ALL") params.set("tag", nextTag)
 
       const response = await fetch(`/api/admin/files?${params.toString()}`, { cache: "no-store" })
@@ -111,7 +119,7 @@ export default function ClientFiles({ initial }: { initial: InitialData }) {
     } finally {
       setLoading(false)
     }
-  }, [fileType, page, pageSize, q, tag, usageState])
+  }, [fileType, lifecycleStatus, page, pageSize, q, tag, usageState])
 
   const handleCopy = async (text: string) => {
     try {
@@ -136,6 +144,11 @@ export default function ClientFiles({ initial }: { initial: InitialData }) {
   const handleUsageChange = (value: UsageFilter) => {
     setUsageState(value)
     void load({ nextPage: 1, nextUsageState: value })
+  }
+
+  const handleLifecycleChange = (value: LifecycleFilter) => {
+    setLifecycleStatus(value)
+    void load({ nextPage: 1, nextLifecycleStatus: value })
   }
 
   const handleTagChange = (value: string) => {
@@ -163,6 +176,11 @@ export default function ClientFiles({ initial }: { initial: InitialData }) {
       accessorKey: "size",
       header: "Tamaño",
       cell: ({ row }) => <span className="text-slate-700">{formatBytes(row.original.size)}</span>,
+    },
+    {
+      accessorKey: "lifecycleStatus",
+      header: "Ciclo",
+      cell: ({ row }) => <FileLifecycleBadge status={row.original.lifecycleStatus} />,
     },
     {
       accessorKey: "usageState",
@@ -214,7 +232,7 @@ export default function ClientFiles({ initial }: { initial: InitialData }) {
       header: "Acciones",
       cell: ({ row }) => (
         <div className="flex flex-wrap justify-end gap-2">
-          <FileDetailDialog fileId={row.original.id} fileName={row.original.name} />
+          <FileDetailDialog fileId={row.original.id} fileName={row.original.name} onChanged={() => void load()} />
           <a href={row.original.blobUrl} target="_blank" rel="noreferrer">
             <Button variant="outline" size="sm" className="gap-2">
               <ExternalLink className="h-4 w-4" /> Abrir
@@ -261,6 +279,18 @@ export default function ClientFiles({ initial }: { initial: InitialData }) {
         </SelectContent>
       </Select>
 
+      <Select value={lifecycleStatus} onValueChange={(value) => handleLifecycleChange(value as LifecycleFilter)}>
+        <SelectTrigger className="w-[190px]">
+          <SelectValue placeholder="Ciclo de vida" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">Todos los ciclos</SelectItem>
+          <SelectItem value="ACTIVE">Activos</SelectItem>
+          <SelectItem value="DISABLED">Deshabilitados</SelectItem>
+          <SelectItem value="DELETED">Eliminados</SelectItem>
+        </SelectContent>
+      </Select>
+
       <Select value={tag || "ALL"} onValueChange={handleTagChange}>
         <SelectTrigger className="w-[170px]">
           <SelectValue placeholder="Etiqueta" />
@@ -291,22 +321,22 @@ export default function ClientFiles({ initial }: { initial: InitialData }) {
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard title="Total de archivos" value={stats.totalFiles} helper="Inventario visible con filtros actuales" icon={FileArchive} />
-        <StatCard title="Uso directo" value={stats.inUseFiles} helper="Referencias confirmadas en el sistema" icon={Layers3} />
-        <StatCard title="Sin uso detectado" value={stats.unusedFiles} helper="Candidatos a revisión manual" icon={FolderSearch} />
-        <StatCard title="Heurísticos" value={stats.heuristicOnlyFiles} helper="Coincidencias indirectas embebidas" icon={FileText} />
+        <StatCard title="Activos" value={stats.activeFiles} helper="Disponibles para uso operativo" icon={Layers3} />
+        <StatCard title="Deshabilitados" value={stats.disabledFiles} helper="Retirados sin borrar el blob" icon={FolderSearch} />
+        <StatCard title="Eliminados" value={stats.deletedFiles} helper="Histórico auditado tras borrado físico" icon={FileText} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <StatCard title="Candidatos de revisión" value={stats.reviewCandidates} helper="Archivos con prioridad media o alta" icon={FileSearch} />
-        <StatCard title="Peso sin uso" value={formatBytes(stats.unusedBytes)} helper="Detectados sin referencias activas" icon={ShieldAlert} />
-        <StatCard title="Peso heurístico" value={formatBytes(stats.heuristicBytes)} helper="Requieren validación manual" icon={Layers3} />
+        <StatCard title="Eliminables" value={stats.deletableFiles} helper="Deshabilitados y sin referencias detectadas" icon={ShieldAlert} />
+        <StatCard title="Peso sin uso" value={formatBytes(stats.unusedBytes)} helper="Detectados sin referencias activas" icon={Layers3} />
       </div>
 
       <Card className="border-slate-200 shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-base text-slate-900">Inventario y trazabilidad</CardTitle>
           <p className="text-sm text-slate-600">
-            Explora los archivos subidos al blob, identifica dónde se usan, prioriza candidatos a revisión y exporta auditorías sin tocar la base de datos.
+            Explora los archivos subidos al blob, identifica dónde se usan, deshabilítalos con trazabilidad y elimina físicamente solo cuando no exista riesgo detectable.
           </p>
         </CardHeader>
         <CardContent>

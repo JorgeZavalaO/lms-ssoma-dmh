@@ -7,6 +7,68 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [2.2.6] - 2026-03-11
+
+### Agregado - Repositorio de Archivos V3
+
+- ✅ **Ciclo de vida persistente para archivos**
+  - Nuevo enum `FileLifecycleStatus` con estados `ACTIVE`, `DISABLED` y `DELETED`
+  - `FileRepository` ahora guarda motivo y trazabilidad de deshabilitado y eliminación
+  - Migración aditiva: `20260311160438_add_file_lifecycle_management`
+
+- ✅ **Deshabilitado seguro antes del borrado**
+  - Nuevo flujo operativo para deshabilitar archivos con motivo obligatorio
+  - Reactivación disponible para devolver el archivo a circulación
+  - `/api/files` deja de exponer archivos deshabilitados o eliminados en listados operativos
+
+- ✅ **Eliminación física protegida del blob**
+  - Nuevo endpoint `DELETE /api/admin/files/[id]`
+  - Solo permite borrar si el archivo está deshabilitado y no se detectan referencias directas ni heurísticas
+  - El registro queda conservado como auditoría histórica tras eliminar el blob
+
+- ✅ **UI/UX V3 en `/admin/files`**
+  - Nueva columna de ciclo de vida con badges visuales
+  - Filtro por estado operativo (`activos`, `deshabilitados`, `eliminados`)
+  - Acciones seguras desde el detalle: deshabilitar, reactivar y eliminar blob
+  - Bloqueos visibles en pantalla cuando todavía existen dependencias detectadas
+
+- ✅ **Export y métricas extendidas**
+  - Exportación ahora incluye ciclo de vida, elegibilidad de borrado y motivos registrados
+  - Nuevos KPIs para activos, deshabilitados, eliminados y archivos ya eliminables
+
+### Seguridad Operativa
+
+- ✅ Se mantiene el enfoque conservador para producción:
+  - sin reset de base de datos
+  - con migración aditiva compatible con datos existentes
+  - eliminación física bloqueada ante cualquier referencia detectable
+  - trazabilidad persistente incluso después del borrado del blob
+
+### Técnico
+
+- **Archivos nuevos**:
+  1. `src/components/admin/files/file-lifecycle-badge.tsx`
+  2. `src/components/admin/files/file-lifecycle-actions.tsx`
+
+- **Archivos actualizados**:
+  1. `prisma/schema.prisma`
+  2. `src/lib/file-inventory.ts`
+  3. `src/app/api/files/route.ts`
+  4. `src/app/api/admin/files/route.ts`
+  5. `src/app/api/admin/files/[id]/route.ts`
+  6. `src/app/api/admin/files/export/route.ts`
+  7. `src/app/(authenticated)/admin/files/page.tsx`
+  8. `src/app/(authenticated)/admin/files/table.tsx`
+  9. `src/components/admin/files/file-detail-dialog.tsx`
+  10. `README.md`
+  11. `CHANGELOG.md`
+
+### Validación prevista
+
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+
 ## [2.2.5] - 2026-03-11
 
 ### Agregado - Repositorio de Archivos V2

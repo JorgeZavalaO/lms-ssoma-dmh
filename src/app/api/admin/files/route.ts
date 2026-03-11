@@ -9,6 +9,7 @@ const FileInventoryQuerySchema = z.object({
   q: z.string().optional(),
   fileType: z.enum(["ALL", "PDF", "PPT", "IMAGE", "VIDEO", "DOCUMENT", "OTHER"]).optional(),
   usageState: z.enum(["ALL", "IN_USE", "UNUSED", "HEURISTIC_ONLY"]).optional(),
+  lifecycleStatus: z.enum(["ALL", "ACTIVE", "DISABLED", "DELETED"]).optional(),
   tag: z.string().optional(),
 })
 
@@ -26,6 +27,7 @@ export async function GET(req: Request) {
       q: url.searchParams.get("q") ?? undefined,
       fileType: url.searchParams.get("fileType") ?? undefined,
       usageState: url.searchParams.get("usageState") ?? undefined,
+      lifecycleStatus: url.searchParams.get("lifecycleStatus") ?? undefined,
       tag: url.searchParams.get("tag") ?? undefined,
     })
 

@@ -53,6 +53,12 @@ enum FileType {
   OTHER
 }
 
+enum FileLifecycleStatus {
+  ACTIVE
+  DISABLED
+  DELETED
+}
+
 enum EnrollmentStatus {
   PENDING
   ACTIVE
@@ -463,6 +469,13 @@ model FileRepository {
   // Control
   uploadedBy  String    // ID del usuario que subió
   uploadedAt  DateTime  @default(now())
+  status      FileLifecycleStatus @default(ACTIVE)
+  disabledAt  DateTime?
+  disabledBy  String?
+  disableReason String? @db.Text
+  deletedAt   DateTime?
+  deletedBy   String?
+  deleteReason String?  @db.Text
   
   @@map("file_repository")
 }

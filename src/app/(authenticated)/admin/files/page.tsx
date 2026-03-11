@@ -30,8 +30,8 @@ export default async function FilesPage() {
           <div className="flex items-start gap-3">
             <Link2 className="mt-0.5 h-4 w-4 text-emerald-600" />
             <div>
-              Esta V1 es de solo lectura: te ayuda a auditar archivos cargados al blob y entender su contexto de uso,
-              sin borrar registros ni requerir cambios de base de datos en producción.
+              V3 agrega un flujo seguro de ciclo de vida: primero deshabilita para sacarlo de circulación y solo permite
+              eliminar el blob cuando no se detectan referencias directas ni heurísticas.
             </div>
           </div>
         </div>
@@ -42,6 +42,7 @@ export default async function FilesPage() {
         filters: {
           fileType: "ALL",
           usageState: "ALL",
+          lifecycleStatus: "ALL",
           tag: "ALL",
           q: "",
         },
