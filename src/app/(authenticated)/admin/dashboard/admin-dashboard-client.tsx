@@ -17,6 +17,7 @@ import {
   ClipboardList,
   BarChart3,
   CheckCircle2,
+  HardDrive,
   Loader2,
 } from "lucide-react"
 
@@ -104,6 +105,7 @@ export default function AdminDashboardClient() {
   const quickLinks = [
     { href: "/admin/collaborators", icon: Users, label: "Colaboradores" },
     { href: "/admin/courses", icon: BookOpen, label: "Cursos" },
+    { href: "/admin/files", icon: HardDrive, label: "Archivos" },
     { href: "/reports/dashboard", icon: BarChart3, label: "Reportes" },
     { href: "/admin/enrollments", icon: ClipboardList, label: "Inscripciones" },
   ] as const
@@ -314,7 +316,7 @@ export default function AdminDashboardClient() {
           <CardTitle>Accesos Rápidos</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             {quickLinks.map((link) => {
               const Icon = link.icon
               return (

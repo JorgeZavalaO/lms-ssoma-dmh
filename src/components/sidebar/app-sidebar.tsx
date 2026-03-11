@@ -52,6 +52,7 @@ import {
   GraduationCap,
   ClipboardList,
   Activity,
+  HardDrive,
   UserCog,
   LogIn,
   UserPlus,
@@ -391,6 +392,23 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           >
                             <Route className="h-4 w-4" />
                             <span>Rutas de Aprendizaje</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton 
+                          asChild
+                          isActive={isActive("/admin/files")}
+                        >
+                          <Link 
+                            href="/admin/files"
+                            className={cn(
+                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
+                              isActive("/admin/files") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                            )}
+                          >
+                            <HardDrive className="h-4 w-4" />
+                            <span>Repositorio de Archivos</span>
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>

@@ -30,6 +30,7 @@ import {
   TrendingUp,
   Award,
   Bell,
+  HardDrive,
 } from "lucide-react"
 
 // Mapeo de rutas a nombres en español
@@ -43,6 +44,7 @@ const routeNames: Record<string, string> = {
   "/admin/positions": "Puestos",
   "/admin/collaborators/import": "Importar Colaboradores",
   "/admin/courses": "Cursos",
+  "/admin/files": "Repositorio de Archivos",
   "/admin/learning-paths": "Rutas de Aprendizaje",
   "/admin/enrollments": "Inscripciones",
   "/admin/enrollment-rules": "Reglas Automáticas",
@@ -66,6 +68,7 @@ const routeIcons: Record<string, React.ReactNode> = {
   "/admin/areas": <MapPin className="h-4 w-4" />,
   "/admin/positions": <Briefcase className="h-4 w-4" />,
   "/admin/courses": <BookOpen className="h-4 w-4" />,
+  "/admin/files": <HardDrive className="h-4 w-4" />,
   "/admin/learning-paths": <Route className="h-4 w-4" />,
   "/admin/enrollments": <UserCheck className="h-4 w-4" />,
   "/admin/enrollment-rules": <Zap className="h-4 w-4" />,

@@ -14,6 +14,29 @@ Sistema de Gestión de Aprendizaje (LMS) para Seguridad, Salud Ocupacional y Med
 LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacitaciones, colaboradores y recursos relacionados con Seguridad, Salud Ocupacional y Medio Ambiente. El sistema permite administrar usuarios, asignar cursos, gestionar áreas y puestos, y realizar seguimiento del progreso de capacitaciones.
 
 ## 🆕 Últimas Actualizaciones
+### v2.2.4 - Repositorio de Archivos V1 con Trazabilidad Segura (11 Mar 2026)
+
+- ✅ **Nuevo módulo admin `/admin/files`**:
+  - Inventario centralizado de archivos subidos a blob
+  - Búsqueda, paginación y filtros por tipo, estado de uso y etiqueta
+  - KPIs de inventario: total, uso directo, sin uso detectado y heurísticos
+
+- ✅ **Trazabilidad por contexto**:
+  - Detección directa de archivos usados en `Lesson.fileUrl`
+  - Detección directa de certificados cuando existe `pdfUrl` o `certificateUrl`
+  - Detección heurística en `lesson.htmlContent` y `interactiveActivity.htmlContent`
+  - Resumen de curso, unidad y lección cuando aplica
+
+- ✅ **UI/UX consistente con el sistema**:
+  - Tabla admin reutilizando `DataTable`
+  - Diálogo de detalle con nivel de confianza, cursos relacionados y ubicaciones detectadas
+  - Integración en sidebar, breadcrumbs, dashboard admin y footer
+
+- ✅ **Enfoque seguro para producción**:
+  - V1 de solo lectura, sin borrado físico de blob
+  - Sin cambios en Prisma Schema ni migraciones
+  - Diseñado para auditar sin requerir reset ni alterar datos existentes
+
 ### v2.2.3 - Sistema de Templates de Colaboradores con Gestión de Contraseñas (1 Dic 2025)
 
 - ✅ **Email opcional y campo Password agregado**:
@@ -253,6 +276,8 @@ Nota técnica: la verificación de acceso está centralizada en `src/lib/access.
   - Versionado de archivos
   - Sistema de etiquetas
   - Límites de tamaño
+  - **Inventario admin V1** con trazabilidad segura en `/admin/files`
+  - Detección de uso directo vs heurístico antes de cualquier limpieza operativa
 - **Actividades Interactivas**:
   - Contenido HTML con componentes shadcn
   - Registro de intentos
@@ -602,6 +627,12 @@ Nota: muchos componentes de la interfaz se generaron y organizaron usando el flu
    # NextAuth
    NEXTAUTH_URL="http://localhost:3000"
    NEXTAUTH_SECRET="your-secret-key-here"
+
+    # App pública
+    NEXT_PUBLIC_APP_URL="http://localhost:3000"
+
+    # Vercel Blob
+    BLOB_READ_WRITE_TOKEN="your-vercel-blob-token"
    ```
 
 4. **Configurar base de datos**
@@ -651,12 +682,14 @@ lms-ssoma-dmh/
 │   │   │   ├── units/         # CRUD unidades
 │   │   │   ├── lessons/       # CRUD lecciones
 │   │   │   ├── files/         # Repositorio de archivos
+│   │   │   ├── admin/files/   # Inventario enriquecido y trazabilidad V1
 │   │   │   ├── activities/    # Actividades interactivas
 │   │   │   ├── areas/         # CRUD áreas
 │   │   │   ├── positions/     # CRUD puestos
 │   │   │   └── sites/         # CRUD sedes
 │   │   ├── admin/             # Páginas de administración
 │   │   │   ├── collaborators/ # Admin colaboradores
+│   │   │   ├── files/         # Admin repositorio de archivos
 │   │   │   ├── courses/       # Admin cursos
 │   │   │   │   └── [id]/content/ # Contenidos del curso
 │   │   │   ├── learning-paths/# Admin rutas
@@ -712,6 +745,12 @@ DATABASE_URL="postgresql://user:password@localhost:5432/lms_ssoma"
 # NextAuth
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="genera-un-secret-seguro-aqui"
+
+# URL pública de la app
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+
+# Vercel Blob
+BLOB_READ_WRITE_TOKEN="tu-token-de-vercel-blob"
 
 # (Opcional) Configuración adicional
 NODE_ENV="development"
@@ -843,6 +882,8 @@ User                  # Usuarios del sistema
 - `PUT /api/lessons/:id/progress` - Actualizar progreso de lección
 - `GET /api/files` - Listar archivos (con filtros)
 - `POST /api/files` - Subir archivo
+- `GET /api/admin/files` - Inventario enriquecido de archivos con trazabilidad y filtros admin
+- `GET /api/admin/files/:id` - Detalle contextual de un archivo con referencias detectadas
 - `GET /api/activities` - Listar actividades interactivas
 - `POST /api/activities` - Crear actividad
 
@@ -1108,6 +1149,7 @@ Propietario - DMH © 2025. Todos los derechos reservados.
 Para ver el historial completo de cambios, consulta [CHANGELOG.md](./CHANGELOG.md).
 
 ### Versiones Recientes
+- **v2.2.4** (11 Mar 2026) - Repositorio de archivos V1 con trazabilidad segura para producción
 - **v2.2.3** (1 Dic 2025) - Sistema de templates de colaboradores con gestión de contraseñas
 - **v2.2.2** (4 Nov 2025) - Organización de componentes compartidos
 - **v2.2.1** (4 Nov 2025) - Modularización admin y limpieza

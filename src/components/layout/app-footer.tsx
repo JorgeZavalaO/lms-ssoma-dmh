@@ -37,6 +37,11 @@ export function AppFooter() {
                   Colaboradores
                 </Link>
               </li>
+              <li>
+                <Link href="/admin/files" className="text-muted-foreground hover:text-foreground transition-colors">
+                  Repositorio de Archivos
+                </Link>
+              </li>
             </ul>
           </div>
 

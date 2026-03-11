@@ -7,6 +7,85 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [2.2.4] - 2026-03-11
+
+### Agregado - Repositorio de Archivos V1 con Trazabilidad Segura
+
+- ✅ **Nuevo módulo admin `/admin/files`**
+  - Página administrativa para inventariar archivos subidos al blob
+  - Tabla con búsqueda, paginación y filtros por tipo, estado de uso y etiqueta
+  - KPIs operativos: total, uso directo, sin uso detectado y detecciones heurísticas
+  - Acciones seguras: ver detalle, abrir archivo y copiar URL
+
+- ✅ **Nueva capa de inventario enriquecido**
+  - Servicio `src/lib/file-inventory.ts` para consolidar metadata y referencias detectadas
+  - Clasificación de uso en tres estados:
+    - `IN_USE` → referencias directas confirmadas
+    - `HEURISTIC_ONLY` → coincidencias embebidas o indirectas
+    - `UNUSED` → sin referencias detectadas
+  - Resumen contextual con curso, unidad y lección cuando existe relación visible
+
+- ✅ **Trazabilidad directa e heurística**
+  - Detección directa contra `Lesson.fileUrl`
+  - Detección directa contra `CertificationRecord.pdfUrl` y `CertificationRecord.certificateUrl`
+  - Detección heurística dentro de `lesson.htmlContent`
+  - Detección heurística dentro de `interactiveActivity.htmlContent`
+  - Etiquetado explícito de nivel de confianza en la UI para evitar decisiones riesgosas
+
+- ✅ **API admin nueva para inventario**
+  - `GET /api/admin/files` → listado enriquecido con filtros y paginación
+  - `GET /api/admin/files/[id]` → detalle contextual completo del archivo
+  - Ambas rutas protegidas para `ADMIN` y `SUPERADMIN`
+
+- ✅ **Integración visual y navegación**
+  - Nuevo acceso en sidebar: **Repositorio de Archivos**
+  - Breadcrumb e iconografía añadidos en `AppHeader`
+  - Enlace rápido añadido en footer
+  - Quick link agregado al dashboard ejecutivo admin
+
+### Seguridad Operativa
+
+- ✅ **Sin migraciones Prisma**
+  - No se modificó `prisma/schema.prisma`
+  - No se generaron migraciones nuevas
+
+- ✅ **Sin acciones destructivas en V1**
+  - No elimina archivos del blob
+  - No modifica referencias existentes en cursos o lecciones
+  - Diseñado como módulo de auditoría para producción
+
+### Documentación
+
+- README actualizado con:
+  - Descripción del nuevo módulo `/admin/files`
+  - Variables de entorno relevantes para blob
+  - Nuevos endpoints admin del inventario
+  - Resumen de la V1 segura para producción
+
+### Técnico
+
+- **Archivos nuevos**:
+  1. `src/lib/file-inventory.ts`
+  2. `src/app/api/admin/files/route.ts`
+  3. `src/app/api/admin/files/[id]/route.ts`
+  4. `src/app/(authenticated)/admin/files/page.tsx`
+  5. `src/app/(authenticated)/admin/files/table.tsx`
+  6. `src/components/admin/files/file-usage-badge.tsx`
+  7. `src/components/admin/files/file-detail-dialog.tsx`
+
+- **Archivos actualizados**:
+  1. `src/components/sidebar/app-sidebar.tsx`
+  2. `src/components/layout/app-header.tsx`
+  3. `src/components/layout/app-footer.tsx`
+  4. `src/app/(authenticated)/admin/dashboard/admin-dashboard-client.tsx`
+  5. `README.md`
+  6. `CHANGELOG.md`
+
+- **Validación prevista**:
+  - `pnpm lint`
+  - `pnpm test`
+  - `pnpm build`
+
 ## [2.2.3] - 2025-12-01
 
 ### Agregado - Sistema de Templates de Colaboradores con Gestión de Contraseñas
