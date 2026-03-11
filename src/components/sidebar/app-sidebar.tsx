@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import * as React from "react"
 import { useSession } from "next-auth/react"
@@ -9,8 +9,6 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
-} from "@/components/ui/sidebar"
-import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
@@ -26,11 +24,9 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import {
   ChevronRight,
   LayoutDashboard,
-  Settings,
   Users,
   Briefcase,
   MapPin,
@@ -51,16 +47,205 @@ import {
   AlertCircle,
   GraduationCap,
   ClipboardList,
-  Activity,
   HardDrive,
-  UserCog,
   LogIn,
-  UserPlus,
+  History,
+  PieChart,
+  CheckCircle2,
 } from "lucide-react"
 import Link from "next/link"
 import { NavUser } from "./nav-user"
 import { NotificationsBadge } from "@/components/notifications/notifications-badge"
 import { cn } from "@/lib/utils"
+
+function NavLink({
+  href,
+  icon: Icon,
+  label,
+  pathname,
+  badge,
+}: {
+  href: string
+  icon: React.ElementType
+  label: string
+  pathname: string
+  badge?: React.ReactNode
+}) {
+  const active = pathname === href
+  return (
+    <SidebarMenuButton asChild tooltip={label} isActive={active}>
+      <Link
+        href={href}
+        className={cn(
+          "transition-colors",
+          active && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+        )}
+      >
+        <Icon className="h-4 w-4" />
+        <span>{label}</span>
+        {badge}
+      </Link>
+    </SidebarMenuButton>
+  )
+}
+
+function SubNavLink({
+  href,
+  icon: Icon,
+  label,
+  pathname,
+}: {
+  href: string
+  icon: React.ElementType
+  label: string
+  pathname: string
+}) {
+  const active = pathname === href
+  return (
+    <SidebarMenuSubButton asChild isActive={active}>
+      <Link
+        href={href}
+        className={cn(
+          "transition-colors rounded-md",
+          active && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+        )}
+      >
+        <Icon className="h-3.5 w-3.5 shrink-0" />
+        <span>{label}</span>
+      </Link>
+    </SidebarMenuSubButton>
+  )
+}
+
+type NavItem = { href: string; icon: React.ElementType; label: string }
+
+function NavSection({
+  label,
+  icon: Icon,
+  items,
+  pathname,
+  storageKey,
+}: {
+  label: string
+  icon: React.ElementType
+  items: NavItem[]
+  pathname: string
+  storageKey: string
+}) {
+  const hasActive = items.some((i) => pathname === i.href || pathname.startsWith(i.href + "/"))
+  const [open, setOpen] = React.useState(false)
+
+  React.useEffect(() => {
+    const saved = localStorage.getItem(storageKey)
+    setOpen(saved !== null ? saved === "true" : hasActive)
+  }, [])
+
+  const handleToggle = (value: boolean) => {
+    setOpen(value)
+    localStorage.setItem(storageKey, String(value))
+  }
+
+  return (
+    <Collapsible open={open} onOpenChange={handleToggle} className="group/collapsible">
+      <SidebarMenuItem>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton
+            tooltip={label}
+            className={cn(
+              "hover:bg-sidebar-accent/80",
+              hasActive && !open && "bg-sidebar-accent/30 text-sidebar-accent-foreground"
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            <span>{label}</span>
+            <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarMenuSub>
+            {items.map((item) => (
+              <SidebarMenuSubItem key={item.href}>
+                <SubNavLink {...item} pathname={pathname} />
+              </SidebarMenuSubItem>
+            ))}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
+  )
+}
+
+const ADMIN_SECTIONS: { label: string; icon: React.ElementType; storageKey: string; items: NavItem[] }[] = [
+  {
+    label: "Organización",
+    icon: Users,
+    storageKey: "sidebar-org",
+    items: [
+      { href: "/admin/collaborators", icon: Users, label: "Colaboradores" },
+      { href: "/admin/areas", icon: MapPin, label: "Áreas" },
+      { href: "/admin/positions", icon: Briefcase, label: "Puestos" },
+      { href: "/admin/sites", icon: Building2, label: "Sedes" },
+    ],
+  },
+  {
+    label: "Aprendizaje",
+    icon: BookOpen,
+    storageKey: "sidebar-learning",
+    items: [
+      { href: "/admin/courses", icon: BookOpen, label: "Cursos" },
+      { href: "/admin/learning-paths", icon: Route, label: "Rutas de Aprendizaje" },
+      { href: "/admin/files", icon: HardDrive, label: "Repositorio de Archivos" },
+    ],
+  },
+  {
+    label: "Inscripciones",
+    icon: UserCheck,
+    storageKey: "sidebar-enrollments",
+    items: [
+      { href: "/admin/enrollments", icon: UserCheck, label: "Inscripciones" },
+      { href: "/admin/enrollment-rules", icon: Zap, label: "Reglas Automáticas" },
+    ],
+  },
+  {
+    label: "Evaluaciones",
+    icon: ClipboardList,
+    storageKey: "sidebar-evaluations",
+    items: [
+      { href: "/admin/questions", icon: HelpCircle, label: "Banco de Preguntas" },
+      { href: "/admin/quizzes", icon: ClipboardList, label: "Exámenes" },
+      { href: "/admin/quiz-attempts", icon: History, label: "Intentos" },
+    ],
+  },
+  {
+    label: "Seguimiento",
+    icon: TrendingUp,
+    storageKey: "sidebar-tracking",
+    items: [
+      { href: "/admin/progress", icon: TrendingUp, label: "Avance de Colaboradores" },
+      { href: "/admin/certifications", icon: Award, label: "Certificaciones" },
+      { href: "/admin/alerts", icon: AlertCircle, label: "Alertas Críticas" },
+    ],
+  },
+  {
+    label: "Reportes",
+    icon: BarChart3,
+    storageKey: "sidebar-reports",
+    items: [
+      { href: "/reports/dashboard", icon: LineChart, label: "Resumen General" },
+      { href: "/reports/area", icon: PieChart, label: "Por Área" },
+      { href: "/reports/course", icon: FileText, label: "Por Curso" },
+      { href: "/reports/compliance", icon: CheckCircle2, label: "Cumplimiento" },
+    ],
+  },
+  {
+    label: "Comunicación",
+    icon: Mail,
+    storageKey: "sidebar-comms",
+    items: [
+      { href: "/admin/notification-templates", icon: Mail, label: "Plantillas de Notificación" },
+    ],
+  },
+]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = useSession()
@@ -68,663 +253,134 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [mounted, setMounted] = React.useState(false)
   const [isAdminMenuOpen, setIsAdminMenuOpen] = React.useState(false)
 
-  // Cargar estado del menú desde localStorage
   React.useEffect(() => {
     setMounted(true)
-    const savedState = localStorage.getItem('sidebar-admin-menu-open')
-    if (savedState !== null) {
-      setIsAdminMenuOpen(savedState === 'true')
-    }
+    // legacy key kept for cleanup
+    setIsAdminMenuOpen(false)
   }, [])
 
-  // Guardar estado cuando cambie
-  const handleAdminMenuToggle = (open: boolean) => {
-    setIsAdminMenuOpen(open)
-    localStorage.setItem('sidebar-admin-menu-open', String(open))
-  }
+  const role = session?.user?.role
+  const isAdmin = role === "ADMIN" || role === "SUPERADMIN"
+  const isCollaborator = role === "COLLABORATOR"
 
-  const isActive = (path: string) => pathname === path
-
-  // Mostrar sidebar aunque la sesión aún no esté cargada
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="border-b">
-        <div className="flex items-center gap-2 px-4 py-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-sm group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:w-6">
-            <GraduationCap className="h-5 w-5 group-data-[collapsible=icon]:h-4 group-data-[collapsible=icon]:w-4" />
+        <div className="flex items-center gap-2.5 px-4 py-3.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-sm">
+            <GraduationCap className="h-5 w-5" />
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-bold">LMS SSOMA</span>
+            <span className="text-sm font-bold leading-tight">LMS SSOMA</span>
             <span className="text-xs text-muted-foreground">Sistema de Gestión</span>
           </div>
         </div>
       </SidebarHeader>
+
       <SidebarContent className="overflow-y-auto">
-        {/* Principal Navigation */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider">
-            Principal
-          </SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton 
-                asChild 
-                tooltip="Dashboard Principal"
-                isActive={isActive("/dashboard")}
-              >
-                <Link href="/dashboard" className={cn(
-                  "transition-colors",
-                  isActive("/dashboard") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                )}>
-                  <LayoutDashboard className="h-4 w-4" />
-                  <span>Dashboard</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+        {mounted && isCollaborator && (
+          <>
+            <SidebarGroup>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <NavLink href="/dashboard" icon={LayoutDashboard} label="Dashboard" pathname={pathname} />
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
 
-            {/* ADMIN Dashboard */}
-            {mounted && (session?.user?.role === "ADMIN" || session?.user?.role === "SUPERADMIN") && (
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  asChild 
-                  tooltip="Panel de Administración"
-                  isActive={isActive("/admin/dashboard")}
-                >
-                  <Link href="/admin/dashboard" className={cn(
-                    "transition-colors",
-                    isActive("/admin/dashboard") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                  )}>
-                    <Activity className="h-4 w-4" />
-                    <span>Panel Admin</span>
-                    <Badge variant="secondary" className="ml-auto text-xs">
-                      Admin
-                    </Badge>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+            <SidebarGroup>
+              <SidebarGroupLabel>Mi Aprendizaje</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <NavLink href="/my-courses" icon={BookOpen} label="Mis Cursos" pathname={pathname} />
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <NavLink href="/my-learning-paths" icon={Route} label="Mi Ruta" pathname={pathname} />
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <NavLink href="/evaluations" icon={ClipboardList} label="Evaluaciones" pathname={pathname} />
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <NavLink href="/my-certificates" icon={Award} label="Certificados" pathname={pathname} />
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Comunicación</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <NavLink
+                    href="/notifications"
+                    icon={Bell}
+                    label="Notificaciones"
+                    pathname={pathname}
+                    badge={<NotificationsBadge />}
+                  />
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+          </>
+        )}
+
+        {mounted && isAdmin && (
+          <>
+            <SidebarGroup>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <NavLink href="/admin/dashboard" icon={LayoutDashboard} label="Panel Admin" pathname={pathname} />
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Administración</SidebarGroupLabel>
+              <SidebarMenu>
+                {ADMIN_SECTIONS.map((section) => (
+                  <NavSection key={section.storageKey} {...section} pathname={pathname} />
+                ))}
+              </SidebarMenu>
+            </SidebarGroup>
+
+            {role === "SUPERADMIN" && (
+              <SidebarGroup>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild tooltip="Panel SuperAdmin">
+                      <Link href="/admin/superadmin">
+                        <Shield className="h-4 w-4" />
+                        <span>SuperAdmin</span>
+                        <Badge variant="destructive" className="ml-auto text-xs">
+                          Super
+                        </Badge>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroup>
             )}
-          </SidebarMenu>
-        </SidebarGroup>
+          </>
+        )}
 
-        <Separator className="my-2" />
-
-        {/* Collaborator Section */}
-        {mounted && session?.user?.role === "COLLABORATOR" && (
+        {mounted && !session && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider">
-              Mi Aprendizaje
-            </SidebarGroupLabel>
+            <SidebarGroupLabel>Cuenta</SidebarGroupLabel>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton 
-                  asChild 
-                  tooltip="Mis Cursos Asignados"
-                  isActive={isActive("/my-courses")}
-                >
-                  <Link href="/my-courses" className={cn(
-                    "transition-colors",
-                    isActive("/my-courses") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                  )}>
-                    <BookOpen className="h-4 w-4" />
-                    <span>Mis Cursos</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  asChild 
-                  tooltip="Mi Ruta de Aprendizaje"
-                  isActive={isActive("/my-learning-paths")}
-                >
-                  <Link href="/my-learning-paths" className={cn(
-                    "transition-colors",
-                    isActive("/my-learning-paths") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                  )}>
-                    <Route className="h-4 w-4" />
-                    <span>Mi Ruta</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  asChild 
-                  tooltip="Mis Evaluaciones"
-                  isActive={isActive("/evaluations")}
-                >
-                  <Link href="/evaluations" className={cn(
-                    "transition-colors",
-                    isActive("/evaluations") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                  )}>
-                    <ClipboardList className="h-4 w-4" />
-                    <span>Evaluaciones</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  asChild 
-                  tooltip="Mis Certificados"
-                  isActive={isActive("/my-certificates")}
-                >
-                  <Link href="/my-certificates" className={cn(
-                    "transition-colors",
-                    isActive("/my-certificates") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                  )}>
-                    <Award className="h-4 w-4" />
-                    <span>Certificados</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  asChild 
-                  tooltip="Notificaciones"
-                  isActive={isActive("/notifications")}
-                >
-                  <Link href="/notifications" className={cn(
-                    "flex items-center transition-colors",
-                    isActive("/notifications") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                  )}>
-                    <Bell className="h-4 w-4" />
-                    <span>Notificaciones</span>
-                    <NotificationsBadge />
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  asChild 
-                  tooltip="Mi Perfil"
-                  isActive={isActive("/profile")}
-                >
-                  <Link href="/profile" className={cn(
-                    "transition-colors",
-                    isActive("/profile") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                  )}>
-                    <UserCog className="h-4 w-4" />
-                    <span>Mi Perfil</span>
+                <SidebarMenuButton asChild tooltip="Iniciar sesión">
+                  <Link href="/login">
+                    <LogIn className="h-4 w-4" />
+                    <span>Iniciar sesión</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroup>
         )}
-
-        {/* Admin section: visible to ADMIN/SUPERADMIN */}
-        {mounted && (session?.user?.role === "ADMIN" || session?.user?.role === "SUPERADMIN") && (
-          <>
-            <Separator className="my-2" />
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider">
-                Administración
-              </SidebarGroupLabel>
-              <SidebarMenu>
-                <Collapsible
-                  open={isAdminMenuOpen}
-                  onOpenChange={handleAdminMenuToggle}
-                  className="group/collapsible"
-                >
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton 
-                        tooltip="Administración"
-                        className={cn(
-                          "hover:bg-sidebar-accent/80",
-                          isAdminMenuOpen && "bg-sidebar-accent/50"
-                        )}
-                      >
-                        <Settings className="h-4 w-4" />
-                        <span>Gestión</span>
-                        <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="transition-all duration-200 data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
-                      <SidebarMenuSub className="border-l-2 border-sidebar-border ml-3 pl-2 space-y-1">
-                      {/* Sección: Gestión Organizacional */}
-                      <div className="px-3 py-2 mt-1">
-                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                          Organizacional
-                        </div>
-                      </div>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/admin/collaborators")}
-                        >
-                          <Link 
-                            href="/admin/collaborators"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/admin/collaborators") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <Users className="h-4 w-4" />
-                            <span>Colaboradores</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/admin/areas")}
-                        >
-                          <Link 
-                            href="/admin/areas"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/admin/areas") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <MapPin className="h-4 w-4" />
-                            <span>Áreas</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/admin/positions")}
-                        >
-                          <Link 
-                            href="/admin/positions"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/admin/positions") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <Briefcase className="h-4 w-4" />
-                            <span>Puestos</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/admin/sites")}
-                        >
-                          <Link 
-                            href="/admin/sites"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/admin/sites") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <Building2 className="h-4 w-4" />
-                            <span>Sedes</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-
-                      {/* Sección: Catálogo de Cursos */}
-                      <div className="px-3 py-2 mt-3">
-                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                          Catálogo
-                        </div>
-                      </div>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/admin/courses")}
-                        >
-                          <Link 
-                            href="/admin/courses"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/admin/courses") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <BookOpen className="h-4 w-4" />
-                            <span>Cursos</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/admin/learning-paths")}
-                        >
-                          <Link 
-                            href="/admin/learning-paths"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/admin/learning-paths") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <Route className="h-4 w-4" />
-                            <span>Rutas de Aprendizaje</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/admin/files")}
-                        >
-                          <Link 
-                            href="/admin/files"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/admin/files") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <HardDrive className="h-4 w-4" />
-                            <span>Repositorio de Archivos</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-
-                      {/* Sección: Inscripciones y Accesos */}
-                      <div className="px-3 py-2 mt-3">
-                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                          Inscripciones
-                        </div>
-                      </div>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/admin/enrollments")}
-                        >
-                          <Link 
-                            href="/admin/enrollments"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/admin/enrollments") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <UserCheck className="h-4 w-4" />
-                            <span>Inscripciones</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/admin/enrollment-rules")}
-                        >
-                          <Link 
-                            href="/admin/enrollment-rules"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/admin/enrollment-rules") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <Zap className="h-4 w-4" />
-                            <span>Reglas Automáticas</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-
-                      {/* Sección: Evaluaciones y Contenido */}
-                      <div className="px-3 py-2 mt-3">
-                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                          Evaluaciones
-                        </div>
-                      </div>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/admin/questions")}
-                        >
-                          <Link 
-                            href="/admin/questions"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/admin/questions") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <HelpCircle className="h-4 w-4" />
-                            <span>Banco de Preguntas</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/admin/quizzes")}
-                        >
-                          <Link 
-                            href="/admin/quizzes"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/admin/quizzes") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <BarChart3 className="h-4 w-4" />
-                            <span>Exámenes</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/admin/quiz-attempts")}
-                        >
-                          <Link 
-                            href="/admin/quiz-attempts"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/admin/quiz-attempts") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <FileText className="h-4 w-4" />
-                            <span>Intentos de Evaluación</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-
-                      {/* Sección: Reportes y Análisis */}
-                      <div className="px-3 py-2 mt-3">
-                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                          Reportes y Análisis
-                        </div>
-                      </div>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/reports/dashboard")}
-                        >
-                          <Link 
-                            href="/reports/dashboard"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/reports/dashboard") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <LineChart className="h-4 w-4" />
-                            <span>Dashboard</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/reports/area")}
-                        >
-                          <Link 
-                            href="/reports/area"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/reports/area") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <BarChart3 className="h-4 w-4" />
-                            <span>Por Área</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/reports/course")}
-                        >
-                          <Link 
-                            href="/reports/course"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/reports/course") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <FileText className="h-4 w-4" />
-                            <span>Por Curso</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/reports/compliance")}
-                        >
-                          <Link 
-                            href="/reports/compliance"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/reports/compliance") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <Award className="h-4 w-4" />
-                            <span>Cumplimiento</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-
-                      {/* Sección: Notificaciones */}
-                      <div className="px-3 py-2 mt-3">
-                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                          Comunicación
-                        </div>
-                      </div>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/admin/notification-templates")}
-                        >
-                          <Link 
-                            href="/admin/notification-templates"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/admin/notification-templates") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <Mail className="h-4 w-4" />
-                            <span>Plantillas</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-
-                      {/* Sección: Progreso y Cumplimiento */}
-                      <div className="px-3 py-2 mt-3">
-                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                          Seguimiento
-                        </div>
-                      </div>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/admin/progress")}
-                        >
-                          <Link 
-                            href="/admin/progress"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/admin/progress") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <TrendingUp className="h-4 w-4" />
-                            <span>Tracking de Avance</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/admin/alerts")}
-                        >
-                          <Link 
-                            href="/admin/alerts"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/admin/alerts") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <AlertCircle className="h-4 w-4" />
-                            <span>Alertas Críticas</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton 
-                          asChild
-                          isActive={isActive("/admin/certifications")}
-                        >
-                          <Link 
-                            href="/admin/certifications"
-                            className={cn(
-                              "hover:bg-sidebar-accent/60 transition-colors rounded-md",
-                              isActive("/admin/certifications") && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            )}
-                          >
-                            <Award className="h-4 w-4" />
-                            <span>Certificaciones</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
-
-                {/* SUPERADMIN only section */}
-                {mounted && session?.user?.role === "SUPERADMIN" && (
-                  <>
-                    <Separator className="my-2" />
-                    <SidebarMenuItem>
-                      <SidebarMenuButton asChild tooltip="Panel SuperAdmin">
-                        <Link href="/admin/superadmin">
-                          <Shield className="h-4 w-4" />
-                          <span>SuperAdmin</span>
-                          <Badge variant="destructive" className="ml-auto text-xs">
-                            Super
-                          </Badge>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </>
-                )}
-              </SidebarMenu>
-            </SidebarGroup>
-          </>
-        )}        {/* Auth section: shown when no session */}
-        {mounted && !session && (
-          <>
-            <Separator className="my-2" />
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider">
-                Cuenta
-              </SidebarGroupLabel>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Iniciar sesión">
-                    <Link href="/login">
-                      <LogIn className="h-4 w-4" />
-                      <span>Iniciar sesión</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Registrarse">
-                    <Link href="/register">
-                      <UserPlus className="h-4 w-4" />
-                      <span>Registrarse</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroup>
-          </>
-        )}
       </SidebarContent>
+
       <SidebarFooter>
-        <NavUser userProp={{ name: "Usuario", email: "", avatar: "" }} />
+        <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
