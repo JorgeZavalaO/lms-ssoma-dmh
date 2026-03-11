@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 export type FileUsageConfidence = "DIRECT" | "HEURISTIC"
 export type FileUsageSource = "LESSON_FILE" | "LESSON_HTML" | "CERTIFICATE_PDF" | "CERTIFICATE_URL" | "INTERACTIVE_ACTIVITY"
 export type FileUsageState = "IN_USE" | "UNUSED" | "HEURISTIC_ONLY"
+export type FileReviewPriority = "HIGH" | "MEDIUM" | "LOW"
 
 export type FileInventoryQuery = {
   page?: number
@@ -53,6 +54,9 @@ export type FileInventoryItem = {
   primaryLocation: string
   relatedCourseName: string | null
   confidenceSummary: string
+  reviewPriority: FileReviewPriority
+  reviewRecommendation: string
+  daysSinceUpload: number
 }
 
 export type FileInventoryStats = {
@@ -60,6 +64,9 @@ export type FileInventoryStats = {
   inUseFiles: number
   unusedFiles: number
   heuristicOnlyFiles: number
+  reviewCandidates: number
+  unusedBytes: number
+  heuristicBytes: number
 }
 
 export type FileInventoryListResponse = {
@@ -94,6 +101,11 @@ type RawFile = {
   previousVersionId: string | null
   uploadedBy: string
   uploadedAt: Date
+}
+
+type FileInventoryComputedEntry = {
+  item: FileInventoryItem
+  usages: FileUsageReference[]
 }
 
 function normalizeQuery(query: FileInventoryQuery) {
@@ -137,11 +149,46 @@ function getConfidenceSummary(usageState: FileUsageState): string {
   }
 }
 
+function getDaysSinceUpload(uploadedAt: Date) {
+  const millisecondsPerDay = 1000 * 60 * 60 * 24
+  return Math.max(0, Math.floor((Date.now() - uploadedAt.getTime()) / millisecondsPerDay))
+}
+
+function getReviewPriority(file: RawFile, usageState: FileUsageState, daysSinceUpload: number): FileReviewPriority {
+  if (usageState === "IN_USE") return "LOW"
+  if (usageState === "HEURISTIC_ONLY") return daysSinceUpload >= 30 ? "MEDIUM" : "LOW"
+  if (file.previousVersionId) return "HIGH"
+  if (daysSinceUpload >= 90) return "HIGH"
+  return "MEDIUM"
+}
+
+function getReviewRecommendation(file: RawFile, usageState: FileUsageState, reviewPriority: FileReviewPriority) {
+  if (usageState === "IN_USE") {
+    return "Mantener. El archivo tiene referencias activas confirmadas."
+  }
+
+  if (usageState === "HEURISTIC_ONLY") {
+    return reviewPriority === "MEDIUM"
+      ? "Validar manualmente el contenido embebido antes de considerar limpieza."
+      : "Monitorear. La coincidencia es indirecta y reciente."
+  }
+
+  if (file.previousVersionId) {
+    return "Revisar como posible versión reemplazada antes de cualquier depuración manual."
+  }
+
+  return reviewPriority === "HIGH"
+    ? "Candidato fuerte a revisión manual por falta de referencias y antigüedad."
+    : "Sin referencias detectadas. Revisar con criterio operativo antes de limpiar."
+}
+
 function buildFileInventoryItem(file: RawFile, usages: FileUsageReference[]): FileInventoryItem {
   const usageState = classifyUsage(usages)
   const relatedCourse = usages.find((usage) => usage.courseName)
   const directUsageCount = usages.filter((usage) => usage.confidence === "DIRECT").length
   const heuristicUsageCount = usages.filter((usage) => usage.confidence === "HEURISTIC").length
+  const daysSinceUpload = getDaysSinceUpload(file.uploadedAt)
+  const reviewPriority = getReviewPriority(file, usageState, daysSinceUpload)
 
   return {
     id: file.id,
@@ -163,6 +210,9 @@ function buildFileInventoryItem(file: RawFile, usages: FileUsageReference[]): Fi
     primaryLocation: getPrimaryLocation(usages),
     relatedCourseName: relatedCourse?.courseName ?? null,
     confidenceSummary: getConfidenceSummary(usageState),
+    reviewPriority,
+    reviewRecommendation: getReviewRecommendation(file, usageState, reviewPriority),
+    daysSinceUpload,
   }
 }
 
@@ -409,7 +459,7 @@ async function collectUsageMap(files: RawFile[]) {
   return usageMap
 }
 
-export async function listFileInventory(query: FileInventoryQuery = {}): Promise<FileInventoryListResponse> {
+async function computeFileInventoryEntries(query: FileInventoryQuery = {}): Promise<{ entries: FileInventoryComputedEntry[]; availableTags: string[] }> {
   const normalized = normalizeQuery(query)
   const files = await prisma.fileRepository.findMany({
     where: {
@@ -421,32 +471,45 @@ export async function listFileInventory(query: FileInventoryQuery = {}): Promise
 
   const usageMap = await collectUsageMap(files)
 
-  const itemsWithUsages = files.map((file) => {
-    const usages = usageMap.get(file.blobUrl) ?? []
-    return {
-      item: buildFileInventoryItem(file, usages),
-      usages,
-    }
-  })
+  const entries = files
+    .map((file) => {
+      const usages = usageMap.get(file.blobUrl) ?? []
+      return {
+        item: buildFileInventoryItem(file, usages),
+        usages,
+      }
+    })
+    .filter(({ item, usages }) => {
+      if (normalized.usageState && item.usageState !== normalized.usageState) return false
+      return matchesSearch(item, usages, normalized.q)
+    })
 
   const availableTags = Array.from(new Set(files.flatMap((file) => file.tags))).sort((a, b) => a.localeCompare(b))
 
-  const filtered = itemsWithUsages.filter(({ item, usages }) => {
-    if (normalized.usageState && item.usageState !== normalized.usageState) return false
-    return matchesSearch(item, usages, normalized.q)
-  })
+  return { entries, availableTags }
+}
+
+export async function listFileInventory(query: FileInventoryQuery = {}): Promise<FileInventoryListResponse> {
+  const normalized = normalizeQuery(query)
+  const { entries: filtered, availableTags } = await computeFileInventoryEntries(query)
 
   const stats = filtered.reduce<FileInventoryStats>((acc, entry) => {
     acc.totalFiles += 1
     if (entry.item.usageState === "IN_USE") acc.inUseFiles += 1
     if (entry.item.usageState === "UNUSED") acc.unusedFiles += 1
     if (entry.item.usageState === "HEURISTIC_ONLY") acc.heuristicOnlyFiles += 1
+    if (entry.item.reviewPriority !== "LOW") acc.reviewCandidates += 1
+    if (entry.item.usageState === "UNUSED") acc.unusedBytes += entry.item.size
+    if (entry.item.usageState === "HEURISTIC_ONLY") acc.heuristicBytes += entry.item.size
     return acc
   }, {
     totalFiles: 0,
     inUseFiles: 0,
     unusedFiles: 0,
     heuristicOnlyFiles: 0,
+    reviewCandidates: 0,
+    unusedBytes: 0,
+    heuristicBytes: 0,
   })
 
   const start = (normalized.page - 1) * normalized.pageSize
@@ -460,6 +523,11 @@ export async function listFileInventory(query: FileInventoryQuery = {}): Promise
     stats,
     availableTags,
   }
+}
+
+export async function listFileInventoryForExport(query: FileInventoryQuery = {}) {
+  const { entries } = await computeFileInventoryEntries(query)
+  return entries.map(({ item }) => item)
 }
 
 export async function getFileInventoryDetail(id: string): Promise<FileInventoryDetail | null> {

@@ -14,6 +14,23 @@ Sistema de Gestión de Aprendizaje (LMS) para Seguridad, Salud Ocupacional y Med
 LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacitaciones, colaboradores y recursos relacionados con Seguridad, Salud Ocupacional y Medio Ambiente. El sistema permite administrar usuarios, asignar cursos, gestionar áreas y puestos, y realizar seguimiento del progreso de capacitaciones.
 
 ## 🆕 Últimas Actualizaciones
+### v2.2.5 - Repositorio de Archivos V2 con Exportación y Priorización de Revisión (11 Mar 2026)
+
+- ✅ **V2 del módulo `/admin/files`**:
+  - Priorización de archivos para revisión manual (`alta`, `media`, `monitoreo`)
+  - Recomendación operativa por archivo según referencias detectadas y antigüedad
+  - Métricas nuevas de candidatos a revisión y peso auditado
+
+- ✅ **Exportación segura de auditoría**:
+  - Exportación filtrada del inventario en `XLSX` y `CSV`
+  - Hoja de resumen en Excel con totales, bytes sin uso y bytes heurísticos
+  - Sin cambios en la base de datos y sin eliminar blobs
+
+- ✅ **UX mejorada para operación**:
+  - Botón rápido `Candidatos` para revisar archivos sin uso detectado
+  - Badges de prioridad en tabla y detalle
+  - Más contexto en el modal para decidir revisiones manuales
+
 ### v2.2.4 - Repositorio de Archivos V1 con Trazabilidad Segura (11 Mar 2026)
 
 - ✅ **Nuevo módulo admin `/admin/files`**:
@@ -278,6 +295,7 @@ Nota técnica: la verificación de acceso está centralizada en `src/lib/access.
   - Límites de tamaño
   - **Inventario admin V1** con trazabilidad segura en `/admin/files`
   - Detección de uso directo vs heurístico antes de cualquier limpieza operativa
+  - **V2** con exportación filtrada y priorización de revisión manual
 - **Actividades Interactivas**:
   - Contenido HTML con componentes shadcn
   - Registro de intentos
@@ -884,6 +902,7 @@ User                  # Usuarios del sistema
 - `POST /api/files` - Subir archivo
 - `GET /api/admin/files` - Inventario enriquecido de archivos con trazabilidad y filtros admin
 - `GET /api/admin/files/:id` - Detalle contextual de un archivo con referencias detectadas
+- `GET /api/admin/files/export` - Exportar auditoría filtrada del inventario en CSV/XLSX
 - `GET /api/activities` - Listar actividades interactivas
 - `POST /api/activities` - Crear actividad
 
@@ -1149,6 +1168,7 @@ Propietario - DMH © 2025. Todos los derechos reservados.
 Para ver el historial completo de cambios, consulta [CHANGELOG.md](./CHANGELOG.md).
 
 ### Versiones Recientes
+- **v2.2.5** (11 Mar 2026) - Repositorio de archivos V2 con exportación y priorización de revisión
 - **v2.2.4** (11 Mar 2026) - Repositorio de archivos V1 con trazabilidad segura para producción
 - **v2.2.3** (1 Dic 2025) - Sistema de templates de colaboradores con gestión de contraseñas
 - **v2.2.2** (4 Nov 2025) - Organización de componentes compartidos

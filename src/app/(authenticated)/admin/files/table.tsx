@@ -4,10 +4,11 @@ import * as React from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Copy, ExternalLink, FileArchive, FileText, FolderSearch, Layers3 } from "lucide-react"
+import { Copy, Download, ExternalLink, FileArchive, FileSearch, FileText, FolderSearch, Layers3, ShieldAlert } from "lucide-react"
 import { toast } from "sonner"
 import { DataTable } from "@/components/common/data-table"
 import { FileDetailDialog } from "@/components/admin/files/file-detail-dialog"
+import { FileReviewBadge } from "@/components/admin/files/file-review-badge"
 import { FileUsageBadge } from "@/components/admin/files/file-usage-badge"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -35,7 +36,16 @@ function formatBytes(bytes: number) {
   return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`
 }
 
-function StatCard({ title, value, helper, icon: Icon }: { title: string; value: number; helper: string; icon: React.ElementType }) {
+function buildExportUrl(params: { q: string; fileType: FileTypeFilter; usageState: UsageFilter; tag: string; format: "csv" | "xlsx" }) {
+  const searchParams = new URLSearchParams({ format: params.format })
+  if (params.q.trim()) searchParams.set("q", params.q.trim())
+  if (params.fileType !== "ALL") searchParams.set("fileType", params.fileType)
+  if (params.usageState !== "ALL") searchParams.set("usageState", params.usageState)
+  if (params.tag && params.tag !== "ALL") searchParams.set("tag", params.tag)
+  return `/api/admin/files/export?${searchParams.toString()}`
+}
+
+function StatCard({ title, value, helper, icon: Icon }: { title: string; value: React.ReactNode; helper: string; icon: React.ElementType }) {
   return (
     <Card className="border-slate-200 shadow-sm">
       <CardHeader className="pb-3">
@@ -64,6 +74,9 @@ export default function ClientFiles({ initial }: { initial: InitialData }) {
   const [fileType, setFileType] = React.useState<FileTypeFilter>(initial.filters.fileType)
   const [usageState, setUsageState] = React.useState<UsageFilter>(initial.filters.usageState)
   const [tag, setTag] = React.useState(initial.filters.tag)
+
+  const exportXlsxUrl = buildExportUrl({ q, fileType, usageState, tag, format: "xlsx" })
+  const exportCsvUrl = buildExportUrl({ q, fileType, usageState, tag, format: "csv" })
 
   const load = React.useCallback(async ({ nextPage = page, nextQ = q, nextFileType = fileType, nextUsageState = usageState, nextTag = tag }: {
     nextPage?: number
@@ -157,6 +170,16 @@ export default function ClientFiles({ initial }: { initial: InitialData }) {
       cell: ({ row }) => <FileUsageBadge usageState={row.original.usageState} />, 
     },
     {
+      accessorKey: "reviewPriority",
+      header: "Revisión",
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <FileReviewBadge priority={row.original.reviewPriority} />
+          <div className="text-xs text-slate-500">{row.original.reviewRecommendation}</div>
+        </div>
+      ),
+    },
+    {
       accessorKey: "relatedCourseName",
       header: "Curso / contexto",
       cell: ({ row }) => (
@@ -207,6 +230,10 @@ export default function ClientFiles({ initial }: { initial: InitialData }) {
 
   const rightExtra = (
     <div className="flex flex-wrap items-center justify-end gap-2">
+      <Button variant="outline" className="gap-2" onClick={() => handleUsageChange("UNUSED")}>
+        <ShieldAlert className="h-4 w-4" /> Candidatos
+      </Button>
+
       <Select value={fileType} onValueChange={(value) => handleFileTypeChange(value as FileTypeFilter)}>
         <SelectTrigger className="w-[150px]">
           <SelectValue placeholder="Tipo" />
@@ -245,6 +272,18 @@ export default function ClientFiles({ initial }: { initial: InitialData }) {
           ))}
         </SelectContent>
       </Select>
+
+      <a href={exportXlsxUrl}>
+        <Button variant="outline" className="gap-2">
+          <Download className="h-4 w-4" /> XLSX
+        </Button>
+      </a>
+
+      <a href={exportCsvUrl}>
+        <Button variant="outline" className="gap-2">
+          <Download className="h-4 w-4" /> CSV
+        </Button>
+      </a>
     </div>
   )
 
@@ -257,11 +296,17 @@ export default function ClientFiles({ initial }: { initial: InitialData }) {
         <StatCard title="Heurísticos" value={stats.heuristicOnlyFiles} helper="Coincidencias indirectas embebidas" icon={FileText} />
       </div>
 
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <StatCard title="Candidatos de revisión" value={stats.reviewCandidates} helper="Archivos con prioridad media o alta" icon={FileSearch} />
+        <StatCard title="Peso sin uso" value={formatBytes(stats.unusedBytes)} helper="Detectados sin referencias activas" icon={ShieldAlert} />
+        <StatCard title="Peso heurístico" value={formatBytes(stats.heuristicBytes)} helper="Requieren validación manual" icon={Layers3} />
+      </div>
+
       <Card className="border-slate-200 shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-base text-slate-900">Inventario y trazabilidad</CardTitle>
           <p className="text-sm text-slate-600">
-            Explora los archivos subidos al blob, identifica dónde se usan y revisa relaciones con cursos sin tocar la base de datos.
+            Explora los archivos subidos al blob, identifica dónde se usan, prioriza candidatos a revisión y exporta auditorías sin tocar la base de datos.
           </p>
         </CardHeader>
         <CardContent>

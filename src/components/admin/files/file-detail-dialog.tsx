@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import type { FileInventoryDetail } from "@/lib/file-inventory"
+import { FileReviewBadge } from "@/components/admin/files/file-review-badge"
 import { FileUsageBadge } from "@/components/admin/files/file-usage-badge"
 
 function formatBytes(bytes: number) {
@@ -186,6 +187,13 @@ export function FileDetailDialog({ fileId, fileName }: { fileId: string; fileNam
                   ) : (
                     <p className="mt-1 text-slate-600">Sin curso asociado detectado.</p>
                   )}
+                </div>
+
+                <div className="rounded-lg border bg-slate-50/70 p-3 text-sm">
+                  <div className="font-medium text-slate-900">Revisión sugerida</div>
+                  <div className="mt-2"><FileReviewBadge priority={detail.item.reviewPriority} /></div>
+                  <p className="mt-2 text-slate-600">{detail.item.reviewRecommendation}</p>
+                  <p className="mt-2 text-xs text-slate-500">{detail.item.daysSinceUpload} días desde la carga.</p>
                 </div>
 
                 <div className="rounded-lg border bg-amber-50/50 p-3">

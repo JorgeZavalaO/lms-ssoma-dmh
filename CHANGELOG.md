@@ -7,6 +7,59 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [2.2.5] - 2026-03-11
+
+### Agregado - Repositorio de Archivos V2
+
+- ✅ **Priorización operativa de revisión**
+  - Cada archivo del inventario ahora clasifica su revisión como `HIGH`, `MEDIUM` o `LOW`
+  - La prioridad considera estado de uso, antigüedad del archivo y si parece ser una versión reemplazada
+  - Se agrega recomendación operativa por archivo para auditoría manual
+
+- ✅ **Nuevas métricas V2 en `/admin/files`**
+  - Candidatos de revisión
+  - Peso sin uso detectado
+  - Peso heurístico pendiente de validación
+
+- ✅ **Exportación segura del inventario**
+  - Nuevo endpoint `GET /api/admin/files/export`
+  - Exportación en `CSV` y `XLSX`
+  - Respeta filtros activos del módulo (`q`, `fileType`, `usageState`, `tag`)
+  - Excel con hojas `Resumen` e `Inventario`
+
+- ✅ **Mejoras UI/UX de V2**
+  - Nueva columna de revisión con badges de prioridad
+  - Botón rápido `Candidatos` para filtrar archivos sin uso detectado
+  - Botones de exportación directa desde la toolbar
+  - Detalle del archivo enriquecido con prioridad, recomendación y días desde carga
+
+### Seguridad Operativa
+
+- ✅ Se mantiene el enfoque no destructivo:
+  - sin migraciones Prisma
+  - sin soft-delete persistente
+  - sin eliminación física de blobs
+  - sin cambios de datos productivos
+
+### Técnico
+
+- **Archivos nuevos**:
+  1. `src/app/api/admin/files/export/route.ts`
+  2. `src/components/admin/files/file-review-badge.tsx`
+
+- **Archivos actualizados**:
+  1. `src/lib/file-inventory.ts`
+  2. `src/app/(authenticated)/admin/files/table.tsx`
+  3. `src/components/admin/files/file-detail-dialog.tsx`
+  4. `README.md`
+  5. `CHANGELOG.md`
+
+### Validación prevista
+
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+
 ## [2.2.4] - 2026-03-11
 
 ### Agregado - Repositorio de Archivos V1 con Trazabilidad Segura
