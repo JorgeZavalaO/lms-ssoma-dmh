@@ -38,7 +38,7 @@ type LessonFormValues = {
   fileUrl: string
   htmlContent: string
   completionThreshold: number
-  duration: number
+  duration?: number
 }
 
 type PdfSourceType = "link" | "upload"
@@ -221,7 +221,6 @@ export function CreateLessonDialog({ unitId, onCreated }: CreateLessonDialogProp
       fileUrl: "",
       htmlContent: "",
       completionThreshold: 80,
-      duration: 0,
     },
   })
 
@@ -249,6 +248,7 @@ export function CreateLessonDialog({ unitId, onCreated }: CreateLessonDialogProp
         videoUrl: data.videoUrl.trim(),
         fileUrl: data.fileUrl.trim(),
         htmlContent: data.htmlContent.trim(),
+        duration: (data.duration && data.duration > 0) ? data.duration : undefined,
       }
 
       if (payload.type === "PDF") {
@@ -540,7 +540,7 @@ export function EditLessonDialog({ lesson, onEdited }: EditLessonDialogProps) {
       title: lesson.title,
       description: lesson.description || "",
       type: lesson.type as LessonFormValues["type"],
-      duration: lesson.duration || 0,
+      duration: lesson.duration ?? undefined,
       completionThreshold: lesson.completionThreshold,
       videoUrl: lesson.videoUrl || "",
       fileUrl: lesson.fileUrl || "",
@@ -600,6 +600,8 @@ export function EditLessonDialog({ lesson, onEdited }: EditLessonDialogProps) {
         payload.videoUrl = ""
         payload.fileUrl = ""
       }
+
+      payload.duration = (data.duration && data.duration > 0) ? data.duration : undefined
 
       const res = await fetch(`/api/lessons/${lesson.id}`, {
         method: "PUT",
