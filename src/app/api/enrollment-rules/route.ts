@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { EnrollmentRuleSchema, UpdateEnrollmentRuleSchema } from "@/validations/enrollment"
+import { applyEnrollmentRule } from "@/lib/enrollment"
 
 // GET - Obtener todas las reglas de inscripción
 export async function GET(req: NextRequest) {
@@ -94,10 +95,11 @@ export async function POST(req: NextRequest) {
     // Verificar si ya existe una regla con los mismos criterios
     const existing = await prisma.enrollmentRule.findFirst({
       where: {
-        courseId: validated.courseId,
-        siteId: validated.siteId,
-        areaId: validated.areaId,
-        positionId: validated.positionId,
+        courseId: validated.courseId ?? null,
+        learningPathId: validated.learningPathId ?? null,
+        siteId: validated.siteId ?? null,
+        areaId: validated.areaId ?? null,
+        positionId: validated.positionId ?? null,
       },
     })
 
@@ -127,115 +129,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "Error al crear regla de inscripción" },
       { status: 500 }
-    )
-  }
-}
-
-// Función auxiliar para aplicar regla de inscripción
-async function applyEnrollmentRule(ruleId: string) {
-  const rule = await prisma.enrollmentRule.findUnique({
-    where: { id: ruleId },
-    include: {
-      course: {
-        include: {
-          pathCourses: true,
-        },
-      },
-      learningPath: {
-        include: {
-          courses: true,
-        },
-      },
-    },
-  })
-
-  if (!rule || !rule.isActive) return
-
-  // Construir filtros para colaboradores
-  const where: Record<string, unknown> = {
-    status: "ACTIVE",
-  }
-
-  if (rule.siteId) where.siteId = rule.siteId
-  if (rule.areaId) where.areaId = rule.areaId
-  if (rule.positionId) where.positionId = rule.positionId
-
-  // Obtener colaboradores que cumplen los criterios
-  const collaborators = await prisma.collaborator.findMany({
-    where,
-    select: { id: true },
-  })
-
-  // Si es una ruta, crear inscripciones para la ruta y para cada curso dentro
-  if (rule.learningPath && rule.learningPathId) {
-    // Crear inscripción a la ruta
-    await prisma.$transaction(
-      collaborators.map((collaborator) =>
-        prisma.enrollment.upsert({
-          where: {
-            learningPathId_collaboratorId: {
-              learningPathId: rule.learningPathId!,
-              collaboratorId: collaborator.id,
-            },
-          },
-          update: {},
-          create: {
-            learningPathId: rule.learningPathId,
-            collaboratorId: collaborator.id,
-            type: "AUTOMATIC",
-            status: "ACTIVE",
-            ruleId: rule.id,
-          },
-        })
-      )
-    )
-
-    // Crear inscripciones para cada curso en la ruta
-    const courseIds = rule.learningPath.courses.map((pc) => pc.courseId)
-    
-    for (const courseId of courseIds) {
-      await prisma.$transaction(
-        collaborators.map((collaborator) =>
-          prisma.enrollment.upsert({
-            where: {
-              courseId_collaboratorId: {
-                courseId,
-                collaboratorId: collaborator.id,
-              },
-            },
-            update: {},
-            create: {
-              courseId,
-              collaboratorId: collaborator.id,
-              type: "AUTOMATIC",
-              status: "ACTIVE",
-              ruleId: rule.id,
-            },
-          })
-        )
-      )
-    }
-  } else if (rule.course && rule.courseId) {
-    // Crear inscripción simple al curso
-    await prisma.$transaction(
-      collaborators.map((collaborator) =>
-        prisma.enrollment.upsert({
-          where: {
-            courseId_collaboratorId: {
-              courseId: rule.courseId!,
-              collaboratorId: collaborator.id,
-            },
-          },
-          update: {},
-          create: {
-            courseId: rule.courseId,
-            collaboratorId: collaborator.id,
-            type: "AUTOMATIC",
-            status: "ACTIVE",
-            ruleId: rule.id,
-          },
-        })
-      )
     )
   }
 }

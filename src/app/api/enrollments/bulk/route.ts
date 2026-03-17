@@ -69,26 +69,41 @@ export async function POST(req: NextRequest) {
         )
       }
 
-      // Crear inscripciones masivas a la ruta y sus cursos
-      const enrollments = await prisma.$transaction(
-        collaborators.flatMap((collaborator) => {
-          const ops = []
-          
+      // Crear inscripciones masivas a la ruta y sus cursos + CourseProgress inicial
+      const createdEnrollments: { id: string }[] = []
+      await prisma.$transaction(async (tx) => {
+        for (const collaborator of collaborators) {
           // Inscripción a la ruta
-          ops.push(
-            prisma.enrollment.upsert({
+          await tx.enrollment.upsert({
+            where: {
+              learningPathId_collaboratorId: {
+                learningPathId: validated.learningPathId!,
+                collaboratorId: collaborator.id,
+              },
+            },
+            update: { status: "ACTIVE", notes: validated.notes },
+            create: {
+              learningPathId: validated.learningPathId,
+              collaboratorId: collaborator.id,
+              type: "MANUAL",
+              status: "ACTIVE",
+              enrolledBy: session.user.id,
+              notes: validated.notes,
+            },
+          })
+
+          // Inscripción individual a cada curso de la ruta + progreso inicial
+          for (const pc of path.courses) {
+            const courseEnrollment = await tx.enrollment.upsert({
               where: {
-                learningPathId_collaboratorId: {
-                  learningPathId: validated.learningPathId!,
+                courseId_collaboratorId: {
+                  courseId: pc.courseId,
                   collaboratorId: collaborator.id,
                 },
               },
-              update: {
-                status: "ACTIVE",
-                notes: validated.notes,
-              },
+              update: { status: "ACTIVE", notes: validated.notes },
               create: {
-                learningPathId: validated.learningPathId,
+                courseId: pc.courseId,
                 collaboratorId: collaborator.id,
                 type: "MANUAL",
                 status: "ACTIVE",
@@ -96,42 +111,28 @@ export async function POST(req: NextRequest) {
                 notes: validated.notes,
               },
             })
-          )
-          
-          // Inscripción a cada curso en la ruta
-          for (const pc of path.courses) {
-            ops.push(
-              prisma.enrollment.upsert({
-                where: {
-                  courseId_collaboratorId: {
-                    courseId: pc.courseId,
-                    collaboratorId: collaborator.id,
-                  },
-                },
-                update: {
-                  status: "ACTIVE",
-                  notes: validated.notes,
-                },
-                create: {
-                  courseId: pc.courseId,
-                  collaboratorId: collaborator.id,
-                  type: "MANUAL",
-                  status: "ACTIVE",
-                  enrolledBy: session.user.id,
-                  notes: validated.notes,
-                },
-              })
-            )
+            createdEnrollments.push(courseEnrollment)
+
+            await tx.courseProgress.upsert({
+              where: {
+                collaboratorId_courseId: { collaboratorId: collaborator.id, courseId: pc.courseId },
+              },
+              update: {},
+              create: {
+                collaboratorId: collaborator.id,
+                courseId: pc.courseId,
+                status: "NOT_STARTED",
+                enrollmentId: courseEnrollment.id,
+              },
+            })
           }
-          
-          return ops
-        })
-      )
+        }
+      })
 
       return NextResponse.json(
         {
           message: `${collaborators.length} colaboradores inscritos en la ruta exitosamente`,
-          enrollments,
+          enrollments: createdEnrollments,
         },
         { status: 201 }
       )
@@ -150,10 +151,11 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Crear inscripciones masivas
-    const enrollments = await prisma.$transaction(
-      collaborators.map((collaborator) =>
-        prisma.enrollment.upsert({
+    // Crear inscripciones masivas a curso directo + CourseProgress inicial
+    const courseEnrollments: { id: string }[] = []
+    await prisma.$transaction(async (tx) => {
+      for (const collaborator of collaborators) {
+        const enrollment = await tx.enrollment.upsert({
           where: {
             courseId_collaboratorId: {
               courseId: validated.courseId!,
@@ -173,13 +175,27 @@ export async function POST(req: NextRequest) {
             notes: validated.notes,
           },
         })
-      )
-    )
+        courseEnrollments.push(enrollment)
+
+        await tx.courseProgress.upsert({
+          where: {
+            collaboratorId_courseId: { collaboratorId: collaborator.id, courseId: validated.courseId! },
+          },
+          update: {},
+          create: {
+            collaboratorId: collaborator.id,
+            courseId: validated.courseId!,
+            status: "NOT_STARTED",
+            enrollmentId: enrollment.id,
+          },
+        })
+      }
+    })
 
     return NextResponse.json(
       {
-        message: `${enrollments.length} colaboradores inscritos exitosamente`,
-        enrollments,
+        message: `${courseEnrollments.length} colaboradores inscritos exitosamente`,
+        enrollments: courseEnrollments,
       },
       { status: 201 }
     )

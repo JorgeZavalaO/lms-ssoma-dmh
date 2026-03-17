@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { UpdateCollaboratorSchema } from "@/validations/collaborators"
 import { auth } from "@/auth"
 import { hashPassword } from "@/lib/password"
+import { applyAutoEnrollmentRules, removeInvalidAutoEnrollments } from "@/lib/enrollment"
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -112,6 +113,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
     return updatedCollab
   })
+
+  // Si cambiaron sede/área/puesto, sincronizar inscripciones automáticas
+  if (assignmentChanged) {
+    await removeInvalidAutoEnrollments(updated.id)
+    await applyAutoEnrollmentRules(updated.id)
+  }
 
   return NextResponse.json({ 
     collaborator: updated,

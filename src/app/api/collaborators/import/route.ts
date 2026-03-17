@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { CollaboratorSchema } from "@/validations/collaborators"
 import { auth } from "@/auth"
 import bcrypt from "bcryptjs"
+import { applyAutoEnrollmentRules, removeInvalidAutoEnrollments } from "@/lib/enrollment"
 
 export const maxDuration = 60 
 
@@ -110,6 +111,9 @@ export async function POST(req: Request) {
         
         await prisma.collaborator.create({ data: collaboratorData })
         created++
+        // Aplicar reglas de inscripción automática al nuevo colaborador
+        const newCollab = await prisma.collaborator.findUnique({ where: { dni: data.dni }, select: { id: true } })
+        if (newCollab) await applyAutoEnrollmentRules(newCollab.id)
       } else {
         await prisma.$transaction([
           prisma.collaborator.update({
@@ -139,6 +143,9 @@ export async function POST(req: Request) {
           }),
         ])
         updated++
+        // Sincronizar inscripciones automáticas por cambio de perfil
+        await removeInvalidAutoEnrollments(existing.id)
+        await applyAutoEnrollmentRules(existing.id)
       }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Error desconocido"

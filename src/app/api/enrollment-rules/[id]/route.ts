@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { UpdateEnrollmentRuleSchema } from "@/validations/enrollment"
+import { applyEnrollmentRule } from "@/lib/enrollment"
 
 // GET - Obtener una regla específica
 export async function GET(
@@ -74,6 +75,9 @@ export async function PUT(
       where: { id },
       data: validated,
     })
+
+    // Re-aplicar la regla actualizada a colaboradores que ahora califican
+    await applyEnrollmentRule(id)
 
     return NextResponse.json(rule)
   } catch (error: unknown) {
