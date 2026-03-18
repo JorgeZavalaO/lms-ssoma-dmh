@@ -158,18 +158,29 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
         pointsEarned,
         submittedAt: new Date(),
         timeSpent,
-        requiresRemediation: !passed,
+        // Mantener reintento disponible por defecto cuando existan intentos restantes.
+        // La remediación obligatoria debe activarse explícitamente por negocio/configuración.
+        requiresRemediation: false,
       },
     });
 
+    const correctAnswersCount = Object.values(results).filter((r: any) => r.isCorrect).length;
+    const totalQuestionsCount = attempt.quiz.quizQuestions.length;
+
     // Preparar respuesta
     const response: any = {
+      id: updatedAttempt.id,
+      status: updatedAttempt.status,
+      score: updatedAttempt.score,
+      correctAnswers: correctAnswersCount,
+      totalQuestions: totalQuestionsCount,
+      requiresRemediation: updatedAttempt.requiresRemediation,
+      remediationCompleted: updatedAttempt.remediationCompleted,
       attempt: updatedAttempt,
       results,
       summary: {
-        totalQuestions: attempt.quiz.quizQuestions.length,
-        correctAnswers: Object.values(results).filter((r: any) => r.isCorrect)
-          .length,
+        totalQuestions: totalQuestionsCount,
+        correctAnswers: correctAnswersCount,
         score,
         passed,
         pointsEarned,

@@ -18,13 +18,27 @@ type QuizResultsProps = {
 export function QuizResults({ result, quiz, onRetry }: QuizResultsProps) {
   const [completingRemediation, setCompletingRemediation] = useState(false);
 
-  const passed = result.status === "PASSED";
-  const scorePercentage = result.score || 0;
+  const attempt = result?.attempt || {};
+  const summary = result?.summary || {};
+
+  const resultId = result?.id || attempt?.id;
+  const status = result?.status || attempt?.status;
+  const passed = status === "PASSED";
+  const scorePercentage = result?.score ?? attempt?.score ?? summary?.score ?? 0;
+  const correctAnswersCount = result?.correctAnswers ?? summary?.correctAnswers ?? 0;
+  const totalQuestionsCount = result?.totalQuestions ?? summary?.totalQuestions ?? 0;
+  const requiresRemediation = result?.requiresRemediation ?? attempt?.requiresRemediation ?? false;
+  const remediationCompleted = result?.remediationCompleted ?? attempt?.remediationCompleted ?? false;
 
   const handleCompleteRemediation = async () => {
+    if (!resultId) {
+      toast.error("No se pudo identificar el intento para completar la remediación");
+      return;
+    }
+
     setCompletingRemediation(true);
     try {
-      const res = await fetch(`/api/attempts/${result.id}/remediation`, {
+      const res = await fetch(`/api/attempts/${resultId}/remediation`, {
         method: "POST",
       });
 
@@ -77,17 +91,17 @@ export function QuizResults({ result, quiz, onRetry }: QuizResultsProps) {
           {/* Estadísticas */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{result.correctAnswers}</div>
+              <div className="text-2xl font-bold text-green-600">{correctAnswersCount}</div>
               <div className="text-sm text-muted-foreground">Correctas</div>
             </div>
             <div className="text-center p-4 border rounded-lg">
               <div className="text-2xl font-bold text-red-600">
-                {result.totalQuestions - result.correctAnswers}
+                {Math.max(0, totalQuestionsCount - correctAnswersCount)}
               </div>
               <div className="text-sm text-muted-foreground">Incorrectas</div>
             </div>
             <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold">{result.totalQuestions}</div>
+              <div className="text-2xl font-bold">{totalQuestionsCount}</div>
               <div className="text-sm text-muted-foreground">Total</div>
             </div>
             <div className="text-center p-4 border rounded-lg">
@@ -106,7 +120,7 @@ export function QuizResults({ result, quiz, onRetry }: QuizResultsProps) {
           )}
 
           {/* Remediación requerida */}
-          {result.requiresRemediation && !result.remediationCompleted && (
+          {requiresRemediation && !remediationCompleted && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
@@ -199,7 +213,7 @@ export function QuizResults({ result, quiz, onRetry }: QuizResultsProps) {
               Volver al Curso
             </Button>
 
-            {!passed && result.remediationCompleted && (
+            {!passed && (!requiresRemediation || remediationCompleted) && (
               <Button onClick={onRetry}>
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Volver a Intentar

@@ -15,20 +15,24 @@ type QuizQuestionProps = {
 };
 
 export function QuizQuestion({ question, questionNumber, answer, onAnswer }: QuizQuestionProps) {
+  const questionText = question?.text ?? question?.questionText ?? "Pregunta sin contenido";
+  const options = Array.isArray(question?.options) ? question.options : [];
+  const getOptionText = (option: any) => option?.text ?? option?.optionText ?? "";
+
   const renderQuestionInput = () => {
     switch (question.type) {
       case "SINGLE_CHOICE":
         return (
           <RadioGroup value={answer || ""} onValueChange={onAnswer}>
             <div className="space-y-3">
-              {question.options.map((option: any) => (
+              {options.map((option: any) => (
                 <div key={option.id} className="flex items-center space-x-3">
                   <RadioGroupItem value={option.id} id={option.id} />
                   <Label
                     htmlFor={option.id}
                     className="flex-1 cursor-pointer p-3 rounded-lg border hover:bg-accent"
                   >
-                    {option.text}
+                    {getOptionText(option)}
                   </Label>
                 </div>
               ))}
@@ -40,7 +44,7 @@ export function QuizQuestion({ question, questionNumber, answer, onAnswer }: Qui
         const selected = answer || [];
         return (
           <div className="space-y-3">
-            {question.options.map((option: any) => (
+            {options.map((option: any) => (
               <div key={option.id} className="flex items-center space-x-3">
                 <Checkbox
                   id={option.id}
@@ -57,7 +61,7 @@ export function QuizQuestion({ question, questionNumber, answer, onAnswer }: Qui
                   htmlFor={option.id}
                   className="flex-1 cursor-pointer p-3 rounded-lg border hover:bg-accent"
                 >
-                  {option.text}
+                  {getOptionText(option)}
                 </Label>
               </div>
             ))}
@@ -91,14 +95,14 @@ export function QuizQuestion({ question, questionNumber, answer, onAnswer }: Qui
         );
 
       case "ORDER":
-        const orderedItems = answer || question.options.map((opt: any) => opt.id);
+        const orderedItems = answer || options.map((opt: any) => opt.id);
         return (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground mb-3">
               Arrastra para ordenar (o usa los números para indicar el orden)
             </p>
             {orderedItems.map((optionId: string, index: number) => {
-              const option = question.options.find((opt: any) => opt.id === optionId);
+              const option = options.find((opt: any) => opt.id === optionId);
               return (
                 <div
                   key={optionId}
@@ -107,7 +111,7 @@ export function QuizQuestion({ question, questionNumber, answer, onAnswer }: Qui
                   <Badge variant="outline" className="w-8 h-8 flex items-center justify-center">
                     {index + 1}
                   </Badge>
-                  <div className="flex-1">{option?.text}</div>
+                  <div className="flex-1">{getOptionText(option)}</div>
                   <div className="flex gap-1">
                     <button
                       type="button"
@@ -181,7 +185,7 @@ export function QuizQuestion({ question, questionNumber, answer, onAnswer }: Qui
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
           <CardTitle className="text-lg font-semibold">
-            {questionNumber}. {question.text}
+            {questionNumber}. {questionText}
           </CardTitle>
           <Badge variant="secondary">{getTypeLabel(question.type)}</Badge>
         </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 type Params = Promise<{ id: string }>;
 
@@ -62,49 +63,6 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
       );
     }
 
-    // Verificar intentos previos
-    const previousAttempts = await prisma.quizAttempt.findMany({
-      where: {
-        quizId,
-        collaboratorId: user.collaboratorId,
-      },
-      orderBy: { attemptNumber: "desc" },
-    });
-
-    const lastAttempt = previousAttempts[0];
-
-    // Verificar si ya hay un intento en progreso
-    if (lastAttempt?.status === "IN_PROGRESS") {
-      return NextResponse.json(lastAttempt);
-    }
-
-    // Verificar límite de intentos
-    if (quiz.maxAttempts && previousAttempts.length >= quiz.maxAttempts) {
-      return NextResponse.json(
-        { error: "Has alcanzado el número máximo de intentos" },
-        { status: 400 }
-      );
-    }
-
-    // Verificar si necesita remediación antes de reintentar
-    if (
-      lastAttempt &&
-      lastAttempt.status === "FAILED" &&
-      lastAttempt.requiresRemediation &&
-      !lastAttempt.remediationCompleted
-    ) {
-      return NextResponse.json(
-        {
-          error: "Debes completar el contenido de remediación antes de volver a intentar",
-          requiresRemediation: true,
-          attemptId: lastAttempt.id,
-        },
-        { status: 400 }
-      );
-    }
-
-    const attemptNumber = previousAttempts.length + 1;
-
     // Seleccionar preguntas (aleatorizar si está configurado)
     let questions = quiz.quizQuestions;
     
@@ -122,16 +80,98 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
       return sum + (qq.points || qq.question.points);
     }, 0);
 
-    // Crear el intento
-    const attempt = await prisma.quizAttempt.create({
-      data: {
-        quizId,
-        collaboratorId: user.collaboratorId,
-        attemptNumber,
-        status: "IN_PROGRESS",
-        pointsTotal,
-      },
-    });
+    let attempt: any;
+    let createdAttempt = false;
+
+    try {
+      attempt = await prisma.$transaction(async (tx) => {
+        const previousAttempts = await tx.quizAttempt.findMany({
+          where: {
+            quizId,
+            collaboratorId: user.collaboratorId!,
+          },
+          orderBy: { attemptNumber: "desc" },
+        });
+
+        const lastAttempt = previousAttempts[0];
+
+        // Reusar intento activo para evitar duplicados por doble click/request concurrente
+        if (lastAttempt?.status === "IN_PROGRESS") {
+          return lastAttempt;
+        }
+
+        // Verificar límite de intentos
+        if (quiz.maxAttempts && previousAttempts.length >= quiz.maxAttempts) {
+          throw new Error("MAX_ATTEMPTS_REACHED");
+        }
+
+        // Verificar si necesita remediación antes de reintentar
+        if (
+          lastAttempt &&
+          lastAttempt.status === "FAILED" &&
+          lastAttempt.requiresRemediation &&
+          !lastAttempt.remediationCompleted
+        ) {
+          const err = new Error("REMEDIATION_REQUIRED") as Error & { attemptId?: string };
+          err.attemptId = lastAttempt.id;
+          throw err;
+        }
+
+        const attemptNumber = previousAttempts.length + 1;
+        createdAttempt = true;
+
+        return tx.quizAttempt.create({
+          data: {
+            quizId,
+            collaboratorId: user.collaboratorId!,
+            attemptNumber,
+            status: "IN_PROGRESS",
+            pointsTotal,
+          },
+        });
+      });
+    } catch (error: any) {
+      if (error?.message === "MAX_ATTEMPTS_REACHED") {
+        return NextResponse.json(
+          { error: "Has alcanzado el número máximo de intentos" },
+          { status: 400 }
+        );
+      }
+
+      if (error?.message === "REMEDIATION_REQUIRED") {
+        return NextResponse.json(
+          {
+            error: "Debes completar el contenido de remediación antes de volver a intentar",
+            requiresRemediation: true,
+            attemptId: error.attemptId,
+          },
+          { status: 400 }
+        );
+      }
+
+      // Condición de carrera: otro request creó el intento entre lecturas
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const inProgressAttempt = await prisma.quizAttempt.findFirst({
+          where: {
+            quizId,
+            collaboratorId: user.collaboratorId,
+            status: "IN_PROGRESS",
+          },
+          orderBy: { attemptNumber: "desc" },
+        });
+
+        if (inProgressAttempt) {
+          attempt = inProgressAttempt;
+        } else {
+          throw error;
+        }
+      } else {
+        throw error;
+      }
+    }
 
     // Preparar las preguntas para enviar al cliente
     const questionsForClient = questions.map((qq) => {
@@ -144,11 +184,13 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
 
       return {
         id: qq.question.id,
+        text: qq.question.questionText,
         questionText: qq.question.questionText,
         type: qq.question.type,
         points: qq.points || qq.question.points,
         options: options.map((opt) => ({
           id: opt.id,
+          text: opt.optionText,
           optionText: opt.optionText,
           // No enviar isCorrect al cliente
         })),
@@ -166,7 +208,7 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
         passingScore: quiz.passingScore,
       },
       questions: questionsForClient,
-    }, { status: 201 });
+    }, { status: createdAttempt ? 201 : 200 });
   } catch (error) {
     console.error("Error al iniciar intento:", error);
     return NextResponse.json(

@@ -26,6 +26,7 @@ export function QuizTaker({ quiz, attempts, collaboratorId }: QuizTakerProps) {
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [startingAttempt, setStartingAttempt] = useState(false);
   const [result, setResult] = useState<any>(null);
 
   const lastAttempt = attempts[0];
@@ -84,6 +85,9 @@ export function QuizTaker({ quiz, attempts, collaboratorId }: QuizTakerProps) {
   };
 
   const startNewAttempt = async () => {
+    if (startingAttempt) return;
+    setStartingAttempt(true);
+
     try {
       const res = await fetch(`/api/quizzes/${quiz.id}/attempt`, {
         method: "POST",
@@ -106,6 +110,8 @@ export function QuizTaker({ quiz, attempts, collaboratorId }: QuizTakerProps) {
       toast.success("¡Examen iniciado! Buena suerte.");
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setStartingAttempt(false);
     }
   };
 
@@ -142,7 +148,21 @@ export function QuizTaker({ quiz, attempts, collaboratorId }: QuizTakerProps) {
       }
 
       const data = await res.json();
-      setResult(data);
+
+      const attemptData = data?.attempt || {};
+      const summaryData = data?.summary || {};
+      const normalizedResult = {
+        ...data,
+        id: attemptData.id || activeAttempt?.id,
+        status: attemptData.status || (summaryData.passed ? "PASSED" : "FAILED"),
+        score: attemptData.score ?? summaryData.score ?? 0,
+        correctAnswers: summaryData.correctAnswers ?? 0,
+        totalQuestions: summaryData.totalQuestions ?? questions.length,
+        requiresRemediation: attemptData.requiresRemediation ?? false,
+        remediationCompleted: attemptData.remediationCompleted ?? false,
+      };
+
+      setResult(normalizedResult);
       setTimeLeft(null);
       toast.success("¡Examen enviado!");
     } catch (error: any) {
@@ -265,10 +285,14 @@ export function QuizTaker({ quiz, attempts, collaboratorId }: QuizTakerProps) {
               size="lg"
               className="w-full"
               onClick={startNewAttempt}
-              disabled={!canStartNew || !collaboratorId}
+              disabled={!canStartNew || !collaboratorId || startingAttempt}
             >
               <PlayCircle className="mr-2 h-5 w-5" />
-              {attempts.length === 0 ? "Iniciar Examen" : `Intento ${attempts.length + 1}`}
+              {startingAttempt
+                ? "Iniciando..."
+                : attempts.length === 0
+                ? "Iniciar Examen"
+                : `Intento ${attempts.length + 1}`}
             </Button>
 
             {!collaboratorId && (
@@ -285,7 +309,39 @@ export function QuizTaker({ quiz, attempts, collaboratorId }: QuizTakerProps) {
   }
 
   // Vista de examen en progreso
+  if (!Array.isArray(questions) || questions.length === 0) {
+    return (
+      <div className="container max-w-4xl mx-auto p-6 space-y-6">
+        <Card>
+          <CardContent className="pt-6">
+            <Alert>
+              <AlertDescription>
+                Estamos cargando las preguntas del examen. Si este mensaje persiste, recarga la página.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const currentQuestion = questions[currentQuestionIndex];
+  if (!currentQuestion) {
+    return (
+      <div className="container max-w-4xl mx-auto p-6 space-y-6">
+        <Card>
+          <CardContent className="pt-6">
+            <Alert variant="destructive">
+              <AlertDescription>
+                No se pudo cargar la pregunta actual. Recarga la página para continuar.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
   const answeredCount = Object.keys(answers).length;
 
