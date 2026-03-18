@@ -12,7 +12,7 @@ import { ShieldAlert } from "lucide-react"
 export default function LoginPage() {
   const { status } = useSession()
   const router = useRouter()
-  const [email, setEmail] = useState("")
+  const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -41,7 +41,7 @@ export default function LoginPage() {
     setError("")
     setIsLoading(true)
     const result = await signIn("credentials", {
-      email,
+      identifier,
       password,
       redirect: false,
     })
@@ -80,7 +80,7 @@ export default function LoginPage() {
               <div className="flex flex-col items-center gap-1 text-center">
                 <h1 className="text-2xl font-bold">Inicia sesión en tu cuenta</h1>
                 <p className="text-muted-foreground text-sm text-balance">
-                  Ingresa tu correo y contraseña para acceder
+                  Ingresa tu DNI o correo y contraseña para acceder
                 </p>
               </div>
 
@@ -92,17 +92,17 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* Email */}
+              {/* Identificador */}
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">
-                  Correo electrónico
+                <Label htmlFor="identifier" className="text-sm font-medium">
+                  DNI o correo electrónico
                 </Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="tu@ejemplo.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="identifier"
+                  type="text"
+                  placeholder="12345678 o tu@ejemplo.com"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   disabled={isLoading}
                   required
                   className="h-10"

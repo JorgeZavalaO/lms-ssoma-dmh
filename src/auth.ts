@@ -9,16 +9,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   providers: [
     Credentials({
-      name: "email",
+      name: "dni-or-email",
       credentials: {
-        email: { label: "Email", type: "email" },
+        identifier: { label: "DNI o correo", type: "text" },
         password: { label: "Password", type: "password" },
       },
       authorize: async (creds) => {
-        if (!creds?.email || !creds?.password) return null
-        const email = creds.email as string
+        if (!creds?.identifier || !creds?.password) return null
+        const identifier = (creds.identifier as string).trim()
         const password = creds.password as string
-        const user = await prisma.user.findUnique({ where: { email } })
+        if (!identifier) return null
+
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              {
+                email: {
+                  equals: identifier,
+                  mode: "insensitive",
+                },
+              },
+              {
+                collaborator: {
+                  is: {
+                    dni: identifier,
+                  },
+                },
+              },
+            ],
+          },
+        })
+
         if (!user?.hashedPassword) return null
         const hashedPassword = user.hashedPassword as string
         const ok = await bcrypt.compare(password, hashedPassword)
