@@ -83,6 +83,7 @@ export const CreateQuizSchema = z.object({
   instructions: z.string().optional(),
   courseId: z.string().optional(),
   unitId: z.string().optional(),
+  order: z.number().int().positive().optional(),
   passingScore: z.number().int().min(0).max(100).default(70),
   maxAttempts: z.number().int().min(1).optional(),
   timeLimit: z.number().int().min(1).optional(), // en minutos

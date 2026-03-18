@@ -393,6 +393,7 @@ model Unit {
   order       Int       // Orden dentro del curso
   
   lessons     Lesson[]
+  quizzes     Quiz[]
   
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -682,6 +683,8 @@ model Quiz {
   courseId        String?
   course          Course?      @relation(fields: [courseId], references: [id])
   unitId          String?
+  unit            Unit?        @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  order           Int?
   
   // Configuración de evaluación
   passingScore    Int          @default(70)  // Nota mínima para aprobar (%)
@@ -707,6 +710,9 @@ model Quiz {
   // Relaciones
   quizQuestions   QuizQuestion[]
   attempts        QuizAttempt[]
+
+  @@unique([unitId, order])
+  @@index([courseId, unitId])
   
   @@map("quizzes")
 }

@@ -36,7 +36,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
             orderBy: { order: "asc" },
           },
           quizzes: {
-            orderBy: { createdAt: "asc" },
+            orderBy: [{ order: "asc" }, { createdAt: "asc" }],
           },
         },
       },

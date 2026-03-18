@@ -315,6 +315,12 @@ export function ClientCourseView({ enrollment, lessonProgress, quizAttempts }: C
                           {/* Quizzes de la unidad (si existen) */}
                           {course.quizzes
                             .filter((quiz: any) => quiz.unitId === unit.id)
+                            .sort((a: any, b: any) => {
+                              const ao = a.order ?? Number.MAX_SAFE_INTEGER
+                              const bo = b.order ?? Number.MAX_SAFE_INTEGER
+                              if (ao !== bo) return ao - bo
+                              return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                            })
                             .map((quiz: any) => {
                               const attempts = quizAttempts.filter((a) => a.quizId === quiz.id)
                               const lastAttempt = attempts[0]
@@ -337,6 +343,11 @@ export function ClientCourseView({ enrollment, lessonProgress, quizAttempts }: C
                                           <Badge variant="outline" className="text-xs">
                                             Evaluación
                                           </Badge>
+                                          {quiz.order && (
+                                            <Badge variant="outline" className="text-xs">
+                                              Q{quiz.order}
+                                            </Badge>
+                                          )}
                                         </div>
                                         <div className="text-sm text-muted-foreground">
                                           {quiz.questions?.length || 0} preguntas • Nota mínima: {quiz.passingScore}%

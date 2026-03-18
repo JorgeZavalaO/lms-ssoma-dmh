@@ -14,6 +14,8 @@ import { toast } from "sonner";
 
 type QuizFormProps = {
   quiz?: any;
+  fixedCourseId?: string;
+  fixedUnitId?: string;
   onSuccess: () => void;
 };
 
@@ -25,6 +27,25 @@ type Question = {
   points: number;
 };
 
+type Course = {
+  id: string;
+  code?: string | null;
+  name: string;
+};
+
+type CourseUnit = {
+  id: string;
+  title: string;
+  lessons: Array<{ id: string; title: string }>;
+};
+
+type LessonOption = {
+  id: string;
+  title: string;
+  unitId: string;
+  unitTitle: string;
+};
+
 const typeLabels: Record<string, string> = {
   SINGLE_CHOICE: "Opción Única",
   MULTIPLE_CHOICE: "Opción Múltiple",
@@ -33,9 +54,18 @@ const typeLabels: Record<string, string> = {
   FILL_BLANK: "Completar",
 };
 
-export function QuizForm({ quiz, onSuccess }: QuizFormProps) {
+export function QuizForm({ quiz, fixedCourseId, fixedUnitId, onSuccess }: QuizFormProps) {
   const [loading, setLoading] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [lessons, setLessons] = useState<LessonOption[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState<string>(
+    fixedCourseId || quiz?.courseId || ""
+  );
+  const [selectedLessonId, setSelectedLessonId] = useState<string>("");
+  const [selectedUnitIdFromLesson, setSelectedUnitIdFromLesson] = useState<string>(
+    fixedUnitId || quiz?.unitId || ""
+  );
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>(
     quiz?.quizQuestions?.map((qq: any) => qq.questionId) || []
   );
@@ -44,7 +74,18 @@ export function QuizForm({ quiz, onSuccess }: QuizFormProps) {
 
   useEffect(() => {
     fetchQuestions();
+    if (!fixedCourseId) {
+      fetchCourses();
+    }
   }, []);
+
+  useEffect(() => {
+    if (fixedUnitId || !selectedCourseId) {
+      return;
+    }
+
+    fetchCourseLessons(selectedCourseId);
+  }, [fixedUnitId, selectedCourseId]);
 
   const fetchQuestions = async () => {
     try {
@@ -57,16 +98,59 @@ export function QuizForm({ quiz, onSuccess }: QuizFormProps) {
     }
   };
 
+  const fetchCourses = async () => {
+    try {
+      const res = await fetch("/api/courses");
+      if (!res.ok) throw new Error("Error al cargar cursos");
+      const data = await res.json();
+      setCourses(data);
+    } catch {
+      toast.error("No se pudieron cargar los cursos");
+    }
+  };
+
+  const fetchCourseLessons = async (courseId: string) => {
+    try {
+      const res = await fetch(`/api/courses/${courseId}/units`);
+      if (!res.ok) throw new Error("Error al cargar lecciones");
+      const units: CourseUnit[] = await res.json();
+
+      const lessonOptions = units.flatMap((unit) =>
+        unit.lessons.map((lesson) => ({
+          id: lesson.id,
+          title: lesson.title,
+          unitId: unit.id,
+          unitTitle: unit.title,
+        }))
+      );
+
+      setLessons(lessonOptions);
+
+      if (quiz?.unitId) {
+        const fromCurrentQuiz = lessonOptions.find((l) => l.unitId === quiz.unitId);
+        if (fromCurrentQuiz) {
+          setSelectedLessonId(fromCurrentQuiz.id);
+          setSelectedUnitIdFromLesson(fromCurrentQuiz.unitId);
+        }
+      }
+    } catch {
+      toast.error("No se pudieron cargar las lecciones del curso");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
+    const lessonDerivedUnitId = fixedUnitId || selectedUnitIdFromLesson || undefined;
+
     const data = {
       title: formData.get("title") as string,
       description: formData.get("description") as string || undefined,
       instructions: formData.get("instructions") as string || undefined,
-      courseId: formData.get("courseId") as string || undefined,
+      courseId: fixedCourseId || selectedCourseId || undefined,
+      unitId: lessonDerivedUnitId,
       passingScore: parseInt(formData.get("passingScore") as string) || 70,
       maxAttempts: formData.get("maxAttempts") ? parseInt(formData.get("maxAttempts") as string) : undefined,
       timeLimit: formData.get("timeLimit") ? parseInt(formData.get("timeLimit") as string) : undefined,
@@ -130,6 +214,9 @@ export function QuizForm({ quiz, onSuccess }: QuizFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
+      {fixedCourseId && <input type="hidden" name="courseId" value={fixedCourseId} />}
+      {fixedUnitId && <input type="hidden" name="unitId" value={fixedUnitId} />}
+
       {/* Información básica */}
       <div className="space-y-4">
         <h3 className="text-sm font-semibold text-foreground tracking-tight">Información General</h3>
@@ -171,6 +258,82 @@ export function QuizForm({ quiz, onSuccess }: QuizFormProps) {
           </div>
         </div>
       </div>
+
+      <div className="bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 h-px" />
+
+      {/* Vinculación con curso/lección */}
+      {(!fixedCourseId || !fixedUnitId) && (
+        <div>
+          <h3 className="text-sm font-semibold text-foreground tracking-tight mb-4">Vinculación Académica</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {!fixedCourseId && (
+              <div className="space-y-1.5">
+                <Label htmlFor="courseId" className="text-xs font-medium uppercase tracking-wide">Curso (opcional)</Label>
+                <Select
+                  value={selectedCourseId || "NONE"}
+                  onValueChange={(value) => {
+                    if (value === "NONE") {
+                      setSelectedCourseId("");
+                      setSelectedLessonId("");
+                      setSelectedUnitIdFromLesson("");
+                      setLessons([]);
+                      return;
+                    }
+                    setSelectedCourseId(value);
+                    setSelectedLessonId("");
+                    setSelectedUnitIdFromLesson("");
+                  }}
+                >
+                  <SelectTrigger className="border-slate-200 dark:border-slate-700">
+                    <SelectValue placeholder="Selecciona un curso" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">Sin curso</SelectItem>
+                    {courses.map((course) => (
+                      <SelectItem key={course.id} value={course.id}>
+                        {course.code ? `${course.code} - ` : ""}{course.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {!fixedUnitId && (
+              <div className="space-y-1.5">
+                <Label htmlFor="lessonId" className="text-xs font-medium uppercase tracking-wide">Lección (opcional)</Label>
+                <Select
+                  value={selectedLessonId || "NONE"}
+                  onValueChange={(value) => {
+                    if (value === "NONE") {
+                      setSelectedLessonId("");
+                      setSelectedUnitIdFromLesson("");
+                      return;
+                    }
+
+                    const lesson = lessons.find((l) => l.id === value);
+                    setSelectedLessonId(value);
+                    setSelectedUnitIdFromLesson(lesson?.unitId || "");
+                  }}
+                  disabled={!selectedCourseId || lessons.length === 0}
+                >
+                  <SelectTrigger className="border-slate-200 dark:border-slate-700">
+                    <SelectValue placeholder={selectedCourseId ? "Selecciona una lección" : "Primero selecciona un curso"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">Sin lección</SelectItem>
+                    {lessons.map((lesson) => (
+                      <SelectItem key={lesson.id} value={lesson.id}>
+                        {lesson.unitTitle} • {lesson.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 h-px" />
 

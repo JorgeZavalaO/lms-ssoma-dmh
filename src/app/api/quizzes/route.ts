@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
     });
 
     return NextResponse.json(quizzes);
@@ -75,6 +75,58 @@ export async function POST(req: NextRequest) {
 
     const { questionIds, ...quizData } = validatedData;
 
+    if (quizData.courseId) {
+      const course = await prisma.course.findUnique({
+        where: { id: quizData.courseId },
+        select: { id: true },
+      });
+
+      if (!course) {
+        return NextResponse.json(
+          { error: "El curso seleccionado no existe" },
+          { status: 400 }
+        );
+      }
+    }
+
+    let unitCourseId: string | undefined;
+    if (quizData.unitId) {
+      const unit = await prisma.unit.findUnique({
+        where: { id: quizData.unitId },
+        select: { id: true, courseId: true },
+      });
+
+      if (!unit) {
+        return NextResponse.json(
+          { error: "La unidad seleccionada no existe" },
+          { status: 400 }
+        );
+      }
+
+      unitCourseId = unit.courseId;
+
+      if (quizData.courseId && unit.courseId !== quizData.courseId) {
+        return NextResponse.json(
+          { error: "La unidad no pertenece al curso seleccionado" },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (!quizData.courseId && unitCourseId) {
+      quizData.courseId = unitCourseId;
+    }
+
+    let order = quizData.order;
+    if (quizData.unitId && !order) {
+      const maxOrderQuiz = await prisma.quiz.findFirst({
+        where: { unitId: quizData.unitId },
+        orderBy: { order: "desc" },
+        select: { order: true },
+      });
+      order = (maxOrderQuiz?.order || 0) + 1;
+    }
+
     // Verificar que todas las preguntas existen
     const questions = await prisma.question.findMany({
       where: {
@@ -92,6 +144,7 @@ export async function POST(req: NextRequest) {
     const quiz = await prisma.quiz.create({
       data: {
         ...quizData,
+        order,
         createdBy: session.user.id,
         quizQuestions: {
           create: questionIds.map((qId, index) => ({

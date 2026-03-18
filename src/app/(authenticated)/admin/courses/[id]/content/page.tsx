@@ -37,8 +37,17 @@ export default async function CourseContentPage({ params }: CourseContentPagePro
       lessons: {
         orderBy: { order: "asc" },
       },
+      quizzes: {
+        include: {
+          quizQuestions: {
+            select: { questionId: true },
+            orderBy: { order: "asc" },
+          },
+        },
+        orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+      },
       _count: {
-        select: { lessons: true },
+        select: { lessons: true, quizzes: true },
       },
     },
     orderBy: { order: "asc" },

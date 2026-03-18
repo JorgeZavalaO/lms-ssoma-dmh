@@ -105,6 +105,74 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
 
     const { questionIds, ...quizData } = validatedData;
 
+    if (quizData.courseId) {
+      const course = await prisma.course.findUnique({
+        where: { id: quizData.courseId },
+        select: { id: true },
+      });
+
+      if (!course) {
+        return NextResponse.json(
+          { error: "El curso seleccionado no existe" },
+          { status: 400 }
+        );
+      }
+    }
+
+    const targetUnitId =
+      quizData.unitId !== undefined ? quizData.unitId : existingQuiz.unitId;
+    const targetCourseId =
+      quizData.courseId !== undefined ? quizData.courseId : existingQuiz.courseId;
+
+    if (targetUnitId) {
+      const unit = await prisma.unit.findUnique({
+        where: { id: targetUnitId },
+        select: { id: true, courseId: true },
+      });
+
+      if (!unit) {
+        return NextResponse.json(
+          { error: "La unidad seleccionada no existe" },
+          { status: 400 }
+        );
+      }
+
+      if (targetCourseId && unit.courseId !== targetCourseId) {
+        return NextResponse.json(
+          { error: "La unidad no pertenece al curso seleccionado" },
+          { status: 400 }
+        );
+      }
+
+      if (!targetCourseId) {
+        quizData.courseId = unit.courseId;
+      }
+    }
+
+    if (quizData.unitId === null || quizData.unitId === "") {
+      quizData.unitId = undefined;
+      quizData.order = undefined;
+    }
+
+    const unitChanged =
+      quizData.unitId !== undefined && quizData.unitId !== existingQuiz.unitId;
+
+    if (
+      targetUnitId &&
+      !quizData.order &&
+      (unitChanged || existingQuiz.order == null)
+    ) {
+      const maxOrderQuiz = await prisma.quiz.findFirst({
+        where: {
+          unitId: targetUnitId,
+          id: { not: id },
+        },
+        orderBy: { order: "desc" },
+        select: { order: true },
+      });
+      quizData.order = (maxOrderQuiz?.order || 0) + 1;
+    }
+
     const quiz = await prisma.$transaction(async (tx) => {
       // Si se proporcionan nuevas preguntas, actualizar la relación
       if (questionIds) {

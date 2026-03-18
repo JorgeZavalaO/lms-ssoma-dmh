@@ -9,10 +9,27 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
-import { Plus, FileText, Video, File, Code, Package, GripVertical, AlertCircle } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Plus, FileText, Video, File, Code, Package, GripVertical, AlertCircle, Trophy, Pencil, Trash2 } from "lucide-react"
 import { CreateUnitDialog, EditUnitDialog, DeleteUnitDialog } from "@/components/admin/courses/units/modals"
 import { CreateLessonDialog, EditLessonDialog, DeleteLessonDialog } from "@/components/admin/lessons/modals"
 import { LessonPreviewDialog } from "@/components/admin/lessons/preview-dialog"
+import { QuizForm } from "@/app/(authenticated)/admin/quizzes/quiz-form"
 import {
   DndContext,
   closestCenter,
@@ -38,8 +55,10 @@ interface Unit {
   description: string | null
   order: number
   lessons: Lesson[]
+  quizzes: Quiz[]
   _count: {
     lessons: number
+    quizzes: number
   }
 }
 
@@ -54,6 +73,18 @@ interface Lesson {
   videoUrl: string | null
   fileUrl: string | null
   htmlContent: string | null
+}
+
+interface Quiz {
+  id: string
+  title: string
+  description: string | null
+  status: "DRAFT" | "PUBLISHED" | "ARCHIVED"
+  passingScore: number
+  maxAttempts: number | null
+  timeLimit: number | null
+  order: number | null
+  quizQuestions: Array<{ questionId: string }>
 }
 
 interface ClientCourseContentProps {
@@ -80,9 +111,11 @@ const lessonTypeLabels = {
 // Sortable Unit Component
 function SortableUnit({ 
   unit, 
+  courseId,
   refreshUnits 
 }: { 
   unit: Unit; 
+  courseId: string;
   refreshUnits: () => void;
 }) {
   const {
@@ -126,9 +159,14 @@ function SortableUnit({
                   )}
                 </div>
               </div>
-              <Badge variant="secondary" className="bg-slate-100 text-slate-700">
-                {unit._count.lessons} lección{unit._count.lessons !== 1 ? "es" : ""}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                  {unit._count.lessons} lección{unit._count.lessons !== 1 ? "es" : ""}
+                </Badge>
+                <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                  {unit._count.quizzes} quiz{unit._count.quizzes !== 1 ? "zes" : ""}
+                </Badge>
+              </div>
             </div>
           </AccordionTrigger>
 
@@ -156,6 +194,42 @@ function SortableUnit({
                   refreshUnits={refreshUnits}
                 />
               )}
+
+              <div className="mt-6 border-t pt-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-sm font-semibold text-slate-900">Quizzes de la unidad</h4>
+                  <div className="flex gap-2">
+                    <LinkExistingQuizDialog
+                      courseId={courseId}
+                      unitId={unit.id}
+                      existingQuizIds={unit.quizzes.map((q) => q.id)}
+                      onLinked={refreshUnits}
+                    />
+                    <CreateOrEditQuizDialog
+                      triggerLabel="Nuevo Quiz"
+                      courseId={courseId}
+                      unitId={unit.id}
+                      onSuccess={refreshUnits}
+                    />
+                  </div>
+                </div>
+
+                {unit.quizzes.length === 0 ? (
+                  <div className="text-center py-8 border-2 border-dashed border-purple-200 rounded-lg bg-purple-50/30">
+                    <Trophy className="h-8 w-8 mx-auto text-purple-300 mb-2" />
+                    <p className="text-sm text-slate-500">
+                      No hay quizzes en esta unidad
+                    </p>
+                  </div>
+                ) : (
+                  <QuizzesList
+                    quizzes={unit.quizzes}
+                    courseId={courseId}
+                    unitId={unit.id}
+                    refreshUnits={refreshUnits}
+                  />
+                )}
+              </div>
             </CardContent>
           </AccordionContent>
         </Card>
@@ -304,6 +378,335 @@ function LessonsList({
   )
 }
 
+function CreateOrEditQuizDialog({
+  triggerLabel,
+  courseId,
+  unitId,
+  quiz,
+  onSuccess,
+}: {
+  triggerLabel: string
+  courseId: string
+  unitId: string
+  quiz?: Quiz
+  onSuccess: () => void
+}) {
+  const [open, setOpen] = React.useState(false)
+
+  const handleSuccess = () => {
+    setOpen(false)
+    onSuccess()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        {quiz ? (
+          <Button variant="outline" size="sm">
+            <Pencil className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button size="sm" variant="secondary">
+            <Plus className="h-4 w-4 mr-2" />
+            {triggerLabel}
+          </Button>
+        )}
+      </DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto !max-w-[1100px]">
+        <DialogHeader>
+          <DialogTitle>{quiz ? "Editar Quiz" : "Nuevo Quiz"}</DialogTitle>
+        </DialogHeader>
+        <QuizForm
+          quiz={quiz}
+          fixedCourseId={courseId}
+          fixedUnitId={unitId}
+          onSuccess={handleSuccess}
+        />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function LinkExistingQuizDialog({
+  courseId,
+  unitId,
+  existingQuizIds,
+  onLinked,
+}: {
+  courseId: string
+  unitId: string
+  existingQuizIds: string[]
+  onLinked: () => void
+}) {
+  const [open, setOpen] = React.useState(false)
+  const [loading, setLoading] = React.useState(false)
+  const [selectedQuizId, setSelectedQuizId] = React.useState("")
+  const [availableQuizzes, setAvailableQuizzes] = React.useState<Quiz[]>([])
+
+  React.useEffect(() => {
+    if (!open) return
+
+    const fetchQuizzes = async () => {
+      try {
+        const res = await fetch("/api/quizzes")
+        if (!res.ok) throw new Error("No se pudieron cargar los quizzes")
+        const data: Quiz[] = await res.json()
+        const filtered = data.filter((quiz) => !existingQuizIds.includes(quiz.id))
+        setAvailableQuizzes(filtered)
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Error al cargar quizzes")
+      }
+    }
+
+    fetchQuizzes()
+  }, [open, existingQuizIds])
+
+  const handleLink = async () => {
+    if (!selectedQuizId) {
+      toast.error("Selecciona un quiz para vincular")
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/quizzes/${selectedQuizId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseId,
+          unitId,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || "No se pudo vincular el quiz")
+      }
+
+      toast.success("Quiz vinculado a la unidad")
+      setSelectedQuizId("")
+      setOpen(false)
+      onLinked()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error al vincular quiz")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          Vincular existente
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[560px]">
+        <DialogHeader>
+          <DialogTitle>Vincular examen existente</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Examen disponible</Label>
+            <Select value={selectedQuizId || "NONE"} onValueChange={(value) => setSelectedQuizId(value === "NONE" ? "" : value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona un examen" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="NONE">Seleccionar...</SelectItem>
+                {availableQuizzes.map((quiz) => (
+                  <SelectItem key={quiz.id} value={quiz.id}>
+                    {quiz.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {availableQuizzes.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              No hay exámenes disponibles para vincular en esta unidad.
+            </p>
+          )}
+
+          <div className="flex justify-end">
+            <Button onClick={handleLink} disabled={loading || !selectedQuizId}>
+              {loading ? "Vinculando..." : "Vincular examen"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function SortableQuiz({
+  quiz,
+  courseId,
+  unitId,
+  refreshUnits,
+}: {
+  quiz: Quiz
+  courseId: string
+  unitId: string
+  refreshUnits: () => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: quiz.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  const handleDelete = async () => {
+    if (!confirm("¿Eliminar este quiz?")) return
+
+    try {
+      const res = await fetch(`/api/quizzes/${quiz.id}`, { method: "DELETE" })
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || "No se pudo eliminar el quiz")
+      }
+      toast.success("Quiz eliminado")
+      refreshUnits()
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Error al eliminar quiz")
+    }
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between p-3 border border-purple-200 rounded-lg hover:bg-purple-50/40 transition-colors"
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <div
+          className="cursor-grab active:cursor-grabbing touch-none"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4 text-slate-400 hover:text-slate-600" />
+        </div>
+        <Badge variant="outline" className="font-mono bg-purple-50 text-purple-700 border-purple-200 flex-shrink-0">
+          Q{quiz.order ?? "-"}
+        </Badge>
+        <Trophy className="h-4 w-4 text-purple-600 flex-shrink-0" />
+        <div className="min-w-0">
+          <div className="font-medium text-slate-900 truncate">{quiz.title}</div>
+          <div className="text-sm text-slate-600 truncate">
+            {quiz.quizQuestions.length} pregunta{quiz.quizQuestions.length !== 1 ? "s" : ""}
+            {` • Nota mínima ${quiz.passingScore}%`}
+          </div>
+        </div>
+      </div>
+      <div className="flex gap-2 flex-shrink-0">
+        <CreateOrEditQuizDialog
+          triggerLabel="Editar"
+          courseId={courseId}
+          unitId={unitId}
+          quiz={quiz}
+          onSuccess={refreshUnits}
+        />
+        <Button variant="ghost" size="sm" onClick={handleDelete}>
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function QuizzesList({
+  quizzes,
+  courseId,
+  unitId,
+  refreshUnits,
+}: {
+  quizzes: Quiz[]
+  courseId: string
+  unitId: string
+  refreshUnits: () => void
+}) {
+  const [localQuizzes, setLocalQuizzes] = React.useState(quizzes)
+
+  React.useEffect(() => {
+    setLocalQuizzes(quizzes)
+  }, [quizzes])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      const oldIndex = localQuizzes.findIndex((q) => q.id === active.id)
+      const newIndex = localQuizzes.findIndex((q) => q.id === over.id)
+
+      const newQuizzes = arrayMove(localQuizzes, oldIndex, newIndex)
+      setLocalQuizzes(newQuizzes)
+
+      try {
+        const res = await fetch("/api/quizzes/reorder", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quizIds: newQuizzes.map((q) => q.id) }),
+        })
+
+        const data = await res.json()
+        if (!res.ok) {
+          throw new Error(data.details || data.error || "Error reordenando quizzes")
+        }
+
+        toast.success("Quizzes reordenados")
+        refreshUnits()
+      } catch (error) {
+        console.error("Error al reordenar quizzes:", error)
+        toast.error("Error al reordenar quizzes")
+        setLocalQuizzes(quizzes)
+      }
+    }
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext
+        items={localQuizzes.map((q) => q.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div className="space-y-2">
+          {localQuizzes.map((quiz) => (
+            <SortableQuiz
+              key={quiz.id}
+              quiz={quiz}
+              courseId={courseId}
+              unitId={unitId}
+              refreshUnits={refreshUnits}
+            />
+          ))}
+        </div>
+      </SortableContext>
+    </DndContext>
+  )
+}
+
 export default function ClientCourseContent({ courseId, initialUnits }: ClientCourseContentProps) {
   const [units, setUnits] = React.useState<Unit[]>(initialUnits)
   const [mounted, setMounted] = React.useState(false)
@@ -415,6 +818,7 @@ export default function ClientCourseContent({ courseId, initialUnits }: ClientCo
                 <SortableUnit 
                   key={unit.id} 
                   unit={unit} 
+                  courseId={courseId}
                   refreshUnits={refreshUnits}
                 />
               ))}
@@ -443,9 +847,14 @@ export default function ClientCourseContent({ courseId, initialUnits }: ClientCo
                         )}
                       </div>
                     </div>
-                    <Badge variant="secondary" className="bg-slate-100 text-slate-700">
-                      {unit._count.lessons} lección{unit._count.lessons !== 1 ? "es" : ""}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                        {unit._count.lessons} lección{unit._count.lessons !== 1 ? "es" : ""}
+                      </Badge>
+                      <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                        {unit._count.quizzes} quiz{unit._count.quizzes !== 1 ? "zes" : ""}
+                      </Badge>
+                    </div>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
