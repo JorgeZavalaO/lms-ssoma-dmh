@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { capLessonProgress } from './progress'
+import { capLessonProgress } from '../../src/lib/progress'
 
 describe('capLessonProgress', () => {
   it('permite avance proporcional con duración conocida', () => {
@@ -58,5 +58,11 @@ describe('capLessonProgress', () => {
     const requested = 200
     const { cappedView } = capLessonProgress(prev, requested, 500, 500, 100)
     expect(cappedView).toBeLessThanOrEqual(100)
+  })
+
+  it('si no hay delta de tiempo, mantiene el porcentaje previo', () => {
+    const { cappedView, allowedDeltaPct } = capLessonProgress(25, 90, 0, 0, 120)
+    expect(allowedDeltaPct).toBe(0)
+    expect(cappedView).toBe(25)
   })
 })

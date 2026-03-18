@@ -11,18 +11,32 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const collaboratorId = searchParams.get("collaboratorId") || session.user.id;
+    const requestedCollaboratorId = searchParams.get("collaboratorId");
     const pathId = searchParams.get("pathId");
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPERADMIN";
+
+    let collaboratorId: string | null = requestedCollaboratorId;
+    if (session.user.role === "COLLABORATOR") {
+      if (!session.user.collaboratorId) {
+        return NextResponse.json({ error: "Usuario sin colaborador asociado" }, { status: 400 });
+      }
+      if (requestedCollaboratorId && requestedCollaboratorId !== session.user.collaboratorId) {
+        return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+      }
+      collaboratorId = session.user.collaboratorId;
+    }
+
+    if (!collaboratorId && !isAdmin) {
+      return NextResponse.json({ error: "collaboratorId es requerido" }, { status: 400 });
+    }
 
     // Si no es admin, solo puede ver su propio progreso
-    if (
-      collaboratorId !== session.user.id &&
-      (!session.user.role || !["ADMIN", "SUPERADMIN"].includes(session.user.role))
-    ) {
+    if (!isAdmin && collaboratorId !== session.user.collaboratorId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    const where: any = { collaboratorId };
+    const where: any = {};
+    if (collaboratorId) where.collaboratorId = collaboratorId;
     if (pathId) where.learningPathId = pathId;
 
     // Obtener progreso existente o calcular
@@ -47,7 +61,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Si no hay progreso guardado, calcular dinámicamente
-    if (pathProgress.length === 0 && pathId) {
+    if (pathProgress.length === 0 && pathId && collaboratorId) {
       const path = await prisma.learningPath.findUnique({
         where: { id: pathId },
         include: {
@@ -97,7 +111,7 @@ export async function GET(req: NextRequest) {
         const totalCourses = progress.learningPath.courses.length;
         const completedCourses = await prisma.courseProgress.count({
           where: {
-            collaboratorId,
+            collaboratorId: progress.collaboratorId,
             courseId: {
               in: progress.learningPath.courses.map((lpc) => lpc.courseId),
             },
@@ -138,14 +152,16 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { learningPathId, collaboratorId } = body;
+    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPERADMIN";
 
-    const targetCollaboratorId = collaboratorId || session.user.id;
+    const targetCollaboratorId = collaboratorId || session.user.collaboratorId;
+
+    if (!targetCollaboratorId) {
+      return NextResponse.json({ error: "collaboratorId es requerido" }, { status: 400 });
+    }
 
     // Si no es admin, solo puede crear su propio progreso
-    if (
-      targetCollaboratorId !== session.user.id &&
-      (!session.user.role || !["ADMIN", "SUPERADMIN"].includes(session.user.role))
-    ) {
+    if (!isAdmin && targetCollaboratorId !== session.user.collaboratorId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 

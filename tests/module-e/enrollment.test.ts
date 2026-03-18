@@ -28,13 +28,13 @@ const { mockPrisma } = vi.hoisted(() => {
   return { mockPrisma }
 })
 
-vi.mock('./prisma', () => ({ prisma: mockPrisma }))
+vi.mock('../../src/lib/prisma', () => ({ prisma: mockPrisma }))
 
 import {
   applyAutoEnrollmentRules,
   removeInvalidAutoEnrollments,
   applyEnrollmentRule,
-} from './enrollment'
+} from '../../src/lib/enrollment'
 
 // ---------------------------------------------------------------------------
 // Datos de utilidad
@@ -595,5 +595,25 @@ describe('applyEnrollmentRule', () => {
     // 2 collabs × (1 LP + 1 curso) = 4 enrollment upsert; 2 courseProgress (1 por collab por curso)
     expect(mockPrisma.enrollment.upsert).toHaveBeenCalledTimes(4)
     expect(mockPrisma.courseProgress.upsert).toHaveBeenCalledTimes(2)
+  })
+
+  it('no crea nada cuando la regla activa no tiene courseId ni learningPathId', async () => {
+    mockPrisma.enrollmentRule.findUnique.mockResolvedValue({
+      id: 'r-empty',
+      isActive: true,
+      courseId: null,
+      learningPathId: null,
+      learningPath: null,
+      siteId: null,
+      areaId: null,
+      positionId: null,
+    })
+    mockPrisma.collaborator.findMany.mockResolvedValue([{ id: 'c1' }])
+
+    await applyEnrollmentRule('r-empty')
+
+    expect(mockPrisma.$transaction).toHaveBeenCalledOnce()
+    expect(mockPrisma.enrollment.upsert).not.toHaveBeenCalled()
+    expect(mockPrisma.courseProgress.upsert).not.toHaveBeenCalled()
   })
 })

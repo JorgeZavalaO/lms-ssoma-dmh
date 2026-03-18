@@ -32,6 +32,11 @@ import { ContentProgressTracker } from "@/components/learning/ContentProgressTra
 interface ClientLessonViewProps {
   lesson: any
   progress: any
+  lessonProgress: Array<{
+    lessonId: string
+    completed: boolean
+    viewPercentage: number
+  }>
   allUnits: any[]
   courseId: string
   collaboratorId: string
@@ -56,18 +61,35 @@ const lessonTypeLabels = {
 export function ClientLessonView({
   lesson,
   progress,
+  lessonProgress,
   allUnits,
   courseId,
 }: ClientLessonViewProps) {
   const [viewPercentage, setViewPercentage] = useState(progress?.viewPercentage || 0)
   const [isCompleted, setIsCompleted] = useState(progress?.completed || false)
+  const [lessonProgressMap, setLessonProgressMap] = useState<Record<string, { completed: boolean; viewPercentage: number }>>(() => {
+    const map: Record<string, { completed: boolean; viewPercentage: number }> = {}
+    for (const item of lessonProgress) {
+      map[item.lessonId] = {
+        completed: item.completed,
+        viewPercentage: item.viewPercentage,
+      }
+    }
+    if (!map[lesson.id]) {
+      map[lesson.id] = {
+        completed: progress?.completed || false,
+        viewPercentage: progress?.viewPercentage || 0,
+      }
+    }
+    return map
+  })
   // Tiempo activo en el documento (para no-video), en segundos
   const [docElapsedSeconds, setDocElapsedSeconds] = useState<number>(0)
 
   // Calcular lecciones completadas
   const totalLessons = allUnits.reduce((acc, unit) => acc + unit.lessons.length, 0)
   const completedLessons = allUnits.reduce((acc, unit) => {
-    return acc + unit.lessons.filter((l: any) => l.id === lesson.id && isCompleted ? 1 : 0).length
+    return acc + unit.lessons.filter((l: any) => lessonProgressMap[l.id]?.completed).length
   }, 0)
 
   // Encontrar lección siguiente
@@ -104,6 +126,13 @@ export function ClientLessonView({
 
     // Actualizar estado local inmediatamente
     setViewPercentage(percentage)
+    setLessonProgressMap((prev) => ({
+      ...prev,
+      [lesson.id]: {
+        completed: completed || prev[lesson.id]?.completed || false,
+        viewPercentage: Math.max(prev[lesson.id]?.viewPercentage ?? 0, percentage),
+      },
+    }))
     if (completed && !isCompleted) {
       setIsCompleted(true)
     }
@@ -213,7 +242,7 @@ export function ClientLessonView({
                     {unit.lessons.map((l: any, lessonIndex: number) => {
                       const isCurrentLesson = l.id === lesson.id
                       const Icon = lessonTypeIcons[l.type as keyof typeof lessonTypeIcons] || FileText
-                      const isLessonCompleted = l.id === lesson.id && isCompleted
+                      const isLessonCompleted = lessonProgressMap[l.id]?.completed || false
 
                       return (
                         <Link

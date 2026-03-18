@@ -69,6 +69,23 @@ export default async function LessonPage({ params }: LessonPageProps) {
     },
   })
 
+  // Obtener progreso de todas las lecciones del curso para sidebar y progreso global
+  const lessonProgress = await prisma.lessonProgress.findMany({
+    where: {
+      collaboratorId: session.user.collaboratorId,
+      lesson: {
+        unit: {
+          courseId,
+        },
+      },
+    },
+    select: {
+      lessonId: true,
+      completed: true,
+      viewPercentage: true,
+    },
+  })
+
   // Obtener todas las lecciones del curso para navegación
   const allUnits = await prisma.unit.findMany({
     where: { courseId: courseId },
@@ -84,6 +101,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
     <ClientLessonView
       lesson={lesson}
       progress={progress}
+      lessonProgress={lessonProgress}
       allUnits={allUnits}
       courseId={courseId}
       collaboratorId={session.user.collaboratorId}

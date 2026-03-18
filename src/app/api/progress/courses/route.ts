@@ -12,9 +12,20 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const collaboratorId = searchParams.get("collaboratorId");
+    const requestedCollaboratorId = searchParams.get("collaboratorId");
     const courseId = searchParams.get("courseId");
     const status = searchParams.get("status");
+
+    let collaboratorId = requestedCollaboratorId;
+    if (session.user.role === "COLLABORATOR") {
+      if (!session.user.collaboratorId) {
+        return NextResponse.json({ error: "Usuario sin colaborador asociado" }, { status: 400 });
+      }
+      if (requestedCollaboratorId && requestedCollaboratorId !== session.user.collaboratorId) {
+        return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+      }
+      collaboratorId = session.user.collaboratorId;
+    }
 
     const where: any = {};
     if (collaboratorId) where.collaboratorId = collaboratorId;

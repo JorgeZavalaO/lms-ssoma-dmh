@@ -231,6 +231,126 @@ export async function PUT(
       },
     })
 
+    // Sincronizar progreso/estado en inscripción del curso para reflejar avance en UI de cursos
+    await prisma.enrollment.updateMany({
+      where: {
+        collaboratorId,
+        courseId,
+        status: { not: "CANCELLED" },
+      },
+      data: {
+        progressPercent: newPercent,
+        status: isFullyCompleted ? "COMPLETED" : "ACTIVE",
+        startedAt: newPercent > 0 ? new Date() : undefined,
+        completedAt: isFullyCompleted ? new Date() : null,
+      },
+    })
+
+    // Recalcular progreso de rutas relacionadas al curso para el colaborador
+    const pathEnrollments = await prisma.enrollment.findMany({
+      where: {
+        collaboratorId,
+        learningPathId: { not: null },
+        status: { in: ["ACTIVE", "COMPLETED", "PENDING"] },
+      },
+      select: { learningPathId: true },
+    })
+
+    const learningPathIds = Array.from(
+      new Set(
+        pathEnrollments
+          .map((e) => e.learningPathId)
+          .filter((id): id is string => Boolean(id))
+      )
+    )
+
+    for (const learningPathId of learningPathIds) {
+      const pathCourses = await prisma.learningPathCourse.findMany({
+        where: { pathId: learningPathId },
+        select: { courseId: true },
+      })
+
+      if (pathCourses.length === 0) {
+        await prisma.learningPathProgress.upsert({
+          where: {
+            collaboratorId_learningPathId: {
+              collaboratorId,
+              learningPathId,
+            },
+          },
+          create: {
+            collaboratorId,
+            learningPathId,
+            progressPercent: 0,
+            coursesCompleted: 0,
+            coursesTotal: 0,
+            startedAt: new Date(),
+            lastActivityAt: new Date(),
+          },
+          update: {
+            progressPercent: 0,
+            coursesCompleted: 0,
+            coursesTotal: 0,
+            lastActivityAt: new Date(),
+            completedAt: null,
+          },
+        })
+        continue
+      }
+
+      const courseIds = pathCourses.map((pc) => pc.courseId)
+      const completedCourses = await prisma.courseProgress.count({
+        where: {
+          collaboratorId,
+          courseId: { in: courseIds },
+          status: "PASSED",
+        },
+      })
+
+      const totalCourses = courseIds.length
+      const pathPercent = Math.round((completedCourses / totalCourses) * 100)
+
+      await prisma.learningPathProgress.upsert({
+        where: {
+          collaboratorId_learningPathId: {
+            collaboratorId,
+            learningPathId,
+          },
+        },
+        create: {
+          collaboratorId,
+          learningPathId,
+          progressPercent: pathPercent,
+          coursesCompleted: completedCourses,
+          coursesTotal: totalCourses,
+          startedAt: new Date(),
+          completedAt: pathPercent === 100 ? new Date() : null,
+          lastActivityAt: new Date(),
+        },
+        update: {
+          progressPercent: pathPercent,
+          coursesCompleted: completedCourses,
+          coursesTotal: totalCourses,
+          completedAt: pathPercent === 100 ? new Date() : null,
+          lastActivityAt: new Date(),
+        },
+      })
+
+      await prisma.enrollment.updateMany({
+        where: {
+          collaboratorId,
+          learningPathId,
+          status: { not: "CANCELLED" },
+        },
+        data: {
+          progressPercent: pathPercent,
+          status: pathPercent === 100 ? "COMPLETED" : "ACTIVE",
+          startedAt: pathPercent > 0 ? new Date() : undefined,
+          completedAt: pathPercent === 100 ? new Date() : null,
+        },
+      })
+    }
+
     return NextResponse.json(progress)
   } catch (error: unknown) {
     console.error("Error updating progress:", error)
