@@ -543,7 +543,11 @@ function EnrollBulkDialog({
   })
 
   const onSubmit = async (data: Record<string, unknown>) => {
-    if (!data.courseId && !data.learningPathId) {
+    const selectedCourseId = typeof data.courseId === "string" && data.courseId.length > 0 ? data.courseId : null
+    const selectedLearningPathId = typeof data.learningPathId === "string" && data.learningPathId.length > 0 ? data.learningPathId : null
+    const hasSelectedAssignment = enrollmentType === "course" ? Boolean(selectedCourseId) : Boolean(selectedLearningPathId)
+
+    if (!hasSelectedAssignment) {
       toast.error("Debes seleccionar un curso o una ruta")
       return
     }
@@ -559,8 +563,8 @@ function EnrollBulkDialog({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          courseId: enrollmentType === "course" ? data.courseId : null,
-          learningPathId: enrollmentType === "path" ? data.learningPathId : null,
+          courseId: enrollmentType === "course" ? selectedCourseId : null,
+          learningPathId: enrollmentType === "path" ? selectedLearningPathId : null,
           filters: {
             siteIds: selectedSites.length > 0 ? selectedSites : undefined,
             areaIds: selectedAreas.length > 0 ? selectedAreas : undefined,
@@ -591,6 +595,12 @@ function EnrollBulkDialog({
     }
   }
 
+  const selectedCourseId = form.watch("courseId")
+  const selectedLearningPathId = form.watch("learningPathId")
+  const hasSelectedAssignment = enrollmentType === "course"
+    ? Boolean(selectedCourseId)
+    : Boolean(selectedLearningPathId)
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -615,7 +625,13 @@ function EnrollBulkDialog({
                   type="radio"
                   value="course"
                   checked={enrollmentType === "course"}
-                  onChange={(e) => setEnrollmentType(e.target.value as "course" | "path")}
+                  onChange={(e) => {
+                    const value = e.target.value as "course" | "path"
+                    setEnrollmentType(value)
+                    if (value === "course") {
+                      form.setValue("learningPathId", "")
+                    }
+                  }}
                 />
                 <span>Curso Individual</span>
               </label>
@@ -624,7 +640,13 @@ function EnrollBulkDialog({
                   type="radio"
                   value="path"
                   checked={enrollmentType === "path"}
-                  onChange={(e) => setEnrollmentType(e.target.value as "course" | "path")}
+                  onChange={(e) => {
+                    const value = e.target.value as "course" | "path"
+                    setEnrollmentType(value)
+                    if (value === "path") {
+                      form.setValue("courseId", "")
+                    }
+                  }}
                 />
                 <span>Ruta de Aprendizaje</span>
               </label>
@@ -777,7 +799,7 @@ function EnrollBulkDialog({
               type="submit"
               disabled={
                 loading ||
-                !form.watch("courseId") ||
+                !hasSelectedAssignment ||
                 (selectedSites.length === 0 && selectedAreas.length === 0 && selectedPositions.length === 0)
               }
             >
