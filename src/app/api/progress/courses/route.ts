@@ -39,7 +39,17 @@ export async function GET(req: NextRequest) {
           select: { id: true, fullName: true, email: true, dni: true },
         },
         course: {
-          select: { id: true, code: true, name: true, validity: true },
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            validity: true,
+            units: {
+              select: {
+                _count: { select: { lessons: true } },
+              },
+            },
+          },
         },
         certifications: {
           where: { isValid: true },
@@ -49,6 +59,72 @@ export async function GET(req: NextRequest) {
       },
       orderBy: { updatedAt: "desc" },
     });
+
+    const courseIds = progressData.map((p) => p.courseId);
+
+    // Obtener conteos en paralelo
+    const [completedLessonsRaw, passedQuizzesRaw, totalQuizzesRaw] = await Promise.all([
+      // Lecciones completadas por colaborador en cada curso
+      collaboratorId
+        ? prisma.lessonProgress.findMany({
+            where: {
+              collaboratorId,
+              completed: true,
+              lesson: { unit: { courseId: { in: courseIds } } },
+            },
+            select: { lesson: { select: { unit: { select: { courseId: true } } } } },
+          })
+        : Promise.resolve([]),
+
+      // Quizzes aprobados (un intento PASSED distinto por quiz)
+      collaboratorId
+        ? prisma.quizAttempt.findMany({
+            where: {
+              collaboratorId,
+              status: "PASSED",
+              quiz: {
+                OR: [
+                  { courseId: { in: courseIds } },
+                  { unit: { courseId: { in: courseIds } } },
+                ],
+              },
+            },
+            select: { quizId: true, quiz: { select: { courseId: true, unit: { select: { courseId: true } } } } },
+            distinct: ["quizId"],
+          })
+        : Promise.resolve([]),
+
+      // Total de quizzes publicados por curso
+      prisma.quiz.findMany({
+        where: {
+          status: "PUBLISHED",
+          OR: [
+            { courseId: { in: courseIds } },
+            { unit: { courseId: { in: courseIds } } },
+          ],
+        },
+        select: { courseId: true, unit: { select: { courseId: true } } },
+      }),
+    ]);
+
+    // Mapas de conteo por courseId
+    const lessonsCompletedMap: Record<string, number> = {};
+    for (const lp of completedLessonsRaw) {
+      const cId = lp.lesson.unit.courseId;
+      lessonsCompletedMap[cId] = (lessonsCompletedMap[cId] || 0) + 1;
+    }
+
+    const quizzesPassedMap: Record<string, number> = {};
+    for (const qa of passedQuizzesRaw) {
+      const cId = qa.quiz.courseId ?? qa.quiz.unit?.courseId;
+      if (cId) quizzesPassedMap[cId] = (quizzesPassedMap[cId] || 0) + 1;
+    }
+
+    const totalQuizzesMap: Record<string, number> = {};
+    for (const q of totalQuizzesRaw) {
+      const cId = q.courseId ?? q.unit?.courseId;
+      if (cId) totalQuizzesMap[cId] = (totalQuizzesMap[cId] || 0) + 1;
+    }
 
     // Transformar los datos para que coincidan con lo que espera el cliente
     const progress = progressData.map(p => ({
@@ -71,6 +147,10 @@ export async function GET(req: NextRequest) {
       completedAt: p.completedAt,
       exemptReason: p.exemptionReason,
       certified: p.certifications.length > 0,
+      totalLessons: p.course.units.reduce((sum, u) => sum + u._count.lessons, 0),
+      lessonsCompleted: lessonsCompletedMap[p.courseId] || 0,
+      totalQuizzes: totalQuizzesMap[p.courseId] || 0,
+      quizzesCompleted: quizzesPassedMap[p.courseId] || 0,
     }));
 
     return NextResponse.json({ progress });
