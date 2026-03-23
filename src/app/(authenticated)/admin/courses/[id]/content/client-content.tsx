@@ -26,7 +26,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Plus, FileText, Video, File, Code, Package, GripVertical, AlertCircle, Trophy, Pencil, Trash2 } from "lucide-react"
-import { CreateUnitDialog, EditUnitDialog, DeleteUnitDialog } from "@/components/admin/courses/units/modals"
+import { CreateUnitDialog, EditUnitDialog, DeleteUnitDialog, CreateQuizUnitDialog } from "@/components/admin/courses/units/modals"
 import { CreateLessonDialog, EditLessonDialog, DeleteLessonDialog } from "@/components/admin/lessons/modals"
 import { LessonPreviewDialog } from "@/components/admin/lessons/preview-dialog"
 import { QuizForm } from "@/app/(authenticated)/admin/quizzes/quiz-form"
@@ -133,6 +133,9 @@ function SortableUnit({
     opacity: isDragging ? 0.5 : 1,
   }
 
+  // Unidad de evaluación: sin lecciones y con al menos un quiz
+  const isEvaluationUnit = unit._count.lessons === 0 && unit._count.quizzes > 0
+
   return (
     <div ref={setNodeRef} style={style}>
       <AccordionItem value={unit.id} className="border rounded-lg">
@@ -147,9 +150,16 @@ function SortableUnit({
                 >
                   <GripVertical className="h-5 w-5 text-slate-400 hover:text-slate-600" />
                 </div>
-                <Badge variant="outline" className="font-mono bg-emerald-50 text-emerald-700 border-emerald-200">
-                  U{unit.order}
-                </Badge>
+                {isEvaluationUnit ? (
+                  <Badge variant="outline" className="font-mono bg-amber-50 text-amber-700 border-amber-200">
+                    <Trophy className="h-3 w-3 mr-1" />
+                    Evaluación
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="font-mono bg-emerald-50 text-emerald-700 border-emerald-200">
+                    U{unit.order}
+                  </Badge>
+                )}
                 <div className="text-left">
                   <h3 className="font-semibold text-slate-900">{unit.title}</h3>
                   {unit.description && (
@@ -160,9 +170,11 @@ function SortableUnit({
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="bg-slate-100 text-slate-700">
-                  {unit._count.lessons} lección{unit._count.lessons !== 1 ? "es" : ""}
-                </Badge>
+                {!isEvaluationUnit && (
+                  <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                    {unit._count.lessons} lección{unit._count.lessons !== 1 ? "es" : ""}
+                  </Badge>
+                )}
                 <Badge variant="secondary" className="bg-purple-100 text-purple-700">
                   {unit._count.quizzes} quiz{unit._count.quizzes !== 1 ? "zes" : ""}
                 </Badge>
@@ -172,27 +184,37 @@ function SortableUnit({
 
           <AccordionContent>
             <CardContent className="pt-4">
-              <div className="flex justify-between items-center mb-4">
-                <h4 className="text-sm font-semibold text-slate-900">Lecciones</h4>
-                <div className="flex gap-2">
-                  <CreateLessonDialog unitId={unit.id} onCreated={refreshUnits} />
+              {!isEvaluationUnit && (
+                <>
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-sm font-semibold text-slate-900">Lecciones</h4>
+                    <div className="flex gap-2">
+                      <CreateLessonDialog unitId={unit.id} onCreated={refreshUnits} />
+                      <EditUnitDialog unit={unit} onEdited={refreshUnits} />
+                      <DeleteUnitDialog unitId={unit.id} onDeleted={refreshUnits} />
+                    </div>
+                  </div>
+                  {unit.lessons.length === 0 ? (
+                    <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-lg">
+                      <FileText className="h-8 w-8 mx-auto text-slate-300 mb-2" />
+                      <p className="text-sm text-slate-500">
+                        No hay lecciones en esta unidad
+                      </p>
+                    </div>
+                  ) : (
+                    <LessonsList
+                      lessons={unit.lessons}
+                      refreshUnits={refreshUnits}
+                    />
+                  )}
+                </>
+              )}
+
+              {isEvaluationUnit && (
+                <div className="flex justify-end gap-2 mb-4">
                   <EditUnitDialog unit={unit} onEdited={refreshUnits} />
                   <DeleteUnitDialog unitId={unit.id} onDeleted={refreshUnits} />
                 </div>
-              </div>
-
-              {unit.lessons.length === 0 ? (
-                <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-lg">
-                  <FileText className="h-8 w-8 mx-auto text-slate-300 mb-2" />
-                  <p className="text-sm text-slate-500">
-                    No hay lecciones en esta unidad
-                  </p>
-                </div>
-              ) : (
-                <LessonsList 
-                  lessons={unit.lessons} 
-                  refreshUnits={refreshUnits}
-                />
               )}
 
               <div className="mt-6 border-t pt-4">
@@ -780,8 +802,9 @@ export default function ClientCourseContent({ courseId, initialUnits }: ClientCo
         </div>
       </div>
       
-      {/* Create Unit Button */}
-      <div className="flex justify-end">
+      {/* Create Unit Buttons */}
+      <div className="flex justify-end gap-2">
+        <CreateQuizUnitDialog courseId={courseId} onCreated={refreshUnits} />
         <CreateUnitDialog courseId={courseId} onCreated={refreshUnits} />
       </div>
 
@@ -800,6 +823,7 @@ export default function ClientCourseContent({ courseId, initialUnits }: ClientCo
                 </p>
               </div>
               <CreateUnitDialog courseId={courseId} onCreated={refreshUnits} />
+              <CreateQuizUnitDialog courseId={courseId} onCreated={refreshUnits} />
             </div>
           </CardContent>
         </Card>

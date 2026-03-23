@@ -16,7 +16,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
-import { Plus, Trash2 } from "lucide-react"
+import { Plus, Trash2, Trophy } from "lucide-react"
+import { QuizForm } from "@/app/(authenticated)/admin/quizzes/quiz-form"
 
 // Create Unit Dialog
 interface CreateUnitDialogProps {
@@ -249,6 +250,131 @@ export function DeleteUnitDialog({ unitId, onDeleted }: DeleteUnitDialogProps) {
             {loading ? "Eliminando..." : "Eliminar"}
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// Create Quiz Unit Dialog — crea una unidad de evaluación en 2 pasos
+interface CreateQuizUnitDialogProps {
+  courseId: string
+  onCreated: () => void
+}
+
+export function CreateQuizUnitDialog({ courseId, onCreated }: CreateQuizUnitDialogProps) {
+  const [open, setOpen] = React.useState(false)
+  const [step, setStep] = React.useState<"unit" | "quiz">("unit")
+  const [loading, setLoading] = React.useState(false)
+  const [createdUnitId, setCreatedUnitId] = React.useState<string | null>(null)
+
+  const form = useForm({
+    defaultValues: {
+      title: "",
+      description: "",
+    },
+  })
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      // Resetear al cerrar
+      setStep("unit")
+      setCreatedUnitId(null)
+      form.reset()
+    }
+    setOpen(next)
+  }
+
+  const onSubmitUnit = async (data: Record<string, unknown>) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/courses/${courseId}/units`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || "Error al crear la unidad")
+      }
+
+      const unit = await res.json()
+      setCreatedUnitId(unit.id)
+      setStep("quiz")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error desconocido")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleQuizSuccess = () => {
+    toast.success("Unidad de evaluación creada exitosamente")
+    setOpen(false)
+    setStep("unit")
+    setCreatedUnitId(null)
+    form.reset()
+    onCreated()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          <Trophy className="h-4 w-4 mr-2" />
+          Nueva Evaluación
+        </Button>
+      </DialogTrigger>
+      <DialogContent className={step === "quiz" ? "max-h-[90vh] overflow-y-auto !max-w-[1100px]" : "sm:max-w-[500px]"}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-purple-600" />
+            {step === "unit" ? "Nueva Unidad de Evaluación (1/2)" : "Configurar Examen (2/2)"}
+          </DialogTitle>
+          <DialogDescription>
+            {step === "unit"
+              ? "Define el nombre de la unidad. A continuación podrás crear el examen."
+              : "Configura el examen que formará esta unidad de evaluación."}
+          </DialogDescription>
+        </DialogHeader>
+
+        {step === "unit" && (
+          <form onSubmit={form.handleSubmit(onSubmitUnit)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="quiz-unit-title">Título de la evaluación *</Label>
+              <Input
+                id="quiz-unit-title"
+                {...form.register("title", { required: true })}
+                placeholder="Examen Final del Módulo"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="quiz-unit-desc">Descripción</Label>
+              <Textarea
+                id="quiz-unit-desc"
+                {...form.register("description")}
+                placeholder="Descripción de la evaluación"
+                rows={3}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? "Creando..." : "Continuar →"}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+
+        {step === "quiz" && createdUnitId && (
+          <QuizForm
+            fixedCourseId={courseId}
+            fixedUnitId={createdUnitId}
+            onSuccess={handleQuizSuccess}
+          />
+        )}
       </DialogContent>
     </Dialog>
   )
