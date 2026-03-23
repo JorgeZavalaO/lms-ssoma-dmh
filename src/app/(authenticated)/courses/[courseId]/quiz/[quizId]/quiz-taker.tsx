@@ -180,7 +180,20 @@ export function QuizTaker({ quiz, attempts, collaboratorId }: QuizTakerProps) {
 
   // Vista de resultados
   if (result) {
-    return <QuizResults result={result} quiz={quiz} onRetry={() => router.refresh()} />;
+    return (
+      <QuizResults
+        result={result}
+        quiz={quiz}
+        onRetry={() => {
+          setResult(null);
+          setActiveAttempt(null);
+          setQuestions([]);
+          setAnswers({});
+          setCurrentQuestionIndex(0);
+          router.refresh();
+        }}
+      />
+    );
   }
 
   // Vista de inicio

@@ -29,6 +29,8 @@ export function QuizResults({ result, quiz, onRetry }: QuizResultsProps) {
   const totalQuestionsCount = result?.totalQuestions ?? summary?.totalQuestions ?? 0;
   const requiresRemediation = result?.requiresRemediation ?? attempt?.requiresRemediation ?? false;
   const remediationCompleted = result?.remediationCompleted ?? attempt?.remediationCompleted ?? false;
+  const attemptNumber = result?.attempt?.attemptNumber ?? 0;
+  const maxAttemptsReached = !!quiz.maxAttempts && attemptNumber >= quiz.maxAttempts;
 
   const handleCompleteRemediation = async () => {
     if (!resultId) {
@@ -213,7 +215,15 @@ export function QuizResults({ result, quiz, onRetry }: QuizResultsProps) {
               Volver al Curso
             </Button>
 
-            {!passed && (!requiresRemediation || remediationCompleted) && (
+            {!passed && maxAttemptsReached && (
+              <Alert variant="destructive" className="text-sm py-2">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  Has alcanzado el número máximo de intentos ({quiz.maxAttempts}).
+                </AlertDescription>
+              </Alert>
+            )}
+            {!passed && !maxAttemptsReached && (!requiresRemediation || remediationCompleted) && (
               <Button onClick={onRetry}>
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Volver a Intentar
