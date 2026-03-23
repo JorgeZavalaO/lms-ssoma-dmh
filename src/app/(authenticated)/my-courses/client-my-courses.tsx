@@ -102,11 +102,15 @@ export function ClientMyCourses() {
       const enrollmentsRes = await fetch("/api/enrollments")
       if (enrollmentsRes.ok) {
         const enrollmentsData = await enrollmentsRes.json()
-        setEnrollments(enrollmentsData.enrollments || [])
+        // Filtrar solo inscripciones de cursos (las de rutas de aprendizaje tienen course=null)
+        const courseEnrollments = (enrollmentsData.enrollments || []).filter(
+          (e: CourseEnrollment) => e.course !== null
+        )
+        setEnrollments(courseEnrollments)
         
         // Cargar progreso para cada curso
         const progressData: Record<string, CourseProgress> = {}
-        for (const enrollment of enrollmentsData.enrollments || []) {
+        for (const enrollment of courseEnrollments) {
           const progressRes = await fetch(`/api/progress/courses?courseId=${enrollment.course.id}`)
           if (progressRes.ok) {
             const data = await progressRes.json()
