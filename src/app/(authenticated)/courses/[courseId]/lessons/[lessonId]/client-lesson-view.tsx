@@ -21,6 +21,7 @@ import {
   BookOpen,
   PlayCircle,
   ChevronLeft,
+  Trophy,
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -40,6 +41,12 @@ interface ClientLessonViewProps {
   allUnits: any[]
   courseId: string
   collaboratorId: string
+  quizAttempts?: Array<{
+    quizId: string
+    status: string
+    score: number | null
+    attemptNumber: number
+  }>
 }
 
 const lessonTypeIcons = {
@@ -64,6 +71,7 @@ export function ClientLessonView({
   lessonProgress,
   allUnits,
   courseId,
+  quizAttempts = [],
 }: ClientLessonViewProps) {
   const [viewPercentage, setViewPercentage] = useState(progress?.viewPercentage || 0)
   const [isCompleted, setIsCompleted] = useState(progress?.completed || false)
@@ -222,17 +230,30 @@ export function ClientLessonView({
         {/* Lista de unidades y lecciones */}
         <div className="flex-1 overflow-y-auto">
           <Accordion type="multiple" defaultValue={allUnits.map((u) => u.id)} className="w-full">
-            {allUnits.map((unit, unitIndex) => (
+            {allUnits.map((unit, unitIndex) => {
+              const unitQuizzes: any[] = unit.quizzes || []
+              const isEvaluationUnit = unit.lessons.length === 0 && unitQuizzes.length > 0
+
+              // Subtítulo dinámico
+              let unitSubtitle = ""
+              if (isEvaluationUnit) {
+                unitSubtitle = `${unitQuizzes.length} examen${unitQuizzes.length !== 1 ? "es" : ""}`
+              } else if (unitQuizzes.length > 0) {
+                unitSubtitle = `${unit.lessons.length} lección${unit.lessons.length !== 1 ? "es" : ""} · ${unitQuizzes.length} examen${unitQuizzes.length !== 1 ? "es" : ""}`
+              } else {
+                unitSubtitle = `${unit.lessons.length} lección${unit.lessons.length !== 1 ? "es" : ""}`
+              }
+
+              return (
               <AccordionItem key={unit.id} value={unit.id} className="border-0">
                 <AccordionTrigger className="px-4 py-3 hover:bg-muted/50 hover:no-underline text-left">
                   <div className="flex items-start gap-2 flex-1">
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold">
+                      <div className="text-sm font-semibold flex items-center gap-1.5">
+                        {isEvaluationUnit && <Trophy className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
                         {unitIndex + 1}. {unit.title}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {unit.lessons.length} lección{unit.lessons.length !== 1 ? "es" : ""}
-                      </div>
+                      <div className="text-xs text-muted-foreground">{unitSubtitle}</div>
                     </div>
                   </div>
                 </AccordionTrigger>
@@ -281,10 +302,64 @@ export function ClientLessonView({
                         </Link>
                       )
                     })}
+
+                    {/* Quizzes de la unidad */}
+                    {unitQuizzes.map((q: any, quizIndex: number) => {
+                      // Mejor intento del quiz
+                      const attempts = quizAttempts.filter((a) => a.quizId === q.id)
+                      const passed = attempts.some((a) => a.status === "PASSED")
+                      const failed = attempts.length > 0 && !passed
+                      const inProgress = attempts.some((a) => a.status === "IN_PROGRESS")
+                      const bestScore = attempts
+                        .filter((a) => a.score != null)
+                        .reduce((max, a) => Math.max(max, a.score ?? 0), 0)
+
+                      return (
+                        <Link
+                          key={q.id}
+                          href={`/courses/${courseId}/quiz/${q.id}`}
+                          className={cn(
+                            "flex items-center gap-3 px-4 py-2.5 transition-colors",
+                            inProgress
+                              ? "bg-blue-50 text-blue-700 border-l-2 border-blue-500"
+                              : passed
+                              ? "hover:bg-muted/50 text-green-700 hover:text-green-800"
+                              : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <div className="shrink-0">
+                            {passed ? (
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                            ) : failed ? (
+                              <Trophy className="h-4 w-4 text-red-400" />
+                            ) : (
+                              <Trophy className="h-4 w-4 text-amber-500" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm line-clamp-2">
+                              {unit.lessons.length + quizIndex + 1}. {q.title}
+                            </div>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                              {passed ? (
+                                <span className="text-green-600">Aprobado · {bestScore.toFixed(0)}%</span>
+                              ) : failed ? (
+                                <span className="text-red-500">Reprobado · {bestScore.toFixed(0)}%</span>
+                              ) : inProgress ? (
+                                <span className="text-blue-600">En progreso</span>
+                              ) : (
+                                <span>Nota mínima {q.passingScore}%</span>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                      )
+                    })}
                   </div>
                 </AccordionContent>
               </AccordionItem>
-            ))}
+              )
+            })}
           </Accordion>
         </div>
       </aside>

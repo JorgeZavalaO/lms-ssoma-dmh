@@ -93,8 +93,28 @@ export default async function LessonPage({ params }: LessonPageProps) {
       lessons: {
         orderBy: { order: "asc" },
       },
+      quizzes: {
+        where: { status: "PUBLISHED" },
+        orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+        select: { id: true, title: true, order: true, passingScore: true, maxAttempts: true },
+      },
     },
     orderBy: { order: "asc" },
+  })
+
+  // Obtener intentos de examen del colaborador en este curso
+  const quizAttempts = await prisma.quizAttempt.findMany({
+    where: {
+      collaboratorId: session.user.collaboratorId,
+      quiz: { courseId },
+    },
+    select: {
+      quizId: true,
+      status: true,
+      score: true,
+      attemptNumber: true,
+    },
+    orderBy: { attemptNumber: "desc" },
   })
 
   return (
@@ -105,6 +125,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
       allUnits={allUnits}
       courseId={courseId}
       collaboratorId={session.user.collaboratorId}
+      quizAttempts={quizAttempts}
     />
   )
 }
