@@ -11,6 +11,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
 
+    if (!['ADMIN', 'SUPERADMIN'].includes(session.user.role)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const collaboratorId = searchParams.get("collaboratorId");
     const courseId = searchParams.get("courseId");

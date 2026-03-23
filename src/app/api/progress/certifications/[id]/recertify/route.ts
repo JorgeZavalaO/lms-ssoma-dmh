@@ -13,18 +13,8 @@ export async function POST(
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    const body = await req.json();
-    const { courseProgressId } = body;
-
-    if (!courseProgressId) {
-      return NextResponse.json(
-        { error: "courseProgressId es requerido" },
-        { status: 400 }
-      );
-    }
-
     const params = await props.params;
-    // Obtener certificación anterior
+    // Obtener certificación anterior junto con el progreso del curso
     const previousCert = await prisma.certificationRecord.findUnique({
       where: { id: params.id },
       include: {
@@ -39,26 +29,15 @@ export async function POST(
       );
     }
 
-    // Obtener nuevo progreso
+    // Reutilizar el mismo registro de progreso de la certificación anterior
     const courseProgress = await prisma.courseProgress.findUnique({
-      where: { id: courseProgressId },
+      where: { id: previousCert.courseProgressId },
     });
 
     if (!courseProgress) {
       return NextResponse.json(
         { error: "Progreso de curso no encontrado" },
         { status: 404 }
-      );
-    }
-
-    // Verificar que sea el mismo curso y colaborador
-    if (
-      courseProgress.courseId !== previousCert.courseId ||
-      courseProgress.collaboratorId !== previousCert.collaboratorId
-    ) {
-      return NextResponse.json(
-        { error: "El progreso no corresponde al mismo curso/colaborador" },
-        { status: 400 }
       );
     }
 
@@ -74,7 +53,7 @@ export async function POST(
 
     const newCertification = await prisma.certificationRecord.create({
       data: {
-        courseProgressId,
+        courseProgressId: previousCert.courseProgressId,
         collaboratorId: courseProgress.collaboratorId,
         courseId: courseProgress.courseId,
         certificateNumber: certNumber,
@@ -124,7 +103,7 @@ export async function POST(
 
     // Actualizar progreso con fecha de certificación
     await prisma.courseProgress.update({
-      where: { id: courseProgressId },
+      where: { id: previousCert.courseProgressId },
       data: {
         certifiedAt: new Date(),
         status: "PASSED",

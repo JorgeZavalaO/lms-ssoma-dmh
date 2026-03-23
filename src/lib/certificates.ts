@@ -9,6 +9,7 @@ export interface CertificateData {
   id: string
   certificateNumber: string
   verificationCode: string
+  collaboratorId: string
   collaboratorName: string
   collaboratorDni: string
   courseName: string
@@ -112,6 +113,7 @@ export async function getCertificateData(
     id: certification.id,
     certificateNumber: certification.certificateNumber,
     verificationCode,
+    collaboratorId: certification.collaboratorId,
     collaboratorName: certification.collaborator.fullName,
     collaboratorDni: certification.collaborator.dni,
     courseName: certification.course.name,

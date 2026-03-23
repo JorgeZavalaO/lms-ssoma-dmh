@@ -19,11 +19,21 @@ export async function GET(
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
     }
 
-    // Admins, superadmins, o el propio colaborador pueden descargar
     const { id } = await params
 
     // Obtener datos del certificado
     const certificateData = await getCertificateData(id)
+
+    // Admins y superadmins pueden descargar cualquier certificado.
+    // Un colaborador solo puede descargar su propio certificado.
+    const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN'
+    const isOwner =
+      session.user.role === 'COLLABORATOR' &&
+      session.user.collaboratorId === certificateData.collaboratorId
+
+    if (!isAdmin && !isOwner) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    }
 
     // Generar PDF usando la función helper
     const certificatePDF = createCertificatePDF(certificateData)

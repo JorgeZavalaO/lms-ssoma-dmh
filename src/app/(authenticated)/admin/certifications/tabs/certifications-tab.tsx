@@ -130,7 +130,7 @@ export function ClientCertifications() {
       const response = await fetch(`/api/progress/certifications/${selectedCert.id}/revoke`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: revocationReason }),
+        body: JSON.stringify({ revocationReason }),
       })
 
       if (response.ok) {
