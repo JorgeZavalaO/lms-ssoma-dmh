@@ -772,6 +772,7 @@ model QuizAttempt {
 enum ProgressStatus {
   NOT_STARTED
   IN_PROGRESS
+  PENDING_EVALUATION
   PASSED
   FAILED
   EXPIRED

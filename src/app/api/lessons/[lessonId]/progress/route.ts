@@ -218,14 +218,28 @@ export async function PUT(
       }
     }
 
+    // Determinar estado final: si hay quizzes publicados, pasar a evaluación pendiente
+    let finalCourseStatus: "PENDING_EVALUATION" | "PASSED" | "IN_PROGRESS" = "IN_PROGRESS"
+    if (isFullyCompleted) {
+      const pendingQuizCount = await prisma.quiz.count({
+        where: {
+          status: "PUBLISHED",
+          OR: [{ courseId }, { unit: { courseId } }],
+        },
+      })
+      finalCourseStatus = pendingQuizCount > 0 ? "PENDING_EVALUATION" : "PASSED"
+    }
+
+    const isCourseApproved = finalCourseStatus === "PASSED"
+
     await prisma.courseProgress.update({
       where: { collaboratorId_courseId: { collaboratorId, courseId } },
       data: {
         progressPercent: newPercent,
-        status: isFullyCompleted ? "PASSED" : "IN_PROGRESS",
+        status: finalCourseStatus,
         lastActivityAt: new Date(),
-        completedAt: isFullyCompleted ? new Date() : undefined,
-        passedAt: isFullyCompleted ? new Date() : undefined,
+        completedAt: isCourseApproved ? new Date() : undefined,
+        passedAt: isCourseApproved ? new Date() : undefined,
         attended: isFullyCompleted ? attended : undefined,
         ...(finalTimeSpent !== undefined && { timeSpent: finalTimeSpent }),
       },
@@ -240,9 +254,9 @@ export async function PUT(
       },
       data: {
         progressPercent: newPercent,
-        status: isFullyCompleted ? "COMPLETED" : "ACTIVE",
+        status: isCourseApproved ? "COMPLETED" : "ACTIVE",
         startedAt: newPercent > 0 ? new Date() : undefined,
-        completedAt: isFullyCompleted ? new Date() : null,
+        completedAt: isCourseApproved ? new Date() : null,
       },
     })
 

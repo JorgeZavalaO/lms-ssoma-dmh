@@ -17,7 +17,8 @@ import {
   Calendar,
   Trophy,
   TrendingUp,
-  Award
+  Award,
+  ClipboardCheck
 } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -46,6 +47,7 @@ interface CourseEnrollment {
 
 interface CourseProgress {
   courseId: string
+  status: string
   progress: number
   lessonsCompleted: number
   totalLessons: number
@@ -118,6 +120,7 @@ export function ClientMyCourses() {
               const courseProgress = data.progress[0]
               progressData[enrollment.course.id] = {
                 courseId: enrollment.course.id,
+                status: courseProgress.status || "NOT_STARTED",
                 progress: courseProgress.progress || 0,
                 lessonsCompleted: courseProgress.lessonsCompleted || 0,
                 totalLessons: courseProgress.totalLessons || 0,
@@ -268,15 +271,25 @@ export function ClientMyCourses() {
                 const config = statusConfig[enrollment.status]
                 const Icon = config.icon
                 const courseProgress = progress[enrollment.course.id]
+                const isPendingEvaluation =
+                  enrollment.status === "ACTIVE" &&
+                  courseProgress?.status === "PENDING_EVALUATION"
 
                 return (
                   <Card key={enrollment.id} className="flex flex-col">
                     <CardHeader>
                       <div className="flex items-start justify-between mb-2">
-                        <Badge className={config.color}>
-                          <Icon className="h-3 w-3 mr-1" />
-                          {config.label}
-                        </Badge>
+                        {isPendingEvaluation ? (
+                          <Badge className="bg-orange-500">
+                            <ClipboardCheck className="h-3 w-3 mr-1" />
+                            Pend. Evaluación
+                          </Badge>
+                        ) : (
+                          <Badge className={config.color}>
+                            <Icon className="h-3 w-3 mr-1" />
+                            {config.label}
+                          </Badge>
+                        )}
                         <Badge variant="outline">
                           {modalityLabels[enrollment.course.modality as keyof typeof modalityLabels]}
                         </Badge>
@@ -346,6 +359,11 @@ export function ClientMyCourses() {
                               <>
                                 <PlayCircle className="h-4 w-4 mr-2" />
                                 Iniciar Curso
+                              </>
+                            ) : isPendingEvaluation ? (
+                              <>
+                                <ClipboardCheck className="h-4 w-4 mr-2" />
+                                Ir al Examen
                               </>
                             ) : enrollment.status === "ACTIVE" ? (
                               <>

@@ -24,6 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
       include: {
         quiz: {
           include: {
+            unit: { select: { courseId: true } },
             quizQuestions: {
               include: {
                 question: {
@@ -163,6 +164,80 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
         requiresRemediation: false,
       },
     });
+
+    // Actualizar CourseProgress cuando el colaborador completa el quiz
+    const quizCourseId = attempt.quiz.courseId ?? attempt.quiz.unit?.courseId
+    if (quizCourseId && attempt.collaboratorId) {
+      const courseProgressRecord = await prisma.courseProgress.findUnique({
+        where: {
+          collaboratorId_courseId: {
+            collaboratorId: attempt.collaboratorId,
+            courseId: quizCourseId,
+          },
+        },
+        select: { status: true },
+      })
+
+      if (passed && courseProgressRecord?.status === "PENDING_EVALUATION") {
+        // Lecciones completadas + quiz aprobado → PASSED
+        const courseForTime = await prisma.course.findUnique({
+          where: { id: quizCourseId },
+          select: { duration: true },
+        })
+        const quizFinalTimeSpent = courseForTime?.duration
+          ? courseForTime.duration * 3600
+          : undefined
+
+        await prisma.courseProgress.update({
+          where: {
+            collaboratorId_courseId: {
+              collaboratorId: attempt.collaboratorId,
+              courseId: quizCourseId,
+            },
+          },
+          data: {
+            status: "PASSED",
+            passedAt: new Date(),
+            completedAt: new Date(),
+            lastActivityAt: new Date(),
+            ...(quizFinalTimeSpent !== undefined && { timeSpent: quizFinalTimeSpent }),
+          },
+        })
+
+        await prisma.enrollment.updateMany({
+          where: {
+            collaboratorId: attempt.collaboratorId,
+            courseId: quizCourseId,
+            status: { not: "CANCELLED" },
+          },
+          data: { status: "COMPLETED", completedAt: new Date() },
+        })
+      } else if (
+        !passed &&
+        attempt.quiz.maxAttempts !== null &&
+        courseProgressRecord?.status === "PENDING_EVALUATION"
+      ) {
+        // Verificar si agotó todos los intentos disponibles del quiz
+        const usedAttempts = await prisma.quizAttempt.count({
+          where: {
+            quizId: attempt.quizId,
+            collaboratorId: attempt.collaboratorId,
+            status: { in: ["PASSED", "FAILED"] },
+          },
+        })
+        if (usedAttempts >= attempt.quiz.maxAttempts) {
+          await prisma.courseProgress.update({
+            where: {
+              collaboratorId_courseId: {
+                collaboratorId: attempt.collaboratorId,
+                courseId: quizCourseId,
+              },
+            },
+            data: { status: "FAILED", failedAt: new Date(), lastActivityAt: new Date() },
+          })
+        }
+      }
+    }
 
     const correctAnswersCount = Object.values(results).filter((r: any) => r.isCorrect).length;
     const totalQuestionsCount = attempt.quiz.quizQuestions.length;

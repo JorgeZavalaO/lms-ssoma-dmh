@@ -8,6 +8,7 @@ import { z } from "zod";
 export const ProgressStatusSchema = z.enum([
   "NOT_STARTED",
   "IN_PROGRESS",
+  "PENDING_EVALUATION",
   "PASSED",
   "FAILED",
   "EXPIRED",
