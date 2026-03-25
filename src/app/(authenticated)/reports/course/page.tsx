@@ -114,9 +114,9 @@ export default function CourseReportPage() {
             Código: {reportData.course.code} | Versión: {reportData.course.activeVersion || "N/A"}
           </p>
         </div>
-        <Button variant="outline">
+        <Button variant="outline" disabled>
           <Download className="h-4 w-4 mr-2" />
-          Exportar PDF
+          Exportación próximamente
         </Button>
       </div>
 

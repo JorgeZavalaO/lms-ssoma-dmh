@@ -6,6 +6,10 @@ import { auth } from "@/auth"
 import { Prisma } from "@prisma/client"
 import { applyAutoEnrollmentRules } from "@/lib/enrollment"
 import { generateSimplePassword, hashPassword } from "@/lib/password"
+import {
+  requireAssignableUserRole,
+  requireStaff,
+} from "@/lib/authorization"
 
 const PaginationSchema = z.object({
   page: z.coerce.number().min(1).default(1),
@@ -16,9 +20,8 @@ const PaginationSchema = z.object({
 
 export async function GET(req: Request) {
   const session = await auth()
-  if (!session || (session.user.role !== "ADMIN" && session.user.role !== "SUPERADMIN")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
+  const authError = requireStaff(session)
+  if (authError) return authError
   const url = new URL(req.url)
   const { page, pageSize, q, status } = PaginationSchema.parse({
     page: url.searchParams.get("page") || "1",
@@ -57,11 +60,12 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const session = await auth()
-  if (!session || (session.user.role !== "ADMIN" && session.user.role !== "SUPERADMIN")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
+  const authError = requireStaff(session)
+  if (authError) return authError
   const json = await req.json()
   const data = CollaboratorSchema.parse(json)
+  const roleError = requireAssignableUserRole(session, data.role)
+  if (roleError) return roleError
 
   // Validar duplicados
   const dup = await prisma.collaborator.findFirst({

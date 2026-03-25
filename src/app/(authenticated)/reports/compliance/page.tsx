@@ -202,9 +202,9 @@ export default function ComplianceReportPage() {
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
             Actualizar
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" disabled>
             <Download className="h-4 w-4 mr-2" />
-            Exportar PDF
+            Exportación próximamente
           </Button>
         </div>
       </div>

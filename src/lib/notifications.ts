@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma"
-import { NotificationType, NotificationChannel, NotificationPriority } from "@prisma/client"
-
-/**
- * Servicio para gestión de notificaciones y recordatorios
- */
+import {
+  NotificationType,
+  NotificationChannel,
+  NotificationPriority,
+} from "@prisma/client"
+import { isEmailDeliveryEnabled } from "@/lib/operational-safety"
 
 interface CreateNotificationParams {
   userId: string
@@ -21,9 +22,17 @@ interface CreateNotificationParams {
   scheduledFor?: Date
 }
 
-/**
- * Crea una notificación individual
- */
+function resolveRequestedChannel(
+  sendEmail: boolean,
+  sendInApp: boolean
+): NotificationChannel {
+  if (sendEmail && sendInApp) return "BOTH"
+  if (sendEmail) return "EMAIL"
+  if (sendInApp) return "IN_APP"
+
+  throw new Error("Debe habilitar al menos un canal de notificacion")
+}
+
 export async function createNotification(params: CreateNotificationParams) {
   const notification = await prisma.notification.create({
     data: {
@@ -40,11 +49,13 @@ export async function createNotification(params: CreateNotificationParams) {
       relatedEnrollmentId: params.relatedEnrollmentId,
       relatedCertificationId: params.relatedCertificationId,
       scheduledFor: params.scheduledFor,
-      sentAt: params.scheduledFor ? undefined : new Date(),
+      sentAt:
+        params.scheduledFor || params.channel === "EMAIL"
+          ? undefined
+          : new Date(),
     },
   })
 
-  // Si debe enviarse por email y no está programada, enviar ahora
   if (
     (params.channel === "EMAIL" || params.channel === "BOTH") &&
     !params.scheduledFor
@@ -55,11 +66,22 @@ export async function createNotification(params: CreateNotificationParams) {
   return notification
 }
 
-/**
- * Envía una notificación por email (simulado)
- */
 async function sendEmailNotification(notificationId: string) {
   try {
+    if (!isEmailDeliveryEnabled()) {
+      await prisma.notification.update({
+        where: { id: notificationId },
+        data: {
+          emailSent: false,
+          emailError:
+            "Canal EMAIL deshabilitado. Configure EMAIL_NOTIFICATIONS_ENABLED=true e integre un proveedor antes de habilitarlo.",
+          sentAt: null,
+        },
+      })
+
+      return false
+    }
+
     const notification = await prisma.notification.findUnique({
       where: { id: notificationId },
       include: {
@@ -68,30 +90,36 @@ async function sendEmailNotification(notificationId: string) {
     })
 
     if (!notification) {
-      throw new Error("Notificación no encontrada")
+      throw new Error("Notificacion no encontrada")
     }
 
-    // TODO: Integrar con servicio de email real (Resend, SendGrid, etc.)
-    // Por ahora, solo marcamos como enviado
-    console.log(`Enviando email: ${notification.subject} a usuario ${notification.userId}`)
+    const provider = process.env.EMAIL_PROVIDER?.trim()
+    if (!provider) {
+      await prisma.notification.update({
+        where: { id: notificationId },
+        data: {
+          emailSent: false,
+          emailError:
+            "No hay proveedor de email configurado. Defina EMAIL_PROVIDER y la integracion correspondiente.",
+          sentAt: null,
+        },
+      })
 
-    await prisma.notification.update({
-      where: { id: notificationId },
-      data: {
-        emailSent: true,
-        emailSentAt: new Date(),
-      },
-    })
+      return false
+    }
 
-    return true
+    throw new Error(
+      `Proveedor de email no implementado: ${provider}. Integra el adaptador real antes de habilitar EMAIL_NOTIFICATIONS_ENABLED=true.`
+    )
   } catch (error) {
-    console.error(`Error enviando email para notificación ${notificationId}:`, error)
+    console.error(`Error enviando email para notificacion ${notificationId}:`, error)
 
     await prisma.notification.update({
       where: { id: notificationId },
       data: {
         emailSent: false,
         emailError: error instanceof Error ? error.message : "Error desconocido",
+        sentAt: null,
       },
     })
 
@@ -99,23 +127,19 @@ async function sendEmailNotification(notificationId: string) {
   }
 }
 
-/**
- * Reemplaza variables en una plantilla
- */
 function replaceTemplateVariables(
   template: string,
   variables: Record<string, string>
 ): string {
   let result = template
+
   for (const [key, value] of Object.entries(variables)) {
     result = result.replace(new RegExp(`{{${key}}}`, "g"), value)
   }
+
   return result
 }
 
-/**
- * Crea notificación desde plantilla
- */
 export async function createNotificationFromTemplate(
   userId: string,
   type: NotificationType,
@@ -126,9 +150,9 @@ export async function createNotificationFromTemplate(
     relatedEnrollmentId?: string
     relatedCertificationId?: string
     scheduledFor?: Date
+    channelOverride?: NotificationChannel
   }
 ) {
-  // Obtener plantilla
   const template = await prisma.notificationTemplate.findUnique({
     where: { type },
   })
@@ -137,7 +161,6 @@ export async function createNotificationFromTemplate(
     throw new Error(`Plantilla no encontrada o inactiva para tipo: ${type}`)
   }
 
-  // Verificar preferencias del usuario
   const preference = await prisma.notificationPreference.findUnique({
     where: {
       userId_type: {
@@ -147,12 +170,10 @@ export async function createNotificationFromTemplate(
     },
   })
 
-  // Determinar canal según preferencias
-  let channel = template.defaultChannel
+  let channel = options?.channelOverride || template.defaultChannel
 
   if (preference) {
     if (!preference.enableEmail && !preference.enableInApp) {
-      // Usuario deshabilitó ambos canales, no enviar
       return null
     }
 
@@ -163,12 +184,10 @@ export async function createNotificationFromTemplate(
     }
   }
 
-  // Reemplazar variables en plantilla
   const subject = replaceTemplateVariables(template.subject, variables)
   const bodyHtml = replaceTemplateVariables(template.bodyHtml, variables)
   const bodyText = replaceTemplateVariables(template.bodyText, variables)
 
-  // Crear notificación
   return createNotification({
     userId,
     collaboratorId: options?.collaboratorId,
@@ -186,34 +205,47 @@ export async function createNotificationFromTemplate(
   })
 }
 
-/**
- * Genera recordatorios de vencimiento
- */
-export async function generateExpirationReminders(daysBeforeExpiration: number) {
+export async function generateExpirationReminders(options: {
+  daysBeforeExpiration: number
+  notificationType?: NotificationType
+  sendEmail?: boolean
+  sendInApp?: boolean
+  sentBy?: string
+}) {
+  const daysBeforeExpiration = options.daysBeforeExpiration
+  const channel = resolveRequestedChannel(
+    options.sendEmail ?? true,
+    options.sendInApp ?? true
+  )
   const targetDate = new Date()
   targetDate.setDate(targetDate.getDate() + daysBeforeExpiration)
 
-  // Determinar tipo de notificación según días
   let notificationType: NotificationType
-  if (daysBeforeExpiration === 30) {
+  if (options.notificationType) {
+    notificationType = options.notificationType
+  } else if (daysBeforeExpiration === 30) {
     notificationType = "REMINDER_30_DAYS"
   } else if (daysBeforeExpiration === 7) {
     notificationType = "REMINDER_7_DAYS"
   } else if (daysBeforeExpiration === 1) {
     notificationType = "REMINDER_1_DAY"
   } else {
-    throw new Error("Días de anticipación no soportados")
+    throw new Error("Dias de anticipacion no soportados")
   }
 
-  // Buscar cursos próximos a vencer
+  const dayStart = new Date(targetDate)
+  dayStart.setHours(0, 0, 0, 0)
+  const dayEnd = new Date(targetDate)
+  dayEnd.setHours(23, 59, 59, 999)
+
   const progressRecords = await prisma.courseProgress.findMany({
     where: {
       expiresAt: {
-        gte: new Date(targetDate.setHours(0, 0, 0, 0)),
-        lte: new Date(targetDate.setHours(23, 59, 59, 999)),
+        gte: dayStart,
+        lte: dayEnd,
       },
       status: {
-        in: ["IN_PROGRESS", "NOT_STARTED"],
+        in: ["PASSED", "EXEMPTED"],
       },
     },
     include: {
@@ -226,11 +258,14 @@ export async function generateExpirationReminders(daysBeforeExpiration: number) 
     },
   })
 
+  const eligibleRecipients = progressRecords.filter((progress) =>
+    Boolean(progress.collaborator.user)
+  )
+
   let successCount = 0
   let failureCount = 0
 
-  // Crear notificaciones
-  for (const progress of progressRecords) {
+  for (const progress of eligibleRecipients) {
     if (!progress.collaborator.user) continue
 
     try {
@@ -240,56 +275,61 @@ export async function generateExpirationReminders(daysBeforeExpiration: number) 
         {
           collaboratorName: progress.collaborator.fullName,
           courseName: progress.course.name,
-          courseCode: progress.course.code || "Sin código",
+          courseCode: progress.course.code || "Sin codigo",
+          expirationDate: progress.expiresAt?.toLocaleDateString() || "",
           dueDate: progress.expiresAt?.toLocaleDateString() || "",
           daysRemaining: daysBeforeExpiration.toString(),
         },
         {
           collaboratorId: progress.collaboratorId,
           relatedCourseId: progress.courseId,
+          channelOverride: channel,
         }
       )
       successCount++
     } catch (error) {
-      console.error(`Error creando notificación para ${progress.collaboratorId}:`, error)
+      console.error(
+        `Error creando notificacion para ${progress.collaboratorId}:`,
+        error
+      )
       failureCount++
     }
   }
 
-  // Registrar en log
   await prisma.notificationLog.create({
     data: {
       type: notificationType,
-      channel: "BOTH",
-      recipientCount: progressRecords.length,
+      channel,
+      recipientCount: eligibleRecipients.length,
       successCount,
       failureCount,
-      subject: `Recordatorios de vencimiento (${daysBeforeExpiration} días)`,
+      subject: `Recordatorios de vencimiento (${daysBeforeExpiration} dias)`,
       metadata: {
         daysBeforeExpiration,
         targetDate: targetDate.toISOString(),
       },
+      sentBy: options.sentBy,
     },
   })
 
   return {
-    totalRecords: progressRecords.length,
+    totalRecords: eligibleRecipients.length,
     successCount,
     failureCount,
   }
 }
 
-/**
- * Genera resumen semanal para jefes de área
- */
 export async function generateTeamSummary(options?: {
   areaId?: string
   siteId?: string
+  sendEmail?: boolean
+  sentBy?: string
 }) {
-  // Buscar jefes de área
+  const channel = options?.sendEmail === false ? "IN_APP" : "BOTH"
+
   const areaHeads = await prisma.areaHeadHistory.findMany({
     where: {
-      endDate: null, // Solo jefes actuales
+      endDate: null,
       ...(options?.areaId && { areaId: options.areaId }),
     },
     include: {
@@ -329,14 +369,12 @@ export async function generateTeamSummary(options?: {
   for (const areaHead of areaHeads) {
     if (!areaHead.collaborator.user) continue
 
-    // Calcular estadísticas del equipo
     const teamMembers = areaHead.area.collaborators
     const totalPendingCourses = teamMembers.reduce(
       (sum, member) => sum + member.courseProgress.length,
       0
     )
 
-    // Cursos próximos a vencer (próximos 7 días)
     const upcomingDeadline = new Date()
     upcomingDeadline.setDate(upcomingDeadline.getDate() + 7)
 
@@ -349,23 +387,22 @@ export async function generateTeamSummary(options?: {
       )
     )
 
-    // Crear contenido del resumen
     const bodyHtml = `
-      <h2>Resumen Semanal - Área: ${areaHead.area.name}</h2>
+      <h2>Resumen Semanal - Area: ${areaHead.area.name}</h2>
       <p>Estimado/a ${areaHead.collaborator.fullName},</p>
       <p>Este es el resumen de capacitaciones pendientes de su equipo:</p>
-      
-      <h3>Estadísticas Generales</h3>
+
+      <h3>Estadisticas Generales</h3>
       <ul>
         <li><strong>Total de colaboradores:</strong> ${teamMembers.length}</li>
         <li><strong>Cursos pendientes totales:</strong> ${totalPendingCourses}</li>
-        <li><strong>Cursos próximos a vencer (7 días):</strong> ${upcomingCourses.length}</li>
+        <li><strong>Cursos proximos a vencer (7 dias):</strong> ${upcomingCourses.length}</li>
       </ul>
-      
+
       ${
         upcomingCourses.length > 0
           ? `
-        <h3>Cursos Próximos a Vencer</h3>
+        <h3>Cursos Proximos a Vencer</h3>
         <ul>
           ${upcomingCourses
             .map(
@@ -377,26 +414,26 @@ export async function generateTeamSummary(options?: {
       `
           : ""
       }
-      
+
       <p>Le recomendamos hacer seguimiento con los colaboradores para asegurar el cumplimiento.</p>
     `
 
     const bodyText = `
-Resumen Semanal - Área: ${areaHead.area.name}
+Resumen Semanal - Area: ${areaHead.area.name}
 
 Estimado/a ${areaHead.collaborator.fullName},
 
 Este es el resumen de capacitaciones pendientes de su equipo:
 
-Estadísticas Generales:
+Estadisticas Generales:
 - Total de colaboradores: ${teamMembers.length}
 - Cursos pendientes totales: ${totalPendingCourses}
-- Cursos próximos a vencer (7 días): ${upcomingCourses.length}
+- Cursos proximos a vencer (7 dias): ${upcomingCourses.length}
 
 ${
   upcomingCourses.length > 0
     ? `
-Cursos Próximos a Vencer:
+Cursos Proximos a Vencer:
 ${upcomingCourses
   .map(
     (progress) =>
@@ -419,7 +456,7 @@ Le recomendamos hacer seguimiento con los colaboradores para asegurar el cumplim
         bodyHtml,
         bodyText,
         priority: "MEDIUM",
-        channel: "BOTH",
+        channel,
       })
       successCount++
     } catch (error) {
@@ -431,19 +468,19 @@ Le recomendamos hacer seguimiento con los colaboradores para asegurar el cumplim
     }
   }
 
-  // Registrar en log
   await prisma.notificationLog.create({
     data: {
       type: "TEAM_SUMMARY",
-      channel: "BOTH",
+      channel,
       recipientCount: areaHeads.length,
       successCount,
       failureCount,
-      subject: "Resumen semanal para jefes de área",
+      subject: "Resumen semanal para jefes de area",
       metadata: {
         areaId: options?.areaId,
         siteId: options?.siteId,
       },
+      sentBy: options?.sentBy,
     },
   })
 
@@ -454,9 +491,6 @@ Le recomendamos hacer seguimiento con los colaboradores para asegurar el cumplim
   }
 }
 
-/**
- * Marca notificación como leída
- */
 export async function markNotificationAsRead(notificationId: string) {
   return prisma.notification.update({
     where: { id: notificationId },
@@ -467,9 +501,6 @@ export async function markNotificationAsRead(notificationId: string) {
   })
 }
 
-/**
- * Marca todas las notificaciones de un usuario como leídas
- */
 export async function markAllNotificationsAsRead(userId: string) {
   return prisma.notification.updateMany({
     where: {
@@ -483,9 +514,6 @@ export async function markAllNotificationsAsRead(userId: string) {
   })
 }
 
-/**
- * Archiva una notificación
- */
 export async function archiveNotification(notificationId: string) {
   return prisma.notification.update({
     where: { id: notificationId },
@@ -496,9 +524,6 @@ export async function archiveNotification(notificationId: string) {
   })
 }
 
-/**
- * Obtiene notificaciones no leídas de un usuario
- */
 export async function getUnreadNotifications(userId: string) {
   return prisma.notification.findMany({
     where: {
@@ -515,9 +540,6 @@ export async function getUnreadNotifications(userId: string) {
   })
 }
 
-/**
- * Cuenta notificaciones no leídas de un usuario
- */
 export async function countUnreadNotifications(userId: string) {
   return prisma.notification.count({
     where: {

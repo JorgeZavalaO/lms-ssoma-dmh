@@ -1,24 +1,43 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/auth'
-import { prisma } from '@/lib/prisma'
+import { NextRequest, NextResponse } from "next/server"
+import { auth } from "@/auth"
+import { prisma } from "@/lib/prisma"
+import { getDestructiveMaintenanceStatus } from "@/lib/operational-safety"
+
+function formatBytes(sizeInBytes: bigint | number | null) {
+  if (sizeInBytes === null) return null
+
+  const size = typeof sizeInBytes === "bigint" ? Number(sizeInBytes) : sizeInBytes
+  if (!Number.isFinite(size) || size < 0) return null
+
+  const units = ["B", "KB", "MB", "GB", "TB"]
+  let value = size
+  let unitIndex = 0
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024
+    unitIndex += 1
+  }
+
+  return `${value.toFixed(unitIndex === 0 ? 0 : 2)} ${units[unitIndex]}`
+}
 
 /**
  * GET /api/superadmin/stats
- * Obtiene estadísticas completas del sistema
+ * Obtiene estadisticas completas del sistema
  * Solo accesible para SUPERADMIN
  */
 export async function GET(req: NextRequest) {
   try {
+    void req
     const session = await auth()
 
-    if (!session?.user || session.user.role !== 'SUPERADMIN') {
+    if (!session?.user || session.user.role !== "SUPERADMIN") {
       return NextResponse.json(
-        { error: 'No autorizado - Solo SUPERADMIN' },
+        { error: "No autorizado - Solo SUPERADMIN" },
         { status: 403 }
       )
     }
 
-    // Obtener estadísticas en paralelo
     const [
       totalUsers,
       superadmins,
@@ -31,23 +50,32 @@ export async function GET(req: NextRequest) {
       enrollments,
       certifications,
       completedCourses,
+      activeUsers,
     ] = await Promise.all([
       prisma.user.count(),
-      prisma.user.count({ where: { role: 'SUPERADMIN' } }),
-      prisma.user.count({ where: { role: 'ADMIN' } }),
-      prisma.user.count({ where: { role: 'COLLABORATOR' } }),
+      prisma.user.count({ where: { role: "SUPERADMIN" } }),
+      prisma.user.count({ where: { role: "ADMIN" } }),
+      prisma.user.count({ where: { role: "COLLABORATOR" } }),
       prisma.course.count(),
       prisma.learningPath.count(),
       prisma.question.count(),
       prisma.quiz.count(),
       prisma.enrollment.count(),
       prisma.certificationRecord.count(),
-      prisma.courseProgress.count({ where: { status: 'PASSED' } }),
+      prisma.courseProgress.count({ where: { status: "PASSED" } }),
+      prisma.session
+        .groupBy({
+          by: ["userId"],
+          where: {
+            expires: {
+              gt: new Date(),
+            },
+          },
+        })
+        .then((rows) => rows.length),
     ])
 
-    // Calcular tamaño aproximado de la base de datos
-    // Nota: Esto es una aproximación. En producción, usarías queries específicas de PostgreSQL
-    const totalRecords = 
+    const totalRecords =
       totalUsers +
       courses +
       learningPaths +
@@ -56,10 +84,37 @@ export async function GET(req: NextRequest) {
       enrollments +
       certifications
 
+    let databaseSizeBytes: bigint | null = null
+    let publicTables: number | null = null
+
+    try {
+      const dbMetrics = await prisma.$queryRaw<
+        Array<{ database_size: bigint; public_tables: bigint }>
+      >`
+        SELECT
+          pg_database_size(current_database())::bigint AS database_size,
+          (
+            SELECT COUNT(*)::bigint
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+          ) AS public_tables
+      `
+
+      databaseSizeBytes = dbMetrics[0]?.database_size ?? null
+      publicTables = dbMetrics[0]?.public_tables
+        ? Number(dbMetrics[0].public_tables)
+        : null
+    } catch (metricsError) {
+      console.warn(
+        "No se pudo obtener metadata real de PostgreSQL para superadmin stats:",
+        metricsError
+      )
+    }
+
     const stats = {
       database: {
-        size: `${(totalRecords * 2).toFixed(2)} KB`, // Aproximación
-        tables: 25, // Número aproximado de tablas en tu schema
+        size: formatBytes(databaseSizeBytes),
+        tables: publicTables,
         records: totalRecords,
       },
       users: {
@@ -67,7 +122,7 @@ export async function GET(req: NextRequest) {
         superadmins,
         admins,
         collaborators,
-        active: totalUsers, // Puedes agregar lógica para usuarios activos
+        active: activeUsers,
       },
       content: {
         courses,
@@ -80,15 +135,14 @@ export async function GET(req: NextRequest) {
         certifications,
         completedCourses,
       },
+      maintenance: getDestructiveMaintenanceStatus(),
     }
 
     return NextResponse.json({ stats })
   } catch (error) {
-    console.error('Error obteniendo estadísticas del sistema:', error)
-    const message = error instanceof Error ? error.message : 'Error al obtener estadísticas'
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    )
+    console.error("Error obteniendo estadisticas del sistema:", error)
+    const message =
+      error instanceof Error ? error.message : "Error al obtener estadisticas"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

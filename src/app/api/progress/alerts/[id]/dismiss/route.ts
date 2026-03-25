@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { requireCollaboratorAccess } from "@/lib/authorization";
 
 // Funciones de mapeo (mismas que en route.ts)
 function mapAlertType(type: string): string {
@@ -45,6 +46,9 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    const accessError = requireCollaboratorAccess(session, alert.collaboratorId);
+    if (accessError) return accessError;
 
     const updated = await prisma.progressAlert.update({
       where: { id: params.id },

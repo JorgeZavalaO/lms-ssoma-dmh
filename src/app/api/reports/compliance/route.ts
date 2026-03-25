@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { getComplianceReport } from "@/lib/reports"
 import { ComplianceReportFiltersSchema } from "@/validations/reports"
+import { requireStaff } from "@/lib/authorization"
 
 // GET /api/reports/compliance - Obtener reporte de cumplimiento SSOMA
 export async function GET(req: NextRequest) {
   try {
     const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
-    }
+    const authError = requireStaff(session)
+    if (authError) return authError
 
     // Parsear filtros desde query params
     const url = new URL(req.url)
@@ -42,7 +42,9 @@ export async function GET(req: NextRequest) {
         c.courses.some((course) => course.status === "EXPIRING_SOON")
       ).length,
       expired: matrix.filter((c) =>
-        c.courses.some((course) => course.status === "EXPIRED")
+        c.courses.some(
+          (course) => course.status === "EXPIRED" || course.status === "NOT_ENROLLED"
+        )
       ).length,
     }
 

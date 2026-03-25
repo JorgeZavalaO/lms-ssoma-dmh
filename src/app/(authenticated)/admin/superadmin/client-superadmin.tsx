@@ -50,8 +50,8 @@ import { es } from "date-fns/locale"
 
 interface SystemStats {
   database: {
-    size: string
-    tables: number
+    size: string | null
+    tables: number | null
     records: number
   }
   users: {
@@ -72,6 +72,11 @@ interface SystemStats {
     certifications: number
     completedCourses: number
   }
+  maintenance: {
+    enabled: boolean
+    stage: string
+    reason: string | null
+  }
 }
 
 interface AdminUser {
@@ -79,7 +84,7 @@ interface AdminUser {
   name: string | null
   email: string
   role: string
-  createdAt: string
+  createdAt: string | null
   lastLogin: string | null
 }
 
@@ -139,6 +144,10 @@ export function ClientSuperAdmin() {
       setCleaningData(true)
       const response = await fetch("/api/superadmin/clean-test-data", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          confirmationText: confirmText,
+        }),
       })
 
       if (response.ok) {
@@ -285,7 +294,7 @@ export function ClientSuperAdmin() {
           <CardContent>
             <div className="text-2xl font-bold">{stats?.database.size || "N/A"}</div>
             <div className="text-xs text-muted-foreground mt-2 space-y-1">
-              <div>{stats?.database.tables || 0} tablas</div>
+              <div>{stats?.database.tables ?? "N/D"} tablas</div>
               <div>{stats?.database.records.toLocaleString() || 0} registros totales</div>
             </div>
           </CardContent>
@@ -355,6 +364,15 @@ export function ClientSuperAdmin() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {stats?.maintenance && !stats.maintenance.enabled && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <p className="font-semibold">Herramienta bloqueada en este entorno</p>
+              <p className="mt-1 text-amber-800">
+                {stats.maintenance.reason} Entorno detectado:{" "}
+                <span className="font-mono">{stats.maintenance.stage}</span>.
+              </p>
+            </div>
+          )}
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div>
               <h4 className="font-semibold text-red-700">Eliminar TODO el Contenido del Sistema</h4>
@@ -370,6 +388,7 @@ export function ClientSuperAdmin() {
               variant="destructive" 
               onClick={() => setShowCleanDialog(true)}
               className="ml-4"
+              disabled={!stats?.maintenance.enabled}
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Limpiar Sistema
@@ -421,7 +440,9 @@ export function ClientSuperAdmin() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {format(new Date(admin.createdAt), "dd/MM/yyyy", { locale: es })}
+                    {admin.createdAt
+                      ? format(new Date(admin.createdAt), "dd/MM/yyyy", { locale: es })
+                      : "No disponible"}
                   </TableCell>
                   <TableCell>
                     {admin.lastLogin 

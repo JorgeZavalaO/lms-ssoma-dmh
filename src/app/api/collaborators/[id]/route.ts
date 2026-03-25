@@ -4,12 +4,16 @@ import { UpdateCollaboratorSchema } from "@/validations/collaborators"
 import { auth } from "@/auth"
 import { hashPassword } from "@/lib/password"
 import { applyAutoEnrollmentRules, removeInvalidAutoEnrollments } from "@/lib/enrollment"
+import {
+  requireAssignableUserRole,
+  requireManagePrivilegedUser,
+  requireStaff,
+} from "@/lib/authorization"
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
-  if (!session || (session.user.role !== "ADMIN" && session.user.role !== "SUPERADMIN")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
+  const authError = requireStaff(session)
+  if (authError) return authError
 
   const body = await req.json()
   const data = UpdateCollaboratorSchema.parse(body)
@@ -20,6 +24,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     include: { user: true }
   })
   if (!current) return NextResponse.json({ error: "Not Found" }, { status: 404 })
+  const privilegedUserError = requireManagePrivilegedUser(session, current.user?.role ?? null)
+  if (privilegedUserError) return privilegedUserError
+  const roleError = requireAssignableUserRole(session, data.role)
+  if (roleError) return roleError
 
   // Validar email único si se está cambiando
   if (data.email && data.email !== current.email) {
@@ -128,10 +136,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
-  if (!session || (session.user.role !== "ADMIN" && session.user.role !== "SUPERADMIN")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
+  const authError = requireStaff(session)
+  if (authError) return authError
   const { id } = await params
+  const current = await prisma.collaborator.findUnique({
+    where: { id },
+    include: { user: { select: { role: true } } },
+  })
+  if (!current) return NextResponse.json({ error: "Not Found" }, { status: 404 })
+  const privilegedUserError = requireManagePrivilegedUser(session, current.user?.role ?? null)
+  if (privilegedUserError) return privilegedUserError
   
   // Soft-delete: marcar INACTIVE tanto el colaborador como su usuario
   const updated = await prisma.$transaction(async (tx) => {

@@ -1,54 +1,66 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server"
+import { auth } from "@/auth"
+import type { Prisma } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
+import { requireStaff } from "@/lib/authorization"
+import { generateUniqueCertificationIdentifiers } from "@/lib/certificates"
 
-// POST /api/progress/certifications/[id]/recertify - Crear recertificación
 export async function POST(
-  req: NextRequest,
+  _req: NextRequest,
   props: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session || !session.user?.role || !["ADMIN", "SUPERADMIN"].includes(session.user.role)) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
+    const session = await auth()
+    const staffError = requireStaff(session)
+    if (staffError) return staffError
 
-    const params = await props.params;
-    // Obtener certificación anterior junto con el progreso del curso
+    const params = await props.params
     const previousCert = await prisma.certificationRecord.findUnique({
       where: { id: params.id },
       include: {
         course: true,
       },
-    });
+    })
 
     if (!previousCert) {
       return NextResponse.json(
-        { error: "Certificación anterior no encontrada" },
+        { error: "Certificacion anterior no encontrada" },
         { status: 404 }
-      );
+      )
     }
 
-    // Reutilizar el mismo registro de progreso de la certificación anterior
+    if (previousCert.revokedAt) {
+      return NextResponse.json(
+        { error: "No se puede recertificar una certificacion revocada" },
+        { status: 400 }
+      )
+    }
+
     const courseProgress = await prisma.courseProgress.findUnique({
       where: { id: previousCert.courseProgressId },
-    });
+    })
 
     if (!courseProgress) {
       return NextResponse.json(
         { error: "Progreso de curso no encontrado" },
         { status: 404 }
-      );
+      )
     }
 
-    // Generar número de certificado único
-    const certNumber = `CERT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    if (!["PASSED", "EXEMPTED"].includes(courseProgress.status)) {
+      return NextResponse.json(
+        { error: "Solo se puede recertificar progreso aprobado o exonerado" },
+        { status: 400 }
+      )
+    }
 
-    // Calcular fecha de expiración
-    let expiresAt = null;
+    const { certificateNumber, verificationCode } =
+      await generateUniqueCertificationIdentifiers()
+
+    let expiresAt: Date | null = null
     if (previousCert.course.validity) {
-      expiresAt = new Date();
-      expiresAt.setMonth(expiresAt.getMonth() + previousCert.course.validity);
+      expiresAt = new Date()
+      expiresAt.setMonth(expiresAt.getMonth() + previousCert.course.validity)
     }
 
     const newCertification = await prisma.certificationRecord.create({
@@ -56,11 +68,15 @@ export async function POST(
         courseProgressId: previousCert.courseProgressId,
         collaboratorId: courseProgress.collaboratorId,
         courseId: courseProgress.courseId,
-        certificateNumber: certNumber,
+        certificateNumber,
+        verificationCode,
         expiresAt,
         isRecertification: true,
         previousCertId: params.id,
-        certificateData: previousCert.certificateData as any,
+        certificateData:
+          (previousCert.certificateData ?? undefined) as
+            | Prisma.InputJsonValue
+            | undefined,
       },
       include: {
         collaborator: {
@@ -73,15 +89,16 @@ export async function POST(
           select: { id: true, certificateNumber: true, issuedAt: true },
         },
       },
-    });
+    })
 
-    // Transformar datos al formato esperado por el cliente
-    const nameParts = newCertification.collaborator.fullName.split(' ');
-    const firstName = nameParts[0];
-    const lastName = nameParts.slice(1).join(' ');
+    const nameParts = newCertification.collaborator.fullName.split(" ")
+    const firstName = nameParts[0]
+    const lastName = nameParts.slice(1).join(" ")
 
     const transformedCertification = {
       id: newCertification.id,
+      certificateNumber: newCertification.certificateNumber,
+      verificationCode: newCertification.verificationCode,
       collaborator: {
         id: newCertification.collaborator.id,
         firstName,
@@ -99,23 +116,27 @@ export async function POST(
       revokedAt: newCertification.revokedAt,
       revokedBy: newCertification.revokedBy,
       revocationReason: newCertification.revocationReason,
-    };
+    }
 
-    // Actualizar progreso con fecha de certificación
     await prisma.courseProgress.update({
       where: { id: previousCert.courseProgressId },
       data: {
         certifiedAt: new Date(),
-        status: "PASSED",
+        status: courseProgress.status === "EXEMPTED" ? "EXEMPTED" : "PASSED",
       },
-    });
+    })
 
-    return NextResponse.json(transformedCertification, { status: 201 });
-  } catch (error: any) {
-    console.error("Error creating recertification:", error);
+    return NextResponse.json(transformedCertification, { status: 201 })
+  } catch (error) {
+    console.error("Error creating recertification:", error)
     return NextResponse.json(
-      { error: error.message || "Error al crear recertificación" },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Error al crear recertificacion",
+      },
       { status: 500 }
-    );
+    )
   }
 }

@@ -2,12 +2,20 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { CourseAssignedQuerySchema } from "@/validations/courses"
+import { resolveCollaboratorScope } from "@/lib/authorization"
 
 export async function GET(req: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const url = new URL(req.url)
-  const { collaboratorId } = CourseAssignedQuerySchema.parse({ collaboratorId: url.searchParams.get("collaboratorId") })
+  const { collaboratorId: requestedCollaboratorId } = CourseAssignedQuerySchema.parse({
+    collaboratorId: url.searchParams.get("collaboratorId"),
+  })
+  const scope = resolveCollaboratorScope(session, requestedCollaboratorId, {
+    requireForStaff: true,
+  })
+  if (!scope.ok) return scope.response
+  const collaboratorId = scope.collaboratorId!
 
   const collab = await prisma.collaborator.findUnique({
     where: { id: collaboratorId },

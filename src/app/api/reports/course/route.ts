@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { getCourseReport } from "@/lib/reports"
 import { CourseReportFiltersSchema } from "@/validations/reports"
+import { requireStaff } from "@/lib/authorization"
 
 // GET /api/reports/course - Obtener reporte por curso
 export async function GET(req: NextRequest) {
   try {
     const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
-    }
+    const authError = requireStaff(session)
+    if (authError) return authError
 
     // Parsear filtros desde query params
     const url = new URL(req.url)

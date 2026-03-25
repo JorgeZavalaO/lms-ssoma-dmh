@@ -83,12 +83,17 @@ export const SendBulkNotificationSchema = z.object({
 })
 
 // Recordatorios de vencimiento
-export const GenerateExpirationRemindersSchema = z.object({
-  daysBeforeExpiration: z.number().int().min(1).max(90),
-  notificationType: NotificationTypeSchema,
-  sendEmail: z.boolean().default(true),
-  sendInApp: z.boolean().default(true),
-})
+export const GenerateExpirationRemindersSchema = z
+  .object({
+    daysBeforeExpiration: z.number().int().min(1).max(90),
+    notificationType: NotificationTypeSchema.optional(),
+    sendEmail: z.boolean().default(true),
+    sendInApp: z.boolean().default(true),
+  })
+  .refine((data) => data.sendEmail || data.sendInApp, {
+    message: "Debe habilitar al menos un canal de notificacion",
+    path: ["sendEmail"],
+  })
 
 // Resumen semanal para jefes
 export const GenerateTeamSummarySchema = z.object({

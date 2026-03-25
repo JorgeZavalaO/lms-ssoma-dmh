@@ -2,13 +2,25 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { CourseSchema } from "@/validations/courses"
+import { requireAuthenticated } from "@/lib/authorization"
 
 export async function GET(req: Request) {
   try {
+    const session = await auth()
+    const authError = requireAuthenticated(session)
+    if (authError) return authError
+    const user = session!.user
+
     const { searchParams } = new URL(req.url)
     const status = searchParams.get("status")
     
-    const where = status ? { status: status as "DRAFT" | "PUBLISHED" | "ARCHIVED" } : {}
+    const where: Record<string, unknown> = status
+      ? { status: status as "DRAFT" | "PUBLISHED" | "ARCHIVED" }
+      : {}
+
+    if (user.role === "COLLABORATOR") {
+      where.status = "PUBLISHED"
+    }
     
     const items = await prisma.course.findMany({
       where,

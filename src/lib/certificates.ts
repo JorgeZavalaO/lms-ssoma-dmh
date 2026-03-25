@@ -42,6 +42,48 @@ export function generateVerificationCode(): string {
   return bytes.toString('hex').toUpperCase()
 }
 
+export function generateCertificateNumber(prefix = "CERT"): string {
+  const year = new Date().getFullYear()
+  const suffix = randomBytes(6).toString("hex").toUpperCase()
+  return `${prefix}-${year}-${suffix}`
+}
+
+export async function generateUniqueVerificationCode() {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const verificationCode = generateVerificationCode()
+    const existing = await prisma.certificationRecord.findUnique({
+      where: { verificationCode },
+      select: { id: true },
+    })
+
+    if (!existing) {
+      return verificationCode
+    }
+  }
+
+  throw new Error("No se pudo generar un codigo de verificacion unico")
+}
+
+export async function generateUniqueCertificationIdentifiers() {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const certificateNumber = generateCertificateNumber()
+    const verificationCode = await generateUniqueVerificationCode()
+
+    const existing = await prisma.certificationRecord.findFirst({
+      where: {
+        OR: [{ certificateNumber }, { verificationCode }],
+      },
+      select: { id: true },
+    })
+
+    if (!existing) {
+      return { certificateNumber, verificationCode }
+    }
+  }
+
+  throw new Error("No se pudieron generar identificadores únicos para el certificado")
+}
+
 /**
  * Generar QR code como Data URL
  */
@@ -84,7 +126,7 @@ export async function getCertificateData(
   // Generar código de verificación si no existe
   let verificationCode = certification.verificationCode
   if (!verificationCode) {
-    verificationCode = generateVerificationCode()
+    verificationCode = await generateUniqueVerificationCode()
     await prisma.certificationRecord.update({
       where: { id: certificationId },
       data: { verificationCode },
@@ -219,6 +261,7 @@ export async function updateCertificatePdf(
   metadata: {
     size: number
     generatedAt: string
+    storageMode?: string
   }
 ) {
   return await prisma.certificationRecord.update({

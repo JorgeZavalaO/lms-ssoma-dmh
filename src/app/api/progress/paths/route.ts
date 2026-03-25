@@ -1,45 +1,79 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server"
+import { auth } from "@/auth"
+import { prisma } from "@/lib/prisma"
+import { resolveCollaboratorScope } from "@/lib/authorization"
+
+async function getAccessibleLearningPathIds(
+  collaboratorId: string,
+  options?: {
+    pathId?: string | null
+    publishedOnly?: boolean
+  }
+) {
+  const enrollments = await prisma.enrollment.findMany({
+    where: {
+      collaboratorId,
+      learningPathId: options?.pathId ?? { not: null },
+      status: { not: "CANCELLED" },
+      ...(options?.publishedOnly && {
+        learningPath: {
+          status: "PUBLISHED",
+        },
+      }),
+    },
+    select: {
+      learningPathId: true,
+    },
+  })
+
+  return Array.from(
+    new Set(
+      enrollments
+        .map((enrollment) => enrollment.learningPathId)
+        .filter((learningPathId): learningPathId is string => Boolean(learningPathId))
+    )
+  )
+}
 
 // GET /api/progress/paths - Obtener progreso de rutas de aprendizaje
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session || !session.user?.id) {
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 })
     }
 
-    const { searchParams } = new URL(req.url);
-    const requestedCollaboratorId = searchParams.get("collaboratorId");
-    const pathId = searchParams.get("pathId");
-    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPERADMIN";
+    const { searchParams } = new URL(req.url)
+    const requestedCollaboratorId = searchParams.get("collaboratorId")
+    const pathId = searchParams.get("pathId")
+    const isStaff =
+      session.user.role === "ADMIN" || session.user.role === "SUPERADMIN"
 
-    let collaboratorId: string | null = requestedCollaboratorId;
-    if (session.user.role === "COLLABORATOR") {
-      if (!session.user.collaboratorId) {
-        return NextResponse.json({ error: "Usuario sin colaborador asociado" }, { status: 400 });
+    const scope = resolveCollaboratorScope(session, requestedCollaboratorId)
+    if (!scope.ok) return scope.response
+    const collaboratorId = scope.collaboratorId
+
+    const where: Record<string, unknown> = {}
+    if (collaboratorId) {
+      where.collaboratorId = collaboratorId
+
+      const accessiblePathIds = await getAccessibleLearningPathIds(collaboratorId, {
+        pathId,
+        publishedOnly: !isStaff,
+      })
+
+      if (pathId && !accessiblePathIds.includes(pathId)) {
+        return NextResponse.json(
+          { error: "No tienes una asignacion activa para esta ruta de aprendizaje" },
+          { status: 403 }
+        )
       }
-      if (requestedCollaboratorId && requestedCollaboratorId !== session.user.collaboratorId) {
-        return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-      }
-      collaboratorId = session.user.collaboratorId;
+
+      where.learningPathId = pathId ? pathId : { in: accessiblePathIds }
+    } else if (pathId) {
+      where.learningPathId = pathId
     }
 
-    if (!collaboratorId && !isAdmin) {
-      return NextResponse.json({ error: "collaboratorId es requerido" }, { status: 400 });
-    }
-
-    // Si no es admin, solo puede ver su propio progreso
-    if (!isAdmin && collaboratorId !== session.user.collaboratorId) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
-
-    const where: any = {};
-    if (collaboratorId) where.collaboratorId = collaboratorId;
-    if (pathId) where.learningPathId = pathId;
-
-    // Obtener progreso existente o calcular
     const pathProgress = await prisma.learningPathProgress.findMany({
       where,
       include: {
@@ -58,9 +92,8 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-    });
+    })
 
-    // Si no hay progreso guardado, calcular dinámicamente
     if (pathProgress.length === 0 && pathId && collaboratorId) {
       const path = await prisma.learningPath.findUnique({
         where: { id: pathId },
@@ -71,108 +104,111 @@ export async function GET(req: NextRequest) {
             },
           },
         },
-      });
+      })
 
       if (path) {
-        const totalCourses = path.courses.length;
+        if (!isStaff && path.status !== "PUBLISHED") {
+          return NextResponse.json(
+            { error: "La ruta de aprendizaje no esta disponible" },
+            { status: 403 }
+          )
+        }
+
+        const totalCourses = path.courses.length
         const completedCourses = await prisma.courseProgress.count({
           where: {
             collaboratorId,
             courseId: {
-              in: path.courses.map((lpc) => lpc.courseId),
+              in: path.courses.map((learningPathCourse) => learningPathCourse.courseId),
             },
             status: "PASSED",
           },
-        });
+        })
 
-        const progressPercent = totalCourses > 0 
-          ? Math.round((completedCourses / totalCourses) * 100) 
-          : 0;
+        const progressPercent =
+          totalCourses > 0 ? Math.round((completedCourses / totalCourses) * 100) : 0
 
-        return NextResponse.json([{
-          id: null,
-          learningPathId: pathId,
-          collaboratorId,
-          progressPercent,
-          completedCourses,
-          totalCourses,
-          startedAt: null,
-          completedAt: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          learningPath: path,
-        }]);
+        return NextResponse.json([
+          {
+            id: null,
+            learningPathId: pathId,
+            collaboratorId,
+            progressPercent,
+            completedCourses,
+            totalCourses,
+            startedAt: null,
+            completedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            learningPath: path,
+          },
+        ])
       }
     }
 
-    // Actualizar porcentajes en tiempo real
     const updatedProgress = await Promise.all(
       pathProgress.map(async (progress) => {
-        const totalCourses = progress.learningPath.courses.length;
+        const totalCourses = progress.learningPath.courses.length
         const completedCourses = await prisma.courseProgress.count({
           where: {
             collaboratorId: progress.collaboratorId,
             courseId: {
-              in: progress.learningPath.courses.map((lpc) => lpc.courseId),
+              in: progress.learningPath.courses.map(
+                (learningPathCourse) => learningPathCourse.courseId
+              ),
             },
             status: "PASSED",
           },
-        });
+        })
 
-        const progressPercent = totalCourses > 0 
-          ? Math.round((completedCourses / totalCourses) * 100) 
-          : 0;
+        const progressPercent =
+          totalCourses > 0 ? Math.round((completedCourses / totalCourses) * 100) : 0
 
         return {
           ...progress,
           progressPercent,
           completedCourses,
           totalCourses,
-        };
+        }
       })
-    );
+    )
 
-    return NextResponse.json(updatedProgress);
+    return NextResponse.json(updatedProgress)
   } catch (error: any) {
-    console.error("Error fetching learning path progress:", error);
+    console.error("Error fetching learning path progress:", error)
     return NextResponse.json(
       { error: "Error al obtener progreso de rutas de aprendizaje" },
       { status: 500 }
-    );
+    )
   }
 }
 
 // POST /api/progress/paths - Crear/actualizar progreso de ruta
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session || !session.user?.id) {
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 })
     }
 
-    const body = await req.json();
-    const { learningPathId, collaboratorId } = body;
-    const isAdmin = session.user.role === "ADMIN" || session.user.role === "SUPERADMIN";
+    const body = await req.json()
+    const { learningPathId, collaboratorId } = body
+    const scope = resolveCollaboratorScope(session, collaboratorId, {
+      requireForStaff: true,
+    })
+    if (!scope.ok) return scope.response
 
-    const targetCollaboratorId = collaboratorId || session.user.collaboratorId;
-
-    if (!targetCollaboratorId) {
-      return NextResponse.json({ error: "collaboratorId es requerido" }, { status: 400 });
-    }
-
-    // Si no es admin, solo puede crear su propio progreso
-    if (!isAdmin && targetCollaboratorId !== session.user.collaboratorId) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
+    const targetCollaboratorId = scope.collaboratorId!
+    const isStaff =
+      session.user.role === "ADMIN" || session.user.role === "SUPERADMIN"
 
     if (!learningPathId) {
       return NextResponse.json(
         { error: "learningPathId es requerido" },
         { status: 400 }
-      );
+      )
     }
 
-    // Verificar que la ruta existe
     const path = await prisma.learningPath.findUnique({
       where: { id: learningPathId },
       include: {
@@ -182,41 +218,60 @@ export async function POST(req: NextRequest) {
           },
         },
       },
-    });
+    })
 
     if (!path) {
       return NextResponse.json(
         { error: "Ruta de aprendizaje no encontrada" },
         { status: 404 }
-      );
+      )
     }
 
-    // Calcular progreso
-    const totalCourses = path.courses.length;
+    const enrollment = await prisma.enrollment.findFirst({
+      where: {
+        collaboratorId: targetCollaboratorId,
+        learningPathId,
+        status: { not: "CANCELLED" },
+      },
+      select: { id: true },
+    })
+
+    if (!enrollment) {
+      return NextResponse.json(
+        { error: "No existe una asignacion activa para esta ruta de aprendizaje" },
+        { status: 403 }
+      )
+    }
+
+    if (!isStaff && path.status !== "PUBLISHED") {
+      return NextResponse.json(
+        { error: "La ruta de aprendizaje no esta disponible" },
+        { status: 403 }
+      )
+    }
+
+    const totalCourses = path.courses.length
     const completedCourses = await prisma.courseProgress.count({
       where: {
         collaboratorId: targetCollaboratorId,
         courseId: {
-          in: path.courses.map((lpc) => lpc.courseId),
+          in: path.courses.map((learningPathCourse) => learningPathCourse.courseId),
         },
         status: "PASSED",
       },
-    });
+    })
 
-    const progressPercent = totalCourses > 0 
-      ? Math.round((completedCourses / totalCourses) * 100) 
-      : 0;
+    const progressPercent =
+      totalCourses > 0 ? Math.round((completedCourses / totalCourses) * 100) : 0
 
-    // Buscar progreso existente
     let pathProgress = await prisma.learningPathProgress.findFirst({
       where: {
         learningPathId,
         collaboratorId: targetCollaboratorId,
       },
-    });
+    })
 
     if (pathProgress) {
-      // Actualizar
       pathProgress = await prisma.learningPathProgress.update({
         where: { id: pathProgress.id },
         data: {
@@ -239,9 +294,8 @@ export async function POST(req: NextRequest) {
             },
           },
         },
-      });
+      })
     } else {
-      // Crear
       pathProgress = await prisma.learningPathProgress.create({
         data: {
           learningPathId,
@@ -266,15 +320,15 @@ export async function POST(req: NextRequest) {
             },
           },
         },
-      });
+      })
     }
 
-    return NextResponse.json(pathProgress);
+    return NextResponse.json(pathProgress)
   } catch (error: any) {
-    console.error("Error creating/updating learning path progress:", error);
+    console.error("Error creating/updating learning path progress:", error)
     return NextResponse.json(
       { error: error.message || "Error al actualizar progreso de ruta" },
       { status: 500 }
-    );
+    )
   }
 }

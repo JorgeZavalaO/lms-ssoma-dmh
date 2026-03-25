@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { UpdateCourseProgressSchema, ChangeProgressStatusSchema, ExemptCollaboratorSchema } from "@/validations/progress";
+import {
+  requireCollaboratorAccess,
+  requireStaff,
+} from "@/lib/authorization";
 
 // GET /api/progress/courses/[id] - Obtener progreso de curso
 export async function GET(
@@ -38,6 +42,12 @@ export async function GET(
       );
     }
 
+    const accessError = requireCollaboratorAccess(
+      session,
+      courseProgress.collaboratorId
+    );
+    if (accessError) return accessError;
+
     return NextResponse.json(courseProgress);
   } catch (error: any) {
     console.error("Error fetching progress:", error);
@@ -55,9 +65,8 @@ export async function PUT(
 ) {
   try {
     const session = await auth();
-    if (!session || !session.user) {
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    }
+    const authError = requireStaff(session);
+    if (authError) return authError;
 
     const body = await req.json();
     const validated = UpdateCourseProgressSchema.parse(body);
@@ -136,9 +145,8 @@ export async function DELETE(
 ) {
   try {
     const session = await auth();
-    if (!session || !session.user?.role || !["ADMIN", "SUPERADMIN"].includes(session.user.role)) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
+    const authError = requireStaff(session);
+    if (authError) return authError;
 
     const params = await props.params;
     await prisma.courseProgress.delete({

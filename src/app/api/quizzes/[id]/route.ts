@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { UpdateQuizSchema } from "@/validations/quiz";
+import { sanitizeQuizForCollaborator } from "@/lib/quiz-security";
 
 type Params = Promise<{ id: string }>;
 
@@ -13,6 +14,7 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
     if (!session?.user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const user = session.user
 
     const { id } = await params;
 
@@ -42,7 +44,7 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
     }
 
     // Si es colaborador, solo puede ver quizzes publicados
-    if (session.user.role === "COLLABORATOR" && quiz.status !== "PUBLISHED") {
+    if (user.role === "COLLABORATOR" && quiz.status !== "PUBLISHED") {
       return NextResponse.json(
         { error: "Cuestionario no disponible" },
         { status: 403 }
@@ -51,21 +53,28 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
 
     // Si es colaborador, obtener sus intentos
     let attempts: any[] = [];
-    if (session.user.role === "COLLABORATOR") {
-      const user = await prisma.user.findUnique({
+    if (user.role === "COLLABORATOR") {
+      const collaboratorUser = await prisma.user.findUnique({
         where: { id: session.user.id },
         select: { collaboratorId: true },
       });
 
-      if (user?.collaboratorId) {
+      if (collaboratorUser?.collaboratorId) {
         attempts = await prisma.quizAttempt.findMany({
           where: {
             quizId: id,
-            collaboratorId: user.collaboratorId,
+            collaboratorId: collaboratorUser.collaboratorId,
           },
           orderBy: { attemptNumber: "desc" },
         });
       }
+    }
+
+    if (user.role === "COLLABORATOR") {
+      return NextResponse.json({
+        ...sanitizeQuizForCollaborator(quiz),
+        attempts,
+      });
     }
 
     return NextResponse.json({ ...quiz, attempts });

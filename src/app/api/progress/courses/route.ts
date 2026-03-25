@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { UpdateCourseProgressSchema, ChangeProgressStatusSchema } from "@/validations/progress";
+import {
+  requireStaff,
+  resolveCollaboratorScope,
+} from "@/lib/authorization";
 
 // GET /api/progress/courses - Obtener todos los progresos de cursos
 export async function GET(req: NextRequest) {
@@ -16,16 +20,9 @@ export async function GET(req: NextRequest) {
     const courseId = searchParams.get("courseId");
     const status = searchParams.get("status");
 
-    let collaboratorId = requestedCollaboratorId;
-    if (session.user.role === "COLLABORATOR") {
-      if (!session.user.collaboratorId) {
-        return NextResponse.json({ error: "Usuario sin colaborador asociado" }, { status: 400 });
-      }
-      if (requestedCollaboratorId && requestedCollaboratorId !== session.user.collaboratorId) {
-        return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-      }
-      collaboratorId = session.user.collaboratorId;
-    }
+    const scope = resolveCollaboratorScope(session, requestedCollaboratorId);
+    if (!scope.ok) return scope.response;
+    const collaboratorId = scope.collaboratorId;
 
     const where: any = {};
     if (collaboratorId) where.collaboratorId = collaboratorId;
@@ -167,9 +164,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session || !session.user) {
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    }
+    const authError = requireStaff(session);
+    if (authError) return authError;
 
     const body = await req.json();
     const { collaboratorId, courseId, enrollmentId } = body;

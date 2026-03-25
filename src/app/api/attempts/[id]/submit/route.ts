@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { SubmitQuizAttemptSchema } from "@/validations/quiz";
+import {
+  buildAttemptDetailsForCollaborator,
+  sanitizeAttemptForCollaborator,
+} from "@/lib/quiz-security";
 
 type Params = Promise<{ id: string }>;
 
@@ -251,8 +255,10 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
       totalQuestions: totalQuestionsCount,
       requiresRemediation: updatedAttempt.requiresRemediation,
       remediationCompleted: updatedAttempt.remediationCompleted,
-      attempt: updatedAttempt,
-      results,
+      attempt: sanitizeAttemptForCollaborator({
+        ...updatedAttempt,
+        quiz: attempt.quiz,
+      }),
       summary: {
         totalQuestions: totalQuestionsCount,
         correctAnswers: correctAnswersCount,
@@ -265,14 +271,9 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
     };
 
     // Mostrar respuestas correctas solo si está configurado
-    if (attempt.quiz.showCorrectAnswers) {
-      response.correctAnswers = {};
-      for (const quizQuestion of attempt.quiz.quizQuestions) {
-        const question = quizQuestion.question;
-        response.correctAnswers[question.id] = question.options
-          .filter((opt) => opt.isCorrect)
-          .map((opt) => opt.id);
-      }
+    const details = buildAttemptDetailsForCollaborator(attempt.quiz, results);
+    if (details.length > 0) {
+      response.details = details;
     }
 
     return NextResponse.json(response);
@@ -344,7 +345,11 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
       );
     }
 
-    return NextResponse.json(attempt);
+    if (isAdmin) {
+      return NextResponse.json(attempt);
+    }
+
+    return NextResponse.json(sanitizeAttemptForCollaborator(attempt));
   } catch (error) {
     console.error("Error al obtener intento:", error);
     return NextResponse.json(

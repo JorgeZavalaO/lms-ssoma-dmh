@@ -21,7 +21,17 @@ export const AreaReportFiltersSchema = z.object({
   areaId: z.string().optional(),
   siteId: z.string().optional(),
   positionId: z.string().optional(),
-  status: z.enum(["ACTIVE", "COMPLETED", "IN_PROGRESS", "EXPIRED", "FAILED"]).optional(),
+  status: z
+    .enum([
+      "NOT_STARTED",
+      "IN_PROGRESS",
+      "PENDING_EVALUATION",
+      "PASSED",
+      "FAILED",
+      "EXPIRED",
+      "EXEMPTED",
+    ])
+    .optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   courseId: z.string().optional(),
@@ -67,7 +77,7 @@ export const AuditTrailFiltersSchema = z.object({
   endDate: z.string().optional(),
   minScore: z.number().min(0).max(100).optional(),
   maxScore: z.number().min(0).max(100).optional(),
-  status: z.enum(["IN_PROGRESS", "COMPLETED", "ABANDONED"]).optional(),
+  status: z.enum(["IN_PROGRESS", "SUBMITTED", "GRADED", "PASSED", "FAILED"]).optional(),
 })
 
 export type AuditTrailFiltersInput = z.infer<typeof AuditTrailFiltersSchema>

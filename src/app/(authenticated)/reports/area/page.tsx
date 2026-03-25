@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Download, Filter } from "lucide-react"
+import * as XLSX from "xlsx"
 import {
   Table,
   TableBody,
@@ -116,8 +117,22 @@ export default function AreaReportPage() {
   }, [])
 
   const exportToExcel = () => {
-    // TODO: Implement Excel export
-    console.log("Export to Excel")
+    const worksheet = XLSX.utils.json_to_sheet(
+      records.map((record) => ({
+        DNI: record.dni,
+        Colaborador: record.fullName,
+        Sede: record.site || "-",
+        Area: record.area || "-",
+        Puesto: record.position || "-",
+        Curso: record.courseName,
+        Estado: record.status,
+        Progreso: record.progress,
+        Calificacion: record.score ?? "",
+      }))
+    )
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Reporte")
+    XLSX.writeFile(workbook, "reporte-area.xlsx")
   }
 
   return (

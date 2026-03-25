@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs"
+import { randomInt } from "crypto"
 
 /**
  * Genera una contraseña aleatoria segura
@@ -16,18 +17,24 @@ export function generatePassword(length: number = 12): string {
   let password = ""
   
   // Asegurar que tenga al menos un carácter de cada tipo
-  password += lowercase[Math.floor(Math.random() * lowercase.length)]
-  password += uppercase[Math.floor(Math.random() * uppercase.length)]
-  password += numbers[Math.floor(Math.random() * numbers.length)]
-  password += symbols[Math.floor(Math.random() * symbols.length)]
+  password += lowercase[randomInt(lowercase.length)]
+  password += uppercase[randomInt(uppercase.length)]
+  password += numbers[randomInt(numbers.length)]
+  password += symbols[randomInt(symbols.length)]
   
   // Completar el resto
   for (let i = password.length; i < length; i++) {
-    password += allChars[Math.floor(Math.random() * allChars.length)]
+    password += allChars[randomInt(allChars.length)]
   }
   
   // Mezclar los caracteres
-  return password.split('').sort(() => Math.random() - 0.5).join('')
+  const chars = password.split("")
+  for (let index = chars.length - 1; index > 0; index -= 1) {
+    const swapIndex = randomInt(index + 1)
+    ;[chars[index], chars[swapIndex]] = [chars[swapIndex], chars[index]]
+  }
+
+  return chars.join("")
 }
 
 /**
@@ -41,7 +48,7 @@ export function generateSimplePassword(length: number = 8): string {
   let password = ""
   
   for (let i = 0; i < length; i++) {
-    password += chars[Math.floor(Math.random() * chars.length)]
+    password += chars[randomInt(chars.length)]
   }
   
   return password

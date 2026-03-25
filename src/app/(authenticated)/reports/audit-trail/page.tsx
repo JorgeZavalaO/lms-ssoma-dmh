@@ -27,14 +27,12 @@ interface AuditTrailRecord {
   quizId: string
   quizTitle: string
   startedAt: Date
-  completedAt: Date | null
-  duration: number | null
+  submittedAt: Date | null
+  timeSpent: number | null
   score: number | null
   passed: boolean | null
   status: string
   answersCount: number
-  ipAddress: string | null
-  userAgent: string | null
 }
 
 export default function AuditTrailPage() {
@@ -93,9 +91,9 @@ export default function AuditTrailPage() {
             Historial completo de intentos de evaluación para auditorías
           </p>
         </div>
-        <Button variant="outline">
+        <Button variant="outline" disabled>
           <Download className="h-4 w-4 mr-2" />
-          Exportar CSV
+          Exportación próximamente
         </Button>
       </div>
 
@@ -144,7 +142,7 @@ export default function AuditTrailPage() {
                     <TableHead>Calificación</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead>Respuestas</TableHead>
-                    <TableHead>IP</TableHead>
+                    <TableHead>Enviado</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -164,10 +162,10 @@ export default function AuditTrailPage() {
                         <TableCell className="font-medium">{record.collaboratorName}</TableCell>
                         <TableCell>{record.courseName}</TableCell>
                         <TableCell>{record.quizTitle}</TableCell>
-                        <TableCell>{formatDuration(record.duration)}</TableCell>
+                        <TableCell>{formatDuration(record.timeSpent)}</TableCell>
                         <TableCell>
                           {record.score !== null ? (
-                            <span className={record.score >= 70 ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                            <span className={record.passed ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
                               {record.score.toFixed(1)}
                             </span>
                           ) : (
@@ -175,13 +173,23 @@ export default function AuditTrailPage() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={record.status === "COMPLETED" ? "default" : "secondary"}>
+                          <Badge
+                            variant={
+                              record.status === "PASSED"
+                                ? "default"
+                                : record.status === "FAILED"
+                                  ? "destructive"
+                                  : "secondary"
+                            }
+                          >
                             {record.status}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center">{record.answersCount}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {record.ipAddress || "-"}
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          {record.submittedAt
+                            ? format(new Date(record.submittedAt), "dd/MM/yyyy HH:mm", { locale: es })
+                            : "-"}
                         </TableCell>
                       </TableRow>
                     ))
@@ -202,13 +210,13 @@ export default function AuditTrailPage() {
           <div className="text-sm space-y-2">
             <p>
               <strong>Propósito:</strong> Este reporte registra todos los intentos de evaluación realizados en el sistema,
-              incluyendo fecha, hora, IP de origen y respuestas seleccionadas.
+              incluyendo inicio, envío, duración, puntaje y cantidad de respuestas enviadas.
             </p>
             <p>
               <strong>Retención:</strong> Los registros se mantienen de forma indefinida para auditorías y cumplimiento normativo.
             </p>
             <p>
-              <strong>Privacidad:</strong> La información de IP se registra únicamente con fines de seguridad y auditoría.
+              <strong>Privacidad:</strong> Esta vista muestra únicamente datos disponibles en el modelo actual de auditoría.
             </p>
           </div>
         </CardContent>

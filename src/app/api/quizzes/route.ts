@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { CreateQuizSchema } from "@/validations/quiz";
+import { sanitizeQuizForCollaborator } from "@/lib/quiz-security";
 
 // GET /api/quizzes - Listar todos los cuestionarios
 export async function GET(req: NextRequest) {
@@ -11,6 +12,7 @@ export async function GET(req: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
+    const user = session.user
 
     const { searchParams } = new URL(req.url);
     const courseId = searchParams.get("courseId");
@@ -23,7 +25,7 @@ export async function GET(req: NextRequest) {
     if (status) where.status = status;
 
     // Si es colaborador, solo mostrar quizzes publicados
-    if (session.user.role === "COLLABORATOR") {
+    if (user.role === "COLLABORATOR") {
       where.status = "PUBLISHED";
     }
 
@@ -50,6 +52,12 @@ export async function GET(req: NextRequest) {
       },
       orderBy: [{ order: "asc" }, { createdAt: "asc" }],
     });
+
+    if (user.role === "COLLABORATOR") {
+      return NextResponse.json(
+        quizzes.map((quiz) => sanitizeQuizForCollaborator(quiz))
+      );
+    }
 
     return NextResponse.json(quizzes);
   } catch (error) {

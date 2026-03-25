@@ -1,13 +1,21 @@
+import { auth } from "@/auth"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/sidebar/app-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
 import { AppFooter } from "@/components/layout/app-footer"
+import { redirect } from "next/navigation"
 
-export default function AuthenticatedLayout({
+export default async function AuthenticatedLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const session = await auth()
+
+  if (!session?.user) {
+    redirect("/login")
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar />

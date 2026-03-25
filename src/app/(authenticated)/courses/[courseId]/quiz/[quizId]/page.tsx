@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { QuizTaker } from "./quiz-taker";
 import { checkCoursePrerequisites } from "@/lib/access";
+import { sanitizeQuizForCollaborator } from "@/lib/quiz-security";
 
 type Params = Promise<{ courseId: string; quizId: string }>;
 
@@ -93,7 +94,7 @@ export default async function QuizPage({ params }: { params: Params }) {
 
   return (
     <QuizTaker
-      quiz={quiz}
+      quiz={sanitizeQuizForCollaborator(quiz)}
       attempts={attempts}
       collaboratorId={user?.collaboratorId || undefined}
     />

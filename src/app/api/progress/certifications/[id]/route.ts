@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { requireCollaboratorAccess } from "@/lib/authorization";
 
 // GET /api/progress/certifications/[id] - Obtener certificación
 export async function GET(
@@ -51,6 +52,12 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    const accessError = requireCollaboratorAccess(
+      session,
+      certification.collaboratorId
+    );
+    if (accessError) return accessError;
 
     return NextResponse.json(certification);
   } catch (error: any) {

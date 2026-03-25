@@ -159,15 +159,17 @@ export function QuizResults({ result, quiz, onRetry }: QuizResultsProps) {
       </Card>
 
       {/* Detalle de respuestas (si está habilitado) */}
-      {quiz.showCorrectAnswers && result.details && (
+      {Array.isArray(result.details) && result.details.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Detalle de Respuestas</CardTitle>
+            <CardTitle>
+              {quiz.showCorrectAnswers ? "Detalle de Respuestas" : "Retroalimentacion del Intento"}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {result.details.map((detail: any, index: number) => (
               <div
-                key={index}
+                key={detail.questionId || `detail-${index}`}
                 className={`p-4 border rounded-lg ${
                   detail.isCorrect ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"
                 }`}

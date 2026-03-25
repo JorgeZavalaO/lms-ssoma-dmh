@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { checkCoursePrerequisites } from "@/lib/access";
+import { secureShuffle } from "@/lib/quiz-security";
 
 type Params = Promise<{ id: string }>;
 
 // POST /api/quizzes/[id]/attempt - Iniciar un nuevo intento
 export async function POST(req: NextRequest, { params }: { params: Params }) {
   try {
+    void req;
     const session = await auth();
     
     if (!session?.user) {
@@ -31,6 +34,9 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
             },
           },
           orderBy: { order: "asc" },
+        },
+        unit: {
+          select: { courseId: true },
         },
       },
     });
@@ -63,11 +69,47 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
       );
     }
 
+    const courseId = quiz.courseId ?? quiz.unit?.courseId;
+    if (!courseId) {
+      return NextResponse.json(
+        { error: "El cuestionario no está asociado a un curso válido" },
+        { status: 400 }
+      );
+    }
+
+    const enrollment = await prisma.enrollment.findFirst({
+      where: {
+        collaboratorId: user.collaboratorId,
+        courseId,
+        status: { not: "CANCELLED" },
+      },
+      select: { id: true },
+    });
+
+    if (!enrollment) {
+      return NextResponse.json(
+        { error: "No tienes acceso asignado a este cuestionario" },
+        { status: 403 }
+      );
+    }
+
+    const prereq = await checkCoursePrerequisites(user.collaboratorId, courseId);
+    if (!prereq.allowed) {
+      return NextResponse.json(
+        {
+          error: "Debes completar los prerrequisitos antes de iniciar este cuestionario",
+          reason: prereq.reason,
+          missing: prereq.missing,
+        },
+        { status: 403 }
+      );
+    }
+
     // Seleccionar preguntas (aleatorizar si está configurado)
     let questions = quiz.quizQuestions;
     
     if (quiz.shuffleQuestions) {
-      questions = [...questions].sort(() => Math.random() - 0.5);
+      questions = secureShuffle(questions);
     }
 
     // Limitar cantidad de preguntas si está configurado
@@ -177,9 +219,8 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
     const questionsForClient = questions.map((qq) => {
       let options = qq.question.options;
       
-      // Aleatorizar opciones si está configurado
       if (quiz.shuffleOptions) {
-        options = [...options].sort(() => Math.random() - 0.5);
+        options = secureShuffle(options);
       }
 
       return {
@@ -192,23 +233,25 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
           id: opt.id,
           text: opt.optionText,
           optionText: opt.optionText,
-          // No enviar isCorrect al cliente
         })),
       };
     });
 
-    return NextResponse.json({
-      attempt,
-      quiz: {
-        id: quiz.id,
-        title: quiz.title,
-        description: quiz.description,
-        instructions: quiz.instructions,
-        timeLimit: quiz.timeLimit,
-        passingScore: quiz.passingScore,
+    return NextResponse.json(
+      {
+        attempt,
+        quiz: {
+          id: quiz.id,
+          title: quiz.title,
+          description: quiz.description,
+          instructions: quiz.instructions,
+          timeLimit: quiz.timeLimit,
+          passingScore: quiz.passingScore,
+        },
+        questions: questionsForClient,
       },
-      questions: questionsForClient,
-    }, { status: createdAttempt ? 201 : 200 });
+      { status: createdAttempt ? 201 : 200 }
+    );
   } catch (error) {
     console.error("Error al iniciar intento:", error);
     return NextResponse.json(

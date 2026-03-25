@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/auth'
-import { prisma } from '@/lib/prisma'
-import bcrypt from 'bcryptjs'
+import { NextRequest, NextResponse } from "next/server"
+import { auth } from "@/auth"
+import { prisma } from "@/lib/prisma"
+import bcrypt from "bcryptjs"
 
 /**
  * GET /api/superadmin/admins
@@ -10,11 +10,12 @@ import bcrypt from 'bcryptjs'
  */
 export async function GET(req: NextRequest) {
   try {
+    void req
     const session = await auth()
 
-    if (!session?.user || session.user.role !== 'SUPERADMIN') {
+    if (!session?.user || session.user.role !== "SUPERADMIN") {
       return NextResponse.json(
-        { error: 'No autorizado - Solo SUPERADMIN' },
+        { error: "No autorizado - Solo SUPERADMIN" },
         { status: 403 }
       )
     }
@@ -22,8 +23,8 @@ export async function GET(req: NextRequest) {
     const admins = await prisma.user.findMany({
       where: {
         role: {
-          in: ['ADMIN', 'SUPERADMIN']
-        }
+          in: ["ADMIN", "SUPERADMIN"],
+        },
       },
       select: {
         id: true,
@@ -32,25 +33,25 @@ export async function GET(req: NextRequest) {
         role: true,
       },
       orderBy: {
-        email: 'asc'
-      }
+        email: "asc",
+      },
     })
 
-    // Agregar campos de fecha simulados
-    const adminsWithDates = admins.map(admin => ({
-      ...admin,
-      createdAt: new Date().toISOString(), // Simular fecha de creación
-      lastLogin: null, // TODO: Implementar tracking de último login
+    const adminsWithMetadata = admins.map((admin) => ({
+      id: admin.id,
+      name: admin.name,
+      email: admin.email,
+      role: admin.role,
+      createdAt: null,
+      lastLogin: null,
     }))
 
-    return NextResponse.json({ admins: adminsWithDates })
+    return NextResponse.json({ admins: adminsWithMetadata })
   } catch (error) {
-    console.error('Error obteniendo administradores:', error)
-    const message = error instanceof Error ? error.message : 'Error al obtener administradores'
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    )
+    console.error("Error obteniendo administradores:", error)
+    const message =
+      error instanceof Error ? error.message : "Error al obtener administradores"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
@@ -63,9 +64,9 @@ export async function POST(req: NextRequest) {
   try {
     const session = await auth()
 
-    if (!session?.user || session.user.role !== 'SUPERADMIN') {
+    if (!session?.user || session.user.role !== "SUPERADMIN") {
       return NextResponse.json(
-        { error: 'No autorizado - Solo SUPERADMIN' },
+        { error: "No autorizado - Solo SUPERADMIN" },
         { status: 403 }
       )
     }
@@ -73,41 +74,35 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { name, email, password, role } = body
 
-    // Validaciones
     if (!name || !email || !password) {
       return NextResponse.json(
-        { error: 'Nombre, email y contraseña son requeridos' },
+        { error: "Nombre, email y contrasena son requeridos" },
         { status: 400 }
       )
     }
 
     if (password.length < 8) {
       return NextResponse.json(
-        { error: 'La contraseña debe tener al menos 8 caracteres' },
+        { error: "La contrasena debe tener al menos 8 caracteres" },
         { status: 400 }
       )
     }
 
-    if (!['ADMIN', 'SUPERADMIN'].includes(role)) {
-      return NextResponse.json(
-        { error: 'Rol inválido' },
-        { status: 400 }
-      )
+    if (!["ADMIN", "SUPERADMIN"].includes(role)) {
+      return NextResponse.json({ error: "Rol invalido" }, { status: 400 })
     }
 
-    // Verificar que el email no exista
     const existingUser = await prisma.user.findUnique({
-      where: { email }
+      where: { email },
     })
 
     if (existingUser) {
       return NextResponse.json(
-        { error: 'El email ya está registrado' },
+        { error: "El email ya esta registrado" },
         { status: 400 }
       )
     }
 
-    // Crear el nuevo administrador
     const hashedPassword = await bcrypt.hash(password, 10)
 
     const newAdmin = await prisma.user.create({
@@ -122,21 +117,19 @@ export async function POST(req: NextRequest) {
         name: true,
         email: true,
         role: true,
-      }
+      },
     })
 
-    console.log('✓ Nuevo admin creado:', newAdmin.email, 'por', session.user.email)
+    console.log("Nuevo admin creado:", newAdmin.email, "por", session.user.email)
 
     return NextResponse.json({
       success: true,
       admin: newAdmin,
     })
   } catch (error) {
-    console.error('Error creando administrador:', error)
-    const message = error instanceof Error ? error.message : 'Error al crear administrador'
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    )
+    console.error("Error creando administrador:", error)
+    const message =
+      error instanceof Error ? error.message : "Error al crear administrador"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

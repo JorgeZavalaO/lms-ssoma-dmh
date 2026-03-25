@@ -1,10 +1,22 @@
 import { PrismaClient } from '@prisma/client'
 import * as bcrypt from 'bcryptjs'
+import { randomBytes } from 'crypto'
 
 const prisma = new PrismaClient()
+const seedPassword =
+  process.env.SEED_DEFAULT_PASSWORD ?? randomBytes(12).toString('base64url')
+const generateSeedVerificationCode = () =>
+  `VER-${randomBytes(4).toString('hex').toUpperCase()}`
 
 async function main() {
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PRODUCTION_SEED !== 'true') {
+    throw new Error(
+      'Refusing to run seed in production without ALLOW_PRODUCTION_SEED=true'
+    )
+  }
   console.log('🌱 Starting seed...')
+
+  console.log('Seed data is intended for local or test environments only.')
 
   // Limpiar datos existentes (en orden inverso de dependencias)
   console.log('🗑️  Cleaning existing data...')
@@ -78,7 +90,7 @@ async function main() {
   // ========================================
   console.log('👥 Creating collaborators and users...')
 
-  const hashedPassword = await bcrypt.hash('password123', 10)
+  const hashedPassword = await bcrypt.hash(seedPassword, 10)
 
   // Superadmin
   const adminUser = await prisma.user.create({
@@ -1022,7 +1034,7 @@ async function main() {
       expiresAt: new Date('2025-09-15'),
       isRecertification: false,
       isValid: true,
-      verificationCode: 'VER-' + Math.random().toString(36).substring(7).toUpperCase(),
+      verificationCode: generateSeedVerificationCode(),
     },
   })
 
@@ -1036,7 +1048,7 @@ async function main() {
       expiresAt: new Date('2025-08-10'),
       isRecertification: false,
       isValid: true,
-      verificationCode: 'VER-' + Math.random().toString(36).substring(7).toUpperCase(),
+      verificationCode: generateSeedVerificationCode(),
     },
   })
 
@@ -1050,7 +1062,7 @@ async function main() {
       expiresAt: new Date('2025-11-20'),
       isRecertification: false,
       isValid: true,
-      verificationCode: 'VER-' + Math.random().toString(36).substring(7).toUpperCase(),
+      verificationCode: generateSeedVerificationCode(),
     },
   })
 
@@ -1306,18 +1318,17 @@ async function main() {
   console.log(`   - 3 notificaciones`)
 
   console.log('\n👤 Usuarios de prueba:')
+  console.log(`   - Password temporal comun: ${seedPassword}`)
+  console.log('   - Override opcional: SEED_DEFAULT_PASSWORD=tu_clave')
   console.log('   Superadmin:')
   console.log('   - Email: admin@ssoma.com')
-  console.log('   - Password: password123')
   console.log('\n   Admin/Especialista SSOMA:')
   console.log('   - Email: roberto.sanchez@empresa.com')
-  console.log('   - Password: password123')
   console.log('\n   Colaboradores:')
   console.log('   - Email: juan.mamani@empresa.com (Curso completado)')
   console.log('   - Email: ana.flores@empresa.com (Curso en progreso)')
   console.log('   - Email: maria.gonzales@empresa.com (Curso en progreso)')
   console.log('   - Email: patricia.huaman@empresa.com (Certificación próxima a vencer)')
-  console.log('   - Password para todos: password123')
 }
 
 main()

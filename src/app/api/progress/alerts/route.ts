@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { CreateProgressAlertSchema } from "@/validations/progress";
+import {
+  requireStaff,
+  resolveCollaboratorScope,
+} from "@/lib/authorization";
 
 // GET /api/progress/alerts - Listar alertas
 export async function GET(req: NextRequest) {
@@ -16,9 +20,11 @@ export async function GET(req: NextRequest) {
     const type = searchParams.get("type");
     const isRead = searchParams.get("isRead");
     const isDismissed = searchParams.get("isDismissed");
+    const scope = resolveCollaboratorScope(session, collaboratorId);
+    if (!scope.ok) return scope.response;
 
     const where: any = {};
-    if (collaboratorId) where.collaboratorId = collaboratorId;
+    if (scope.collaboratorId) where.collaboratorId = scope.collaboratorId;
     if (type) where.type = type;
     if (isRead !== null) where.isRead = isRead === "true";
     if (isDismissed !== null) where.isDismissed = isDismissed === "true";
@@ -93,9 +99,8 @@ function mapSeverity(severity: any): string {
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session || !session.user?.role || !["ADMIN", "SUPERADMIN"].includes(session.user.role)) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
+    const authError = requireStaff(session);
+    if (authError) return authError;
 
     const body = await req.json();
     const validated = CreateProgressAlertSchema.parse(body);

@@ -2,12 +2,17 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { LearningPathSchema } from "@/validations/courses"
+import { requireStaff } from "@/lib/authorization"
 
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth()
+    const authError = requireStaff(session)
+    if (authError) return authError
+
     const { id } = await params
     const path = await prisma.learningPath.findUnique({
       where: { id },
@@ -48,9 +53,8 @@ export async function PUT(
 ) {
   try {
     const session = await auth()
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "SUPERADMIN")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
+    const authError = requireStaff(session)
+    if (authError) return authError
     
     const { id } = await params
     const body = await req.json()
@@ -84,9 +88,8 @@ export async function DELETE(
 ) {
   try {
     const session = await auth()
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "SUPERADMIN")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
+    const authError = requireStaff(session)
+    if (authError) return authError
     
     const { id } = await params
     

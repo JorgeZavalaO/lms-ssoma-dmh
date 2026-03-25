@@ -17,7 +17,13 @@ export async function POST(req: Request) {
     const json = await req.json()
     const data = GenerateExpirationRemindersSchema.parse(json)
 
-    const result = await generateExpirationReminders(data.daysBeforeExpiration)
+    const result = await generateExpirationReminders({
+      daysBeforeExpiration: data.daysBeforeExpiration,
+      notificationType: data.notificationType,
+      sendEmail: data.sendEmail,
+      sendInApp: data.sendInApp,
+      sentBy: session.user.id,
+    })
 
     return NextResponse.json(result)
   } catch (error: unknown) {
@@ -43,6 +49,8 @@ export async function PUT(req: Request) {
     const result = await generateTeamSummary({
       areaId: data.areaId,
       siteId: data.siteId,
+      sendEmail: data.sendEmail,
+      sentBy: session.user.id,
     })
 
     return NextResponse.json(result)

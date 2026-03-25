@@ -2,12 +2,18 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { CourseUpdateSchema } from "@/validations/courses"
+import { requireAuthenticated } from "@/lib/authorization"
 
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth()
+    const authError = requireAuthenticated(session)
+    if (authError) return authError
+    const user = session!.user
+
     const { id } = await params
     const course = await prisma.course.findUnique({
       where: { id },
@@ -28,6 +34,10 @@ export async function GET(
     })
     
     if (!course) {
+      return NextResponse.json({ error: "Course not found" }, { status: 404 })
+    }
+
+    if (user.role === "COLLABORATOR" && course.status !== "PUBLISHED") {
       return NextResponse.json({ error: "Course not found" }, { status: 404 })
     }
     
