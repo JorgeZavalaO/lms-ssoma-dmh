@@ -172,7 +172,7 @@ export default function AdminDashboardClient() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Link href="/admin/progress">
+            <Link href="/admin/alerts?severity=CRITICAL">
               <Button size="sm" variant="outline" className="gap-2">
                 Ver Alertas Críticas
                 <AlertTriangle className="h-4 w-4" />

@@ -23,7 +23,9 @@ export async function POST(req: NextRequest) {
           gte: now,
           lte: thirtyDaysFromNow,
         },
-        status: "PASSED",
+        status: {
+          in: ["PASSED", "EXEMPTED"],
+        },
       },
       include: {
         collaborator: true,
@@ -75,7 +77,9 @@ export async function POST(req: NextRequest) {
         expiresAt: {
           lt: now,
         },
-        status: "PASSED",
+        status: {
+          in: ["PASSED", "EXEMPTED"],
+        },
       },
       include: {
         collaborator: true,
@@ -138,6 +142,7 @@ export async function POST(req: NextRequest) {
           lte: sixtyDaysFromNow,
         },
         isValid: true,
+        revokedAt: null,
       },
       include: {
         collaborator: true,
@@ -185,6 +190,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       message: `Se generaron ${alertsCreated.length} alertas`,
+      generated: alertsCreated.length,
       alertsCreated: alertsCreated.length,
       breakdown: {
         expiringSoon: alertsCreated.filter((a) => a.type === "EXPIRING_SOON").length,

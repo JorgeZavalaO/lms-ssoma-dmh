@@ -1,61 +1,54 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/auth'
-import { getCertificateData } from '@/lib/certificates'
-import { renderToBuffer } from '@react-pdf/renderer'
-import { createCertificatePDF } from '@/components/certificates/certificate-pdf'
+import { NextRequest, NextResponse } from "next/server"
+import { renderToBuffer } from "@react-pdf/renderer"
+import { auth } from "@/auth"
+import { createCertificatePDF } from "@/components/certificates/certificate-pdf"
+import {
+  getCertificateData,
+  persistCertificatePdfArtifact,
+} from "@/lib/certificates"
 
-/**
- * K1 - GET /api/certificates/[id]/download
- * Descarga el certificado PDF
- */
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
 
     if (!session?.user) {
-      return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 })
     }
 
     const { id } = await params
-
-    // Obtener datos del certificado
     const certificateData = await getCertificateData(id)
 
-    // Admins y superadmins pueden descargar cualquier certificado.
-    // Un colaborador solo puede descargar su propio certificado.
-    const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'SUPERADMIN'
+    const isAdmin =
+      session.user.role === "ADMIN" || session.user.role === "SUPERADMIN"
     const isOwner =
-      session.user.role === 'COLLABORATOR' &&
+      session.user.role === "COLLABORATOR" &&
       session.user.collaboratorId === certificateData.collaboratorId
 
     if (!isAdmin && !isOwner) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 })
     }
 
-    // Generar PDF usando la función helper
     const certificatePDF = createCertificatePDF(certificateData)
     const pdfBuffer = await renderToBuffer(certificatePDF)
+    await persistCertificatePdfArtifact(id, pdfBuffer.length)
 
-    // Nombre del archivo
     const fileName = `Certificado_${certificateData.certificateNumber}.pdf`
 
-    // Devolver el PDF como descarga
     return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${fileName}"`,
-        'Content-Length': pdfBuffer.length.toString(),
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${fileName}"`,
+        "Content-Length": pdfBuffer.length.toString(),
       },
     })
   } catch (error) {
-    console.error('Error descargando certificado:', error)
-    const message = error instanceof Error ? error.message : 'Error al descargar certificado'
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    )
+    console.error("Error descargando certificado:", error)
+    const message =
+      error instanceof Error ? error.message : "Error al descargar certificado"
+
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

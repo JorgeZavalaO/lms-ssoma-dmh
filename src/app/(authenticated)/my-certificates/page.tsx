@@ -1,6 +1,7 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
+import { getEffectiveCertificateState } from "@/lib/certificates"
 import { ClientCertificatesView } from "./client-certificates-view"
 
 export default async function MyCertificatesPage() {
@@ -31,29 +32,29 @@ export default async function MyCertificatesPage() {
   })
 
   // Serializar datos para pasarlos al cliente
-  const serializedCertificates = certificates.map((cert) => ({
-    id: cert.id,
-    courseId: cert.courseId,
-    courseName: cert.course.name,
-    courseCode: cert.course.code,
-    courseVersion: cert.course.currentVersion,
-    certificateNumber: cert.certificateNumber,
-    issuedAt: cert.issuedAt.toISOString(),
-    expiresAt: cert.expiresAt?.toISOString() || null,
-    isValid: cert.isValid,
-    revokedAt: cert.revokedAt?.toISOString() || null,
-    revocationReason: cert.revocationReason,
-    pdfUrl: cert.pdfUrl,
-    verificationCode: cert.verificationCode,
-    qrCode: cert.qrCode,
-    isRecertification: cert.isRecertification,
-    recertificationDueAt: cert.recertificationDueAt?.toISOString() || null,
-  }))
+  const serializedCertificates = certificates.map((cert) => {
+    const effectiveState = getEffectiveCertificateState(cert)
 
-  return (
-    <ClientCertificatesView
-      certificates={serializedCertificates}
-      collaboratorId={session.user.collaboratorId}
-    />
-  )
+    return {
+      id: cert.id,
+      courseId: cert.courseId,
+      courseName: cert.course.name,
+      courseCode: cert.course.code,
+      courseVersion: cert.course.currentVersion,
+      certificateNumber: cert.certificateNumber,
+      issuedAt: cert.issuedAt.toISOString(),
+      expiresAt: cert.expiresAt?.toISOString() || null,
+      isValid: effectiveState.isValid,
+      effectiveStatus: effectiveState.status,
+      revokedAt: cert.revokedAt?.toISOString() || null,
+      revocationReason: cert.revocationReason,
+      pdfUrl: cert.pdfUrl,
+      verificationCode: cert.verificationCode,
+      qrCode: cert.qrCode,
+      isRecertification: cert.isRecertification,
+      recertificationDueAt: cert.recertificationDueAt?.toISOString() || null,
+    }
+  })
+
+  return <ClientCertificatesView certificates={serializedCertificates} />
 }

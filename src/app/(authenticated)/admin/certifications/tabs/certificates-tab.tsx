@@ -1,58 +1,73 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
-import { CertificateStatsCards } from '@/components/admin/certificates/certificate-stats-cards'
+import { Button } from '@/components/ui/button'
 import { CertificatesTable } from '@/components/admin/certificates/certificates-table'
-import type { Certificate, CertificateStats, CertificateValidityFilter } from '@/components/admin/certificates/types'
+import { CertificateStatsCards } from '@/components/admin/certificates/certificate-stats-cards'
+import type {
+  Certificate,
+  CertificateStats,
+  CertificateValidityFilter,
+} from '@/components/admin/certificates/types'
 
 export function ClientCertificates() {
   const [certificates, setCertificates] = useState<Certificate[]>([])
-  const [stats, setStats] = useState<CertificateStats>({ total: 0, valid: 0, invalid: 0, expiring: 0 })
+  const [stats, setStats] = useState<CertificateStats>({
+    total: 0,
+    valid: 0,
+    invalid: 0,
+    expiring: 0,
+  })
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [validFilter, setValidFilter] = useState<CertificateValidityFilter>('all')
+  const [validFilter, setValidFilter] =
+    useState<CertificateValidityFilter>('all')
   const [processing, setProcessing] = useState(false)
 
   const calculateStats = useCallback((certs: Certificate[]) => {
     const now = new Date()
-    const computed: CertificateStats = {
+    setStats({
       total: certs.length,
       valid: certs.filter((certificate) => certificate.isValid).length,
       invalid: certs.filter((certificate) => !certificate.isValid).length,
       expiring: certs.filter((certificate) => {
-        if (!certificate.expiresAt) return false
+        if (!certificate.expiresAt || !certificate.isValid) return false
         const expiresAt = new Date(certificate.expiresAt)
-        const daysUntilExpiry = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-        return daysUntilExpiry <= 30 && daysUntilExpiry > 0 && certificate.isValid
+        const daysUntilExpiry = Math.ceil(
+          (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        )
+        return daysUntilExpiry <= 30 && daysUntilExpiry > 0
       }).length,
-    }
-
-    setStats(computed)
+    })
   }, [])
 
   const loadCertificates = useCallback(async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams()
-      
+
       if (validFilter !== 'all') {
         params.append('isValid', validFilter === 'valid' ? 'true' : 'false')
       }
 
       const response = await fetch(`/api/certificates?${params.toString()}`)
-      const data = await response.json() as { certificates?: Certificate[]; error?: string }
+      const data = (await response.json()) as {
+        certificates?: Certificate[]
+        error?: string
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Error al cargar certificados')
       }
 
-      setCertificates(data.certificates || [])
-      calculateStats(data.certificates || [])
+      const payload = data.certificates || []
+      setCertificates(payload)
+      calculateStats(payload)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Error al cargar certificados'
+      const message =
+        error instanceof Error ? error.message : 'Error al cargar certificados'
       console.error('Error cargando certificados:', error)
       toast.error(message)
     } finally {
@@ -75,7 +90,7 @@ export function ClientCertificates() {
           certificate.courseName.toLowerCase().includes(term)
         )
       }),
-    [certificates, searchTerm],
+    [certificates, searchTerm]
   )
 
   const handleGenerate = async (certId: string) => {
@@ -87,17 +102,23 @@ export function ClientCertificates() {
         body: JSON.stringify({ certificationId: certId }),
       })
 
-      const data = await response.json() as { verificationCode?: string; error?: string }
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Error al generar certificado')
+      const data = (await response.json()) as {
+        verificationCode?: string
+        error?: string
       }
 
-      toast.success(`Certificado generado. Código: ${data.verificationCode}`)
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al preparar certificado')
+      }
+
+      toast.success(`Certificado preparado. Codigo: ${data.verificationCode}`)
       loadCertificates()
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Error al generar certificado'
-      console.error('Error generando certificado:', error)
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Error al preparar certificado'
+      console.error('Error preparando certificado:', error)
       toast.error(message)
     } finally {
       setProcessing(false)
@@ -120,15 +141,19 @@ export function ClientCertificates() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Certificados PDF</h2>
-          <p className="text-muted-foreground mt-1">
-            Genera, descarga y verifica certificados físicos
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Certificados PDF
+          </h2>
+          <p className="mt-1 text-muted-foreground">
+            Descarga, prepara y verifica certificados emitidos
           </p>
         </div>
         <Button onClick={loadCertificates} variant="outline" disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`}
+          />
           Actualizar
         </Button>
       </div>

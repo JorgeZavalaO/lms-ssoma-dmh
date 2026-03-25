@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { ExemptCollaboratorSchema } from "@/validations/progress";
+import { ensureCertificationForProgress } from "@/lib/certificates";
 
 // POST /api/progress/courses/[id]/exempt - Exonerar colaborador de un curso
 export async function POST(
@@ -42,6 +43,21 @@ export async function POST(
         },
       },
     });
+
+    try {
+      await ensureCertificationForProgress(progress.id, {
+        certificateData: {
+          exemptionReason: body.exemptionReason,
+          trigger: "COURSE_EXEMPTED",
+        },
+        trigger: "COURSE_EXEMPTED",
+      })
+    } catch (error) {
+      console.error(
+        `No se pudo emitir automaticamente el certificado para ${progress.id}:`,
+        error
+      )
+    }
 
     return NextResponse.json(progress);
   } catch (error: any) {

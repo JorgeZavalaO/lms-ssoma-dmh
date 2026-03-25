@@ -1,12 +1,11 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
-// import { PrismaAdapter } from "@auth/prisma-adapter"
+import authConfig from "@/auth.config"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  session: { strategy: "jwt" },
-  trustHost: true,
+  ...authConfig,
   providers: [
     Credentials({
       name: "dni-or-email",
@@ -38,38 +37,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               },
             ],
           },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            collaboratorId: true,
+            hashedPassword: true,
+          },
         })
 
         if (!user?.hashedPassword) return null
         const hashedPassword = user.hashedPassword as string
         const ok = await bcrypt.compare(password, hashedPassword)
-        return ok ? user : null
+        if (!ok) return null
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          collaboratorId: user.collaboratorId,
+        }
       },
     }),
   ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id
-        token.role = user.role
-        // Obtener collaboratorId al crear el token
-        if (user.role === "COLLABORATOR") {
-          const userWithCollaborator = await prisma.user.findUnique({
-            where: { id: user.id },
-            select: { collaboratorId: true },
-          })
-          token.collaboratorId = userWithCollaborator?.collaboratorId
-        }
-      }
-      return token
-    },
-    async session({ session, token }) {
-      session.user.id = token.id as string
-      session.user.role = token.role as "SUPERADMIN" | "ADMIN" | "COLLABORATOR"
-      if (token.collaboratorId) {
-        session.user.collaboratorId = token.collaboratorId as string
-      }
-      return session
-    },
-  },
 })

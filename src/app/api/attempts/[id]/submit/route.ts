@@ -6,6 +6,7 @@ import {
   buildAttemptDetailsForCollaborator,
   sanitizeAttemptForCollaborator,
 } from "@/lib/quiz-security";
+import { ensureCertificationForProgress } from "@/lib/certificates";
 
 type Params = Promise<{ id: string }>;
 
@@ -192,7 +193,7 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
           ? courseForTime.duration * 3600
           : undefined
 
-        await prisma.courseProgress.update({
+        const updatedCourseProgress = await prisma.courseProgress.update({
           where: {
             collaboratorId_courseId: {
               collaboratorId: attempt.collaboratorId,
@@ -206,6 +207,7 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
             lastActivityAt: new Date(),
             ...(quizFinalTimeSpent !== undefined && { timeSpent: quizFinalTimeSpent }),
           },
+          select: { id: true },
         })
 
         await prisma.enrollment.updateMany({
@@ -216,6 +218,23 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
           },
           data: { status: "COMPLETED", completedAt: new Date() },
         })
+
+        try {
+          await ensureCertificationForProgress(updatedCourseProgress.id, {
+            certificateData: {
+              score,
+              attemptId,
+              quizId: attempt.quizId,
+              trigger: "QUIZ_PASSED",
+            },
+            trigger: "QUIZ_PASSED",
+          })
+        } catch (error) {
+          console.error(
+            `No se pudo emitir automaticamente el certificado para ${updatedCourseProgress.id}:`,
+            error
+          )
+        }
       } else if (
         !passed &&
         attempt.quiz.maxAttempts !== null &&

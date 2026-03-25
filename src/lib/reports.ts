@@ -81,12 +81,15 @@ export async function getDashboardKPIs(filters?: {
   // 2. Cumplimiento
   const progressRecords = await prisma.courseProgress.findMany({
     where: {
-      enrollment: {
-        collaborator: collaboratorWhere,
-      },
+      collaborator: collaboratorWhere,
       expiresAt: { not: null },
     },
     include: {
+      collaborator: {
+        include: {
+          area: true,
+        },
+      },
       enrollment: {
         include: {
           collaborator: {
@@ -100,7 +103,9 @@ export async function getDashboardKPIs(filters?: {
   })
 
   const compliantCount = progressRecords.filter(
-    (p) => p.status === "PASSED" && (!p.expiresAt || p.expiresAt > now)
+    (p) =>
+      ["PASSED", "EXEMPTED"].includes(p.status) &&
+      (!p.expiresAt || p.expiresAt > now)
   ).length
 
   const overallCompliance =
@@ -118,7 +123,10 @@ export async function getDashboardKPIs(filters?: {
         acc[areaName] = { total: 0, compliant: 0 }
       }
       acc[areaName].total++
-      if (p.status === "PASSED" && (!p.expiresAt || p.expiresAt > now)) {
+      if (
+        ["PASSED", "EXEMPTED"].includes(p.status) &&
+        (!p.expiresAt || p.expiresAt > now)
+      ) {
         acc[areaName].compliant++
       }
       return acc
@@ -133,24 +141,30 @@ export async function getDashboardKPIs(filters?: {
   // 3. Alertas de vencimiento
   const expiringIn7Days = await prisma.courseProgress.count({
     where: {
-      enrollment: { collaborator: collaboratorWhere },
-      status: { in: ["IN_PROGRESS", "PASSED"] },
+      collaborator: collaboratorWhere,
+      status: { in: ["IN_PROGRESS", "PASSED", "EXEMPTED"] },
       expiresAt: { gte: now, lte: sevenDaysFromNow },
     },
   })
 
   const expiringIn30Days = await prisma.courseProgress.count({
     where: {
-      enrollment: { collaborator: collaboratorWhere },
-      status: { in: ["IN_PROGRESS", "PASSED"] },
+      collaborator: collaboratorWhere,
+      status: { in: ["IN_PROGRESS", "PASSED", "EXEMPTED"] },
       expiresAt: { gte: sevenDaysFromNow, lte: thirtyDaysFromNow },
     },
   })
 
   const expired = await prisma.courseProgress.count({
     where: {
-      enrollment: { collaborator: collaboratorWhere },
-      status: "EXPIRED",
+      collaborator: collaboratorWhere,
+      OR: [
+        { status: "EXPIRED" },
+        {
+          status: { in: ["IN_PROGRESS", "PASSED", "EXEMPTED"] },
+          expiresAt: { lt: now },
+        },
+      ],
     },
   })
 
@@ -198,15 +212,15 @@ export async function getDashboardKPIs(filters?: {
 
   const coursesInProgress = await prisma.courseProgress.count({
     where: {
-      enrollment: { collaborator: collaboratorWhere },
+      collaborator: collaboratorWhere,
       status: "IN_PROGRESS",
     },
   })
 
   const coursesCompleted = await prisma.courseProgress.count({
     where: {
-      enrollment: { collaborator: collaboratorWhere },
-      status: "PASSED",
+      collaborator: collaboratorWhere,
+      status: { in: ["PASSED", "EXEMPTED"] },
       ...(filters?.startDate && { passedAt: { gte: filters.startDate } }),
       ...(filters?.endDate && { passedAt: { lte: filters.endDate } }),
     },
@@ -225,8 +239,8 @@ export async function getDashboardKPIs(filters?: {
 
   const recentCompletions = await prisma.courseProgress.findMany({
     where: {
-      enrollment: { collaborator: collaboratorWhere },
-      status: "PASSED",
+      collaborator: collaboratorWhere,
+      status: { in: ["PASSED", "EXEMPTED"] },
       passedAt: { gte: thirtyDaysAgo, not: null },
     },
     select: {
@@ -289,10 +303,8 @@ export async function getDashboardKPIs(filters?: {
     topCriticalCourses.map(async (course) => {
       const progressRecords = await prisma.courseProgress.findMany({
         where: {
-          enrollment: {
-            courseId: course.id,
-            collaborator: collaboratorWhere,
-          },
+          courseId: course.id,
+          collaborator: collaboratorWhere,
         },
         select: {
           status: true,
@@ -308,7 +320,13 @@ export async function getDashboardKPIs(filters?: {
       ).length
 
       const expiredCount = progressRecords.filter(
-        (p) => p.status === "EXPIRED"
+        (p) =>
+          p.status === "EXPIRED" ||
+          Boolean(
+            p.expiresAt &&
+              p.expiresAt < now &&
+              ["PASSED", "EXEMPTED", "IN_PROGRESS"].includes(p.status)
+          )
       ).length
 
       return {

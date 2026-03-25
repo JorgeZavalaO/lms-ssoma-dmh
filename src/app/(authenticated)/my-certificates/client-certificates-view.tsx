@@ -1,25 +1,24 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { differenceInDays, format, isFuture } from "date-fns"
+import { es } from "date-fns/locale"
 import {
-  Award,
-  Download,
-  CheckCircle,
-  XCircle,
   AlertTriangle,
+  Award,
   Calendar,
+  CheckCircle,
+  Clock,
+  Download,
+  ExternalLink,
   FileText,
   QrCode,
-  ExternalLink,
   Shield,
-  Clock,
+  XCircle,
 } from "lucide-react"
-import { format, differenceInDays, isPast, isFuture } from "date-fns"
-import { es } from "date-fns/locale"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -27,6 +26,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+type CertificateStatus = "VALID" | "EXPIRING" | "EXPIRED" | "REVOKED"
 
 interface Certificate {
   id: string
@@ -38,6 +40,7 @@ interface Certificate {
   issuedAt: string
   expiresAt: string | null
   isValid: boolean
+  effectiveStatus: CertificateStatus
   revokedAt: string | null
   revocationReason: string | null
   pdfUrl: string | null
@@ -49,113 +52,134 @@ interface Certificate {
 
 interface ClientCertificatesViewProps {
   certificates: Certificate[]
-  collaboratorId: string
 }
 
-const getValidityStatus = (cert: Certificate) => {
-  if (!cert.isValid || cert.revokedAt) {
-    return {
-      label: "Revocado",
-      color: "bg-gray-500",
-      icon: XCircle,
-      variant: "outline" as const,
-      description: cert.revocationReason || "Certificado revocado",
-    }
+const statusConfig: Record<
+  CertificateStatus,
+  {
+    label: string
+    color: string
+    icon: typeof CheckCircle
+    variant: "default" | "secondary" | "destructive" | "outline"
   }
-
-  if (!cert.expiresAt) {
-    return {
-      label: "Vigente",
-      color: "bg-green-500",
-      icon: CheckCircle,
-      variant: "default" as const,
-      description: "Sin fecha de vencimiento",
-    }
-  }
-
-  const expiryDate = new Date(cert.expiresAt)
-  const daysUntilExpiry = differenceInDays(expiryDate, new Date())
-
-  if (isPast(expiryDate)) {
-    return {
-      label: "Vencido",
-      color: "bg-red-500",
-      icon: XCircle,
-      variant: "destructive" as const,
-      description: `Venció el ${format(expiryDate, "dd/MM/yyyy", { locale: es })}`,
-    }
-  }
-
-  if (daysUntilExpiry <= 30) {
-    return {
-      label: "Por Vencer",
-      color: "bg-orange-500",
-      icon: AlertTriangle,
-      variant: "secondary" as const,
-      description: `Vence en ${daysUntilExpiry} días`,
-    }
-  }
-
-  return {
+> = {
+  VALID: {
     label: "Vigente",
     color: "bg-green-500",
     icon: CheckCircle,
-    variant: "default" as const,
-    description: `Válido hasta ${format(expiryDate, "dd/MM/yyyy", { locale: es })}`,
-  }
+    variant: "default",
+  },
+  EXPIRING: {
+    label: "Por Vencer",
+    color: "bg-orange-500",
+    icon: AlertTriangle,
+    variant: "secondary",
+  },
+  EXPIRED: {
+    label: "Vencido",
+    color: "bg-red-500",
+    icon: XCircle,
+    variant: "destructive",
+  },
+  REVOKED: {
+    label: "Revocado",
+    color: "bg-slate-500",
+    icon: XCircle,
+    variant: "outline",
+  },
 }
 
-export function ClientCertificatesView({ certificates, collaboratorId }: ClientCertificatesViewProps) {
+function getValidityDescription(cert: Certificate) {
+  if (cert.effectiveStatus === "REVOKED") {
+    return cert.revocationReason || "Certificado revocado"
+  }
+
+  if (!cert.expiresAt) {
+    return "Sin fecha de vencimiento"
+  }
+
+  const expiryDate = new Date(cert.expiresAt)
+  if (cert.effectiveStatus === "EXPIRED") {
+    return `Vencio el ${format(expiryDate, "dd/MM/yyyy", { locale: es })}`
+  }
+
+  if (cert.effectiveStatus === "EXPIRING") {
+    const daysUntilExpiry = differenceInDays(expiryDate, new Date())
+    return `Vence en ${Math.max(daysUntilExpiry, 0)} dias`
+  }
+
+  return `Valido hasta ${format(expiryDate, "dd/MM/yyyy", { locale: es })}`
+}
+
+export function ClientCertificatesView({
+  certificates,
+}: ClientCertificatesViewProps) {
   const [activeTab, setActiveTab] = useState("vigentes")
   const [selectedCert, setSelectedCert] = useState<Certificate | null>(null)
   const [qrDialogOpen, setQrDialogOpen] = useState(false)
 
-  // Clasificar certificados
-  const vigentes = certificates.filter((cert) => {
-    const status = getValidityStatus(cert)
-    return status.label === "Vigente" || status.label === "Por Vencer"
-  })
+  const vigentes = certificates.filter(
+    (cert) =>
+      cert.effectiveStatus === "VALID" || cert.effectiveStatus === "EXPIRING"
+  )
+  const vencidos = certificates.filter(
+    (cert) => cert.effectiveStatus === "EXPIRED"
+  )
+  const revocados = certificates.filter(
+    (cert) => cert.effectiveStatus === "REVOKED"
+  )
 
-  const vencidos = certificates.filter((cert) => {
-    const status = getValidityStatus(cert)
-    return status.label === "Vencido"
-  })
-
-  const revocados = certificates.filter((cert) => cert.revokedAt !== null)
-
-  // Estadísticas
   const stats = {
     total: certificates.length,
     vigentes: vigentes.length,
-    porVencer: certificates.filter((cert) => getValidityStatus(cert).label === "Por Vencer").length,
+    porVencer: certificates.filter(
+      (cert) => cert.effectiveStatus === "EXPIRING"
+    ).length,
     vencidos: vencidos.length,
     revocados: revocados.length,
   }
 
-  const handleDownload = async (cert: Certificate) => {
-    if (!cert.pdfUrl) {
-      alert("No hay certificado PDF disponible")
-      return
+  const ensureVerificationCode = async (cert: Certificate) => {
+    if (cert.verificationCode) {
+      return cert.verificationCode
     }
 
+    const response = await fetch("/api/certificates/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ certificationId: cert.id }),
+    })
+
+    const data = (await response.json()) as {
+      verificationCode?: string
+      error?: string
+    }
+
+    if (!response.ok || !data.verificationCode) {
+      throw new Error(data.error || "No se pudo preparar el certificado")
+    }
+
+    return data.verificationCode
+  }
+
+  const handleDownload = (cert: Certificate) => {
     try {
-      // Abrir el PDF en una nueva pestaña
-      window.open(cert.pdfUrl, "_blank")
+      window.open(`/api/certificates/${cert.id}/download`, "_blank")
     } catch (error) {
       console.error("Error al descargar certificado:", error)
       alert("Error al descargar el certificado")
     }
   }
 
-  const handleVerify = (cert: Certificate) => {
-    if (!cert.verificationCode) {
-      alert("No hay código de verificación disponible")
-      return
+  const handleVerify = async (cert: Certificate) => {
+    try {
+      const verificationCode = await ensureVerificationCode(cert)
+      const verifyUrl = `${window.location.origin}/verify/${verificationCode}`
+      window.open(verifyUrl, "_blank")
+    } catch (error) {
+      console.error("Error al verificar certificado:", error)
+      alert("No se pudo abrir la verificacion del certificado")
     }
-
-    // Abrir página de verificación pública
-    const verifyUrl = `${window.location.origin}/verify/${cert.verificationCode}`
-    window.open(verifyUrl, "_blank")
   }
 
   const handleShowQR = (cert: Certificate) => {
@@ -164,11 +188,11 @@ export function ClientCertificatesView({ certificates, collaboratorId }: ClientC
   }
 
   const renderCertificateCard = (cert: Certificate) => {
-    const status = getValidityStatus(cert)
-    const Icon = status.icon
+    const config = statusConfig[cert.effectiveStatus]
+    const Icon = config.icon
 
     return (
-      <Card key={cert.id} className="hover:shadow-lg transition-shadow">
+      <Card key={cert.id} className="transition-shadow hover:shadow-lg">
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -178,97 +202,91 @@ export function ClientCertificatesView({ certificates, collaboratorId }: ClientC
               </CardTitle>
               <CardDescription className="mt-2">
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="font-mono text-xs bg-accent px-2 py-1 rounded">
+                  <span className="rounded bg-accent px-2 py-1 font-mono text-xs">
                     {cert.certificateNumber}
                   </span>
-                  <span>•</span>
-                  <span>Versión {cert.courseVersion}</span>
+                  <span>|</span>
+                  <span>Version {cert.courseVersion}</span>
                   {cert.isRecertification && (
                     <>
-                      <span>•</span>
+                      <span>|</span>
                       <Badge variant="outline" className="text-xs">
-                        Recertificación
+                        Recertificacion
                       </Badge>
                     </>
                   )}
                 </div>
               </CardDescription>
             </div>
-            <Badge variant={status.variant} className="flex items-center gap-1">
+            <Badge variant={config.variant} className="flex items-center gap-1">
               <Icon className="h-3 w-3" />
-              {status.label}
+              {config.label}
             </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Información de fechas */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-start gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+              <Calendar className="mt-0.5 h-4 w-4 text-muted-foreground" />
               <div className="text-sm">
-                <p className="text-muted-foreground">Fecha de Emisión</p>
+                <p className="text-muted-foreground">Fecha de Emision</p>
                 <p className="font-medium">
                   {format(new Date(cert.issuedAt), "dd/MM/yyyy", { locale: es })}
                 </p>
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
+              <Clock className="mt-0.5 h-4 w-4 text-muted-foreground" />
               <div className="text-sm">
                 <p className="text-muted-foreground">Vigencia</p>
-                <p className="font-medium">{status.description}</p>
+                <p className="font-medium">{getValidityDescription(cert)}</p>
               </div>
             </div>
           </div>
 
-          {/* Mensaje de revocación */}
           {cert.revokedAt && cert.revocationReason && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm">
-              <p className="text-red-900 font-medium">Certificado Revocado</p>
-              <p className="text-red-700 text-xs mt-1">{cert.revocationReason}</p>
-              <p className="text-red-600 text-xs mt-1">
-                Revocado el {format(new Date(cert.revokedAt), "dd/MM/yyyy HH:mm", { locale: es })}
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm">
+              <p className="font-medium text-red-900">Certificado Revocado</p>
+              <p className="mt-1 text-xs text-red-700">{cert.revocationReason}</p>
+              <p className="mt-1 text-xs text-red-600">
+                Revocado el{" "}
+                {format(new Date(cert.revokedAt), "dd/MM/yyyy HH:mm", {
+                  locale: es,
+                })}
               </p>
             </div>
           )}
 
-          {/* Advertencia de recertificación */}
-          {cert.recertificationDueAt && isFuture(new Date(cert.recertificationDueAt)) && (
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <div>
-                <p className="text-amber-900 font-medium">Recertificación Requerida</p>
-                <p className="text-amber-700 text-xs">
-                  Debes recertificar antes del{" "}
-                  {format(new Date(cert.recertificationDueAt), "dd/MM/yyyy", { locale: es })}
-                </p>
+          {cert.recertificationDueAt &&
+            isFuture(new Date(cert.recertificationDueAt)) && (
+              <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <div>
+                  <p className="font-medium text-amber-900">
+                    Recertificacion Requerida
+                  </p>
+                  <p className="text-xs text-amber-700">
+                    Debes recertificar antes del{" "}
+                    {format(new Date(cert.recertificationDueAt), "dd/MM/yyyy", {
+                      locale: es,
+                    })}
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Acciones */}
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button
-              onClick={() => handleDownload(cert)}
-              disabled={!cert.pdfUrl}
-              variant="default"
-              size="sm"
-            >
-              <Download className="h-4 w-4 mr-2" />
+            <Button onClick={() => handleDownload(cert)} variant="default" size="sm">
+              <Download className="mr-2 h-4 w-4" />
               Descargar PDF
             </Button>
-            <Button
-              onClick={() => handleVerify(cert)}
-              disabled={!cert.verificationCode}
-              variant="outline"
-              size="sm"
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
+            <Button onClick={() => handleVerify(cert)} variant="outline" size="sm">
+              <ExternalLink className="mr-2 h-4 w-4" />
               Verificar
             </Button>
             {cert.qrCode && (
               <Button onClick={() => handleShowQR(cert)} variant="outline" size="sm">
-                <QrCode className="h-4 w-4 mr-2" />
+                <QrCode className="mr-2 h-4 w-4" />
                 Ver QR
               </Button>
             )}
@@ -280,84 +298,100 @@ export function ClientCertificatesView({ certificates, collaboratorId }: ClientC
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Mis Certificados</h1>
-        <p className="text-muted-foreground mt-2">
+        <p className="mt-2 text-muted-foreground">
           Consulta y descarga tus certificados de cursos completados
         </p>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
               <Award className="h-4 w-4 text-purple-500" />
               Total
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground mt-1">Certificados obtenidos</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Certificados obtenidos
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
               <CheckCircle className="h-4 w-4 text-green-500" />
               Vigentes
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.vigentes}</div>
-            <p className="text-xs text-muted-foreground mt-1">Certificados activos</p>
+            <div className="text-2xl font-bold text-green-600">
+              {stats.vigentes}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Certificados activos
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
               <AlertTriangle className="h-4 w-4 text-orange-500" />
               Por Vencer
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.porVencer}</div>
-            <p className="text-xs text-muted-foreground mt-1">Próximos a expirar</p>
+            <div className="text-2xl font-bold text-orange-600">
+              {stats.porVencer}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Proximos a expirar
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
               <XCircle className="h-4 w-4 text-red-500" />
               Vencidos
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.vencidos}</div>
-            <p className="text-xs text-muted-foreground mt-1">Requieren renovación</p>
+            <div className="text-2xl font-bold text-red-600">
+              {stats.vencidos}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Requieren renovacion
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="vigentes">Vigentes ({stats.vigentes})</TabsTrigger>
-          <TabsTrigger value="vencidos">Vencidos ({stats.vencidos})</TabsTrigger>
+          <TabsTrigger value="vigentes">
+            Vigentes ({stats.vigentes})
+          </TabsTrigger>
+          <TabsTrigger value="vencidos">
+            Vencidos ({stats.vencidos})
+          </TabsTrigger>
           <TabsTrigger value="historial">Historial Completo</TabsTrigger>
         </TabsList>
 
-        {/* TAB: Vigentes */}
         <TabsContent value="vigentes" className="mt-6">
           {vigentes.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
-                <Award className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">No hay certificados vigentes</h3>
+                <Award className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                <h3 className="mb-2 text-lg font-semibold">
+                  No hay certificados vigentes
+                </h3>
                 <p className="text-muted-foreground">
                   Completa cursos para obtener certificados
                 </p>
@@ -370,13 +404,14 @@ export function ClientCertificatesView({ certificates, collaboratorId }: ClientC
           )}
         </TabsContent>
 
-        {/* TAB: Vencidos */}
         <TabsContent value="vencidos" className="mt-6">
           {vencidos.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
-                <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
-                <h3 className="text-lg font-semibold mb-2">Todos tus certificados están vigentes</h3>
+                <CheckCircle className="mx-auto mb-4 h-12 w-12 text-green-500" />
+                <h3 className="mb-2 text-lg font-semibold">
+                  Todos tus certificados estan vigentes
+                </h3>
                 <p className="text-muted-foreground">
                   No hay certificados vencidos en este momento
                 </p>
@@ -389,65 +424,71 @@ export function ClientCertificatesView({ certificates, collaboratorId }: ClientC
           )}
         </TabsContent>
 
-        {/* TAB: Historial Completo */}
         <TabsContent value="historial" className="mt-6">
           <Card>
             <CardHeader>
               <CardTitle>Historial Completo de Certificados</CardTitle>
               <CardDescription>
-                Todos tus certificados ordenados por fecha de emisión
+                Todos tus certificados ordenados por fecha de emision
               </CardDescription>
             </CardHeader>
             <CardContent>
               {certificates.length === 0 ? (
                 <div className="py-12 text-center">
-                  <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">Sin certificados</h3>
+                  <FileText className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                  <h3 className="mb-2 text-lg font-semibold">Sin certificados</h3>
                   <p className="text-muted-foreground">
-                    Aún no has obtenido ningún certificado
+                    Aun no has obtenido ningun certificado
                   </p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {certificates.map((cert) => {
-                    const status = getValidityStatus(cert)
-                    const Icon = status.icon
+                    const config = statusConfig[cert.effectiveStatus]
+                    const Icon = config.icon
 
                     return (
                       <div
                         key={cert.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
+                        className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-accent"
                       >
-                        <div className="flex items-center gap-4 flex-1">
-                          <div className={`p-2 rounded-full ${status.color} bg-opacity-10`}>
-                            <Icon className={`h-5 w-5 ${status.color.replace("bg-", "text-")}`} />
+                        <div className="flex flex-1 items-center gap-4">
+                          <div className={`rounded-full p-2 ${config.color} bg-opacity-10`}>
+                            <Icon
+                              className={`h-5 w-5 ${config.color.replace("bg-", "text-")}`}
+                            />
                           </div>
                           <div className="flex-1">
                             <div className="font-semibold">{cert.courseName}</div>
-                            <div className="text-sm text-muted-foreground flex items-center gap-2">
-                              <span className="font-mono text-xs">{cert.certificateNumber}</span>
-                              <span>•</span>
-                              <span>Versión {cert.courseVersion}</span>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <span className="font-mono text-xs">
+                                {cert.certificateNumber}
+                              </span>
+                              <span>|</span>
+                              <span>Version {cert.courseVersion}</span>
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-6">
                           <div className="text-center">
-                            <div className="text-sm text-muted-foreground">Emisión</div>
+                            <div className="text-sm text-muted-foreground">
+                              Emision
+                            </div>
                             <div className="font-medium">
                               {format(new Date(cert.issuedAt), "dd/MM/yyyy")}
                             </div>
                           </div>
-                          <div className="text-center min-w-[100px]">
-                            <div className="text-sm text-muted-foreground">Estado</div>
-                            <Badge variant={status.variant} className="mt-1">
-                              {status.label}
+                          <div className="min-w-[100px] text-center">
+                            <div className="text-sm text-muted-foreground">
+                              Estado
+                            </div>
+                            <Badge variant={config.variant} className="mt-1">
+                              {config.label}
                             </Badge>
                           </div>
                           <div className="flex gap-2">
                             <Button
                               onClick={() => handleDownload(cert)}
-                              disabled={!cert.pdfUrl}
                               variant="outline"
                               size="sm"
                             >
@@ -455,7 +496,6 @@ export function ClientCertificatesView({ certificates, collaboratorId }: ClientC
                             </Button>
                             <Button
                               onClick={() => handleVerify(cert)}
-                              disabled={!cert.verificationCode}
                               variant="outline"
                               size="sm"
                             >
@@ -473,13 +513,12 @@ export function ClientCertificatesView({ certificates, collaboratorId }: ClientC
         </TabsContent>
       </Tabs>
 
-      {/* Dialog para mostrar QR */}
       <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Código QR de Verificación</DialogTitle>
+            <DialogTitle>Codigo QR de Verificacion</DialogTitle>
             <DialogDescription>
-              Escanea este código para verificar la autenticidad del certificado
+              Escanea este codigo para verificar la autenticidad del certificado
             </DialogDescription>
           </DialogHeader>
           {selectedCert && selectedCert.qrCode && (
@@ -487,17 +526,19 @@ export function ClientCertificatesView({ certificates, collaboratorId }: ClientC
               <img
                 src={selectedCert.qrCode}
                 alt="QR Code"
-                className="w-64 h-64 border rounded-lg"
+                className="h-64 w-64 rounded-lg border"
               />
               <div className="text-center">
                 <p className="text-sm font-medium">{selectedCert.courseName}</p>
-                <p className="text-xs text-muted-foreground font-mono mt-1">
+                <p className="mt-1 font-mono text-xs text-muted-foreground">
                   {selectedCert.certificateNumber}
                 </p>
               </div>
-              <div className="text-xs text-muted-foreground text-center">
-                <p>Código de verificación:</p>
-                <p className="font-mono font-semibold mt-1">{selectedCert.verificationCode}</p>
+              <div className="text-center text-xs text-muted-foreground">
+                <p>Codigo de verificacion:</p>
+                <p className="mt-1 font-mono font-semibold">
+                  {selectedCert.verificationCode}
+                </p>
               </div>
             </div>
           )}

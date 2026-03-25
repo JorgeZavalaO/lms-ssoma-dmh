@@ -1,5 +1,5 @@
+import { CollaboratorStatus, CourseStatus, ProgressStatus } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
-import { CollaboratorStatus, ProgressStatus, CourseStatus } from "@prisma/client"
 
 export interface AdminDashboardKPIs {
   totalCollaborators: number
@@ -33,12 +33,48 @@ export interface AdminDashboardKPIs {
   }[]
 }
 
-/**
- * Obtiene los KPIs del dashboard ejecutivo para administradores
- */
+function buildCriticalCollaboratorRows(
+  rows: Array<{
+    collaboratorId: string
+    collaborator: {
+      user: { name: string | null; email: string | null } | null
+      area: { name: string } | null
+    }
+  }>
+) {
+  const counts = new Map<
+    string,
+    { name: string; email: string; area: string; alertsCount: number }
+  >()
+
+  for (const row of rows) {
+    const current = counts.get(row.collaboratorId)
+    if (current) {
+      current.alertsCount += 1
+      continue
+    }
+
+    counts.set(row.collaboratorId, {
+      name: row.collaborator.user?.name || "Desconocido",
+      email: row.collaborator.user?.email || "",
+      area: row.collaborator.area?.name || "Sin area",
+      alertsCount: 1,
+    })
+  }
+
+  return Array.from(counts.values())
+    .sort((a, b) => b.alertsCount - a.alertsCount)
+    .slice(0, 5)
+}
+
 export async function getAdminDashboardKPIs(): Promise<AdminDashboardKPIs> {
   try {
-    // Total de colaboradores
+    const now = new Date()
+    const sevenDaysFromNow = new Date(now)
+    sevenDaysFromNow.setDate(now.getDate() + 7)
+    const thirtyDaysFromNow = new Date(now)
+    thirtyDaysFromNow.setDate(now.getDate() + 30)
+
     const collaborators = await prisma.collaborator.findMany({
       select: {
         id: true,
@@ -49,81 +85,141 @@ export async function getAdminDashboardKPIs(): Promise<AdminDashboardKPIs> {
     })
 
     const totalCollaborators = collaborators.length
-    const activeCollaborators = collaborators.filter((c) => c.status === CollaboratorStatus.ACTIVE).length
+    const activeCollaborators = collaborators.filter(
+      (collaborator) => collaborator.status === CollaboratorStatus.ACTIVE
+    ).length
 
-    // Total de cursos activos
-    const activeCourses = await prisma.course.findMany({
+    const totalActiveCourses = await prisma.course.count({
       where: { status: CourseStatus.PUBLISHED },
-      select: { id: true },
     })
-    const totalActiveCourses = activeCourses.length
 
-    // Cumplimiento general (porcentaje de cursos completados vs inscritos)
     const totalEnrollments = await prisma.enrollment.count({
       where: { status: "ACTIVE" },
     })
+
     const completedEnrollments = await prisma.courseProgress.count({
-      where: { status: ProgressStatus.PASSED },
-    })
-    const overallCompliancePercent =
-      totalEnrollments > 0 ? Math.round((completedEnrollments / totalEnrollments) * 100) : 0
-
-    // Alertas críticas sin resolver
-    const criticalAlerts = await prisma.progressAlert.findMany({
       where: {
-        severity: 3, // critical
-        isRead: false,
-        isDismissed: false,
+        status: { in: [ProgressStatus.PASSED, ProgressStatus.EXEMPTED] },
       },
-      select: { id: true },
     })
-    const criticalAlertsCount = criticalAlerts.length
 
-    // Inscripciones pendientes
+    const overallCompliancePercent =
+      totalEnrollments > 0
+        ? Math.round((completedEnrollments / totalEnrollments) * 100)
+        : 0
+
+    const [criticalCourseProgress, criticalCertifications] = await Promise.all([
+      prisma.courseProgress.findMany({
+        where: {
+          collaborator: { status: CollaboratorStatus.ACTIVE },
+          OR: [
+            { status: ProgressStatus.EXPIRED },
+            {
+              status: {
+                in: [
+                  ProgressStatus.IN_PROGRESS,
+                  ProgressStatus.PASSED,
+                  ProgressStatus.EXEMPTED,
+                ],
+              },
+              expiresAt: { lt: now },
+            },
+            {
+              status: {
+                in: [
+                  ProgressStatus.IN_PROGRESS,
+                  ProgressStatus.PASSED,
+                  ProgressStatus.EXEMPTED,
+                ],
+              },
+              expiresAt: { gte: now, lte: sevenDaysFromNow },
+            },
+          ],
+        },
+        select: {
+          collaboratorId: true,
+          collaborator: {
+            select: {
+              user: { select: { name: true, email: true } },
+              area: { select: { name: true } },
+            },
+          },
+        },
+      }),
+      prisma.certificationRecord.findMany({
+        where: {
+          collaborator: { status: CollaboratorStatus.ACTIVE },
+          OR: [
+            { revokedAt: { not: null } },
+            { isValid: false },
+            { expiresAt: { lt: now } },
+            { expiresAt: { gte: now, lte: thirtyDaysFromNow } },
+          ],
+        },
+        select: {
+          collaboratorId: true,
+          collaborator: {
+            select: {
+              user: { select: { name: true, email: true } },
+              area: { select: { name: true } },
+            },
+          },
+        },
+      }),
+    ])
+
+    const criticalAlertsCount =
+      criticalCourseProgress.length + criticalCertifications.length
+
     const pendingEnrollments = await prisma.enrollment.count({
       where: { status: "PENDING" },
     })
 
-    // Cumplimiento por área
+    const areas = await prisma.area.findMany({
+      select: { id: true, name: true },
+    })
+
     const complianceByArea = await Promise.all(
-      (
-        await prisma.area.findMany({
-          select: { id: true, name: true },
-        })
-      ).map(async (area) => {
+      areas.map(async (area) => {
         const areaCollaborators = await prisma.collaborator.count({
           where: { areaId: area.id },
         })
         const areaCompletedCourses = await prisma.courseProgress.count({
           where: {
             collaborator: { areaId: area.id },
-            status: ProgressStatus.PASSED,
+            status: { in: [ProgressStatus.PASSED, ProgressStatus.EXEMPTED] },
           },
         })
-        const areaActiveCourses = await prisma.courseProgress.count({
+        const areaTrackedCourses = await prisma.courseProgress.count({
           where: {
             collaborator: { areaId: area.id },
-            status: { in: [ProgressStatus.IN_PROGRESS, ProgressStatus.PASSED] },
+            status: {
+              in: [
+                ProgressStatus.IN_PROGRESS,
+                ProgressStatus.PASSED,
+                ProgressStatus.EXEMPTED,
+                ProgressStatus.EXPIRED,
+              ],
+            },
           },
         })
-        const compliance =
-          areaActiveCourses > 0 ? Math.round((areaCompletedCourses / areaActiveCourses) * 100) : 0
 
         return {
           area: area.name,
-          compliance,
+          compliance:
+            areaTrackedCourses > 0
+              ? Math.round((areaCompletedCourses / areaTrackedCourses) * 100)
+              : 0,
           collaborators: areaCollaborators,
         }
       })
     )
 
-    // Tendencia de inscripciones (últimos 6 meses)
-    const now = new Date()
-
     const enrollmentsTrend = await Promise.all(
-      Array.from({ length: 6 }).map(async (_, i) => {
-        const monthStart = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1)
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() - (5 - i) + 1, 1)
+      Array.from({ length: 6 }).map(async (_, index) => {
+        const monthStart = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1)
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() - (5 - index) + 1, 1)
+
         const count = await prisma.enrollment.count({
           where: {
             enrolledAt: {
@@ -132,60 +228,25 @@ export async function getAdminDashboardKPIs(): Promise<AdminDashboardKPIs> {
             },
           },
         })
-        const monthName = monthStart.toLocaleDateString("es-ES", { month: "short" })
-        return { month: monthName, enrollments: count }
+
+        return {
+          month: monthStart.toLocaleDateString("es-ES", { month: "short" }),
+          enrollments: count,
+        }
       })
     )
 
-    // Distribución de estados de cursos
-    const draftCourses = await prisma.course.count({ where: { status: CourseStatus.DRAFT } })
-    const publishedCourses = await prisma.course.count({ where: { status: CourseStatus.PUBLISHED } })
-    const archivedCourses = await prisma.course.count({ where: { status: CourseStatus.ARCHIVED } })
+    const [draftCourses, publishedCourses, archivedCourses] = await Promise.all([
+      prisma.course.count({ where: { status: CourseStatus.DRAFT } }),
+      prisma.course.count({ where: { status: CourseStatus.PUBLISHED } }),
+      prisma.course.count({ where: { status: CourseStatus.ARCHIVED } }),
+    ])
 
     const courseStatusDistribution = [
       { status: "Borrador", count: draftCourses },
       { status: "Publicado", count: publishedCourses },
       { status: "Archivado", count: archivedCourses },
     ]
-
-    // Top 5 áreas por cumplimiento
-    const topAreasCompliance = complianceByArea.sort((a, b) => b.compliance - a.compliance).slice(0, 5)
-
-    // Colaboradores críticos (con alertas)
-    const criticalCollaborators = await prisma.progressAlert.groupBy({
-      by: ["collaboratorId"],
-      where: {
-        isRead: false,
-        isDismissed: false,
-      },
-      _count: {
-        id: true,
-      },
-      orderBy: {
-        _count: {
-          id: "desc",
-        },
-      },
-      take: 5,
-    })
-
-    const criticalCollaboratorsDetail = await Promise.all(
-      criticalCollaborators.map(async (item) => {
-        const collaborator = await prisma.collaborator.findUnique({
-          where: { id: item.collaboratorId },
-          select: {
-            user: { select: { name: true, email: true } },
-            area: { select: { name: true } },
-          },
-        })
-        return {
-          name: collaborator?.user?.name || "Desconocido",
-          email: collaborator?.user?.email || "",
-          area: collaborator?.area?.name || "Sin área",
-          alertsCount: item._count.id,
-        }
-      })
-    )
 
     return {
       totalCollaborators,
@@ -197,8 +258,13 @@ export async function getAdminDashboardKPIs(): Promise<AdminDashboardKPIs> {
       complianceByArea,
       enrollmentsTrend,
       courseStatusDistribution,
-      topAreasCompliance,
-      criticalCollaborators: criticalCollaboratorsDetail,
+      topAreasCompliance: [...complianceByArea]
+        .sort((a, b) => b.compliance - a.compliance)
+        .slice(0, 5),
+      criticalCollaborators: buildCriticalCollaboratorRows([
+        ...criticalCourseProgress,
+        ...criticalCertifications,
+      ]),
     }
   } catch (error) {
     console.error("Error fetching admin KPIs:", error)

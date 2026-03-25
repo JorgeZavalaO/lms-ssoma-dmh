@@ -1,5 +1,12 @@
 export interface Certification {
   id: string
+  certificateNumber: string
+  verificationCode: string | null
+  pdfUrl: string | null
+  isValid: boolean
+  effectiveStatus: "VALID" | "EXPIRING" | "EXPIRED" | "REVOKED"
+  daysUntilExpiry: number | null
+  isRecertification: boolean
   collaborator: {
     id: string
     firstName: string
@@ -9,8 +16,9 @@ export interface Certification {
   course: {
     id: string
     name: string
-    code: string
+    code: string | null
     validityMonths: number | null
+    version?: number
   }
   issuedAt: string
   expiresAt: string | null

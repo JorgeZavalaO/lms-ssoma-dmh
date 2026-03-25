@@ -42,6 +42,7 @@ export async function GET(
         courseHours: certificate.courseHours,
         score: certificate.score,
         isValid: certificate.isValid,
+        effectiveStatus: certificate.effectiveStatus,
       },
     })
   } catch (error: any) {

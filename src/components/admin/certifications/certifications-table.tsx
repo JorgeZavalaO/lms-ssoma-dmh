@@ -128,7 +128,9 @@ export function CertificationsTable({
                       <TableCell>
                         <div>
                           <div className="font-medium">{certification.course.name}</div>
-                          <div className="text-xs text-muted-foreground">{certification.course.code}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {certification.course.code || "Sin codigo"}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>

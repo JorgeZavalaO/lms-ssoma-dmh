@@ -137,28 +137,28 @@ export function CertificatesTable({
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
+                        <Button
+                          size="sm"
+                          onClick={() => onDownload(certificate.id)}
+                          variant="ghost"
+                          disabled={processing}
+                          title="Descargar PDF"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
                         {!certificate.verificationCode && (
                           <Button
                             size="sm"
                             onClick={() => onGenerate(certificate.id)}
                             variant="ghost"
                             disabled={processing}
-                            title="Generar certificado"
+                            title="Preparar artefactos"
                           >
                             <FileText className="h-4 w-4" />
                           </Button>
                         )}
                         {certificate.verificationCode && (
                           <>
-                            <Button
-                              size="sm"
-                              onClick={() => onDownload(certificate.id)}
-                              variant="ghost"
-                              disabled={processing}
-                              title="Descargar PDF"
-                            >
-                              <Download className="h-4 w-4" />
-                            </Button>
                             <Button
                               size="sm"
                               onClick={() => onVerify(certificate.verificationCode!)}

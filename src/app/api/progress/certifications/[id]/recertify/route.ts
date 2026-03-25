@@ -3,7 +3,11 @@ import { auth } from "@/auth"
 import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { requireStaff } from "@/lib/authorization"
-import { generateUniqueCertificationIdentifiers } from "@/lib/certificates"
+import {
+  generateUniqueCertificationIdentifiers,
+  getEffectiveCertificateState,
+  serializeCertification,
+} from "@/lib/certificates"
 
 export async function POST(
   _req: NextRequest,
@@ -32,6 +36,69 @@ export async function POST(
     if (previousCert.revokedAt) {
       return NextResponse.json(
         { error: "No se puede recertificar una certificacion revocada" },
+        { status: 400 }
+      )
+    }
+
+    const effectiveState = getEffectiveCertificateState(previousCert)
+    if (effectiveState.status !== "EXPIRED") {
+      return NextResponse.json(
+        { error: "Solo se puede recertificar una certificacion vencida" },
+        { status: 400 }
+      )
+    }
+
+    const existingRecertification = await prisma.certificationRecord.findFirst({
+      where: { previousCertId: params.id },
+      include: {
+        collaborator: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            dni: true,
+            user: { select: { id: true } },
+          },
+        },
+        course: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            validity: true,
+            currentVersion: true,
+            duration: true,
+          },
+        },
+        previousCert: {
+          select: { id: true, certificateNumber: true, issuedAt: true },
+        },
+        courseProgress: {
+          select: {
+            id: true,
+            status: true,
+            progressPercent: true,
+            certifiedAt: true,
+            enrollmentId: true,
+          },
+        },
+      },
+      orderBy: { issuedAt: "desc" },
+    })
+
+    if (existingRecertification) {
+      return NextResponse.json(serializeCertification(existingRecertification))
+    }
+
+    const latestCertification = await prisma.certificationRecord.findFirst({
+      where: { courseProgressId: previousCert.courseProgressId },
+      select: { id: true },
+      orderBy: { issuedAt: "desc" },
+    })
+
+    if (latestCertification?.id !== previousCert.id) {
+      return NextResponse.json(
+        { error: "Solo se puede recertificar la certificacion mas reciente" },
         { status: 400 }
       )
     }
@@ -80,43 +147,38 @@ export async function POST(
       },
       include: {
         collaborator: {
-          select: { id: true, fullName: true, email: true },
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            dni: true,
+            user: { select: { id: true } },
+          },
         },
         course: {
-          select: { id: true, code: true, name: true, validity: true },
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            validity: true,
+            currentVersion: true,
+            duration: true,
+          },
         },
         previousCert: {
           select: { id: true, certificateNumber: true, issuedAt: true },
         },
+        courseProgress: {
+          select: {
+            id: true,
+            status: true,
+            progressPercent: true,
+            certifiedAt: true,
+            enrollmentId: true,
+          },
+        },
       },
     })
-
-    const nameParts = newCertification.collaborator.fullName.split(" ")
-    const firstName = nameParts[0]
-    const lastName = nameParts.slice(1).join(" ")
-
-    const transformedCertification = {
-      id: newCertification.id,
-      certificateNumber: newCertification.certificateNumber,
-      verificationCode: newCertification.verificationCode,
-      collaborator: {
-        id: newCertification.collaborator.id,
-        firstName,
-        lastName,
-        email: newCertification.collaborator.email,
-      },
-      course: {
-        id: newCertification.course.id,
-        name: newCertification.course.name,
-        code: newCertification.course.code,
-        validityMonths: newCertification.course.validity,
-      },
-      issuedAt: newCertification.issuedAt,
-      expiresAt: newCertification.expiresAt,
-      revokedAt: newCertification.revokedAt,
-      revokedBy: newCertification.revokedBy,
-      revocationReason: newCertification.revocationReason,
-    }
 
     await prisma.courseProgress.update({
       where: { id: previousCert.courseProgressId },
@@ -126,7 +188,9 @@ export async function POST(
       },
     })
 
-    return NextResponse.json(transformedCertification, { status: 201 })
+    return NextResponse.json(serializeCertification(newCertification), {
+      status: 201,
+    })
   } catch (error) {
     console.error("Error creating recertification:", error)
     return NextResponse.json(

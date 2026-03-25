@@ -6,6 +6,7 @@ import {
   requireStaff,
   resolveCollaboratorScope,
 } from "@/lib/authorization";
+import { mapProgressStatusForClient } from "@/lib/progress-status";
 
 // GET /api/progress/courses - Obtener todos los progresos de cursos
 export async function GET(req: NextRequest) {
@@ -138,7 +139,7 @@ export async function GET(req: NextRequest) {
         code: p.course.code,
         name: p.course.name,
       },
-      status: p.status === 'PASSED' ? 'COMPLETED' : p.status === 'EXEMPTED' ? 'EXEMPT' : p.status,
+      status: mapProgressStatusForClient(p.status),
       progress: p.progressPercent,
       startedAt: p.startedAt,
       completedAt: p.completedAt,

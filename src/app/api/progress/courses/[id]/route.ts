@@ -6,6 +6,7 @@ import {
   requireCollaboratorAccess,
   requireStaff,
 } from "@/lib/authorization";
+import { ensureCertificationForProgress } from "@/lib/certificates";
 
 // GET /api/progress/courses/[id] - Obtener progreso de curso
 export async function GET(
@@ -127,6 +128,22 @@ export async function PUT(
         },
       },
     });
+
+    if (["PASSED", "EXEMPTED"].includes(progress.status)) {
+      try {
+        await ensureCertificationForProgress(progress.id, {
+          certificateData: {
+            trigger: "MANUAL_PROGRESS_UPDATE",
+          },
+          trigger: "MANUAL_PROGRESS_UPDATE",
+        })
+      } catch (error) {
+        console.error(
+          `No se pudo emitir automaticamente el certificado para ${progress.id}:`,
+          error
+        )
+      }
+    }
 
     return NextResponse.json(progress);
   } catch (error: any) {

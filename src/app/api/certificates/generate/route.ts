@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { renderToBuffer } from "@react-pdf/renderer"
 import { createCertificatePDF } from "@/components/certificates/certificate-pdf"
-import { updateCertificatePdf, getCertificateData } from "@/lib/certificates"
+import {
+  getCertificateData,
+  persistCertificatePdfArtifact,
+} from "@/lib/certificates"
 import { requireStaff } from "@/lib/authorization"
 import { GenerateCertificateSchema } from "@/validations/certificates"
 
@@ -27,13 +30,10 @@ export async function POST(req: NextRequest) {
 
     const certificatePDF = createCertificatePDF(certificateData)
     const pdfBuffer = await renderToBuffer(certificatePDF)
-    const pdfUrl = `/api/certificates/${certificationId}/download`
-
-    await updateCertificatePdf(certificationId, pdfUrl, {
-      size: pdfBuffer.length,
-      generatedAt: new Date().toISOString(),
-      storageMode: "ON_DEMAND_DOWNLOAD",
-    })
+    const pdfUrl = await persistCertificatePdfArtifact(
+      certificationId,
+      pdfBuffer.length
+    )
 
     return NextResponse.json({
       success: true,

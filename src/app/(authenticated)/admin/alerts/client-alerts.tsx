@@ -24,7 +24,7 @@ interface ProgressAlert {
   course: {
     id: string
     name: string
-    code: string
+    code: string | null
   } | null
   type: "COURSE_EXPIRING" | "COURSE_EXPIRED" | "RECERTIFICATION_REQUIRED" | "CUSTOM"
   severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
@@ -58,12 +58,12 @@ const typeConfig = {
   CUSTOM: { label: "Personalizada", icon: Info },
 }
 
-export function ClientAlerts() {
+export function ClientAlerts({ initialSeverity = "all" }: { initialSeverity?: string }) {
   const [alerts, setAlerts] = useState<ProgressAlert[]>([])
   const [stats, setStats] = useState<AlertStats>({ critical: 0, high: 0, medium: 0, low: 0, unread: 0 })
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [severityFilter, setSeverityFilter] = useState<string>("all")
+  const [severityFilter, setSeverityFilter] = useState<string>(initialSeverity)
   const [typeFilter, setTypeFilter] = useState<string>("all")
   const [showDismissed, setShowDismissed] = useState(false)
   const [processing, setProcessing] = useState(false)
@@ -110,7 +110,7 @@ export function ClientAlerts() {
       alert.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (alert.course && (
         alert.course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        alert.course.code.toLowerCase().includes(searchTerm.toLowerCase())
+        (alert.course.code ?? "").toLowerCase().includes(searchTerm.toLowerCase())
       ))
     
     const matchesSeverity = severityFilter === "all" || alert.severity === severityFilter
@@ -126,8 +126,11 @@ export function ClientAlerts() {
       })
 
       if (response.ok) {
-        setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, isRead: true, readAt: new Date().toISOString() } : a))
-        calculateStats(alerts)
+        setAlerts(prev => {
+          const updatedAlerts = prev.map(a => a.id === alertId ? { ...a, isRead: true, readAt: new Date().toISOString() } : a)
+          calculateStats(updatedAlerts)
+          return updatedAlerts
+        })
       }
     } catch (error) {
       console.error("Error marking alert as read:", error)
@@ -143,8 +146,11 @@ export function ClientAlerts() {
 
       if (response.ok) {
         toast.success("Alerta descartada")
-        setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, isDismissed: true, dismissedAt: new Date().toISOString() } : a))
-        calculateStats(alerts)
+        setAlerts(prev => {
+          const updatedAlerts = prev.map(a => a.id === alertId ? { ...a, isDismissed: true, dismissedAt: new Date().toISOString() } : a)
+          calculateStats(updatedAlerts)
+          return updatedAlerts
+        })
       } else {
         toast.error("No se pudo descartar la alerta")
       }
@@ -166,7 +172,7 @@ export function ClientAlerts() {
 
       if (response.ok) {
         const data = await response.json()
-        toast.success(`Se generaron ${data.generated} alertas`)
+        toast.success(`Se generaron ${data.alertsCreated ?? data.generated ?? 0} alertas`)
         loadAlerts()
       } else {
         toast.error("No se pudieron generar las alertas")

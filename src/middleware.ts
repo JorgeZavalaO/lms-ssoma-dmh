@@ -1,4 +1,5 @@
-import { auth } from "@/auth"
+import authConfig from "@/auth.config"
+import NextAuth from "next-auth"
 import { NextResponse } from "next/server"
 
 // Rutas públicas (no requieren sesión)
@@ -24,6 +25,8 @@ const PROTECTED_PREFIXES = [
 function isProtectedPath(pathname: string) {
   return PROTECTED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"))
 }
+
+const { auth } = NextAuth(authConfig)
 
 export default auth((req) => {
   const { pathname } = req.nextUrl

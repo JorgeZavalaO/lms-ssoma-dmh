@@ -31,15 +31,9 @@ export function ClientCertifications() {
   const [processing, setProcessing] = useState(false)
 
   const getCertStatus = useCallback((cert: Certification): CertificationStatus => {
-    if (cert.revokedAt) return "revoked"
-    if (!cert.expiresAt) return "valid"
-
-    const now = new Date()
-    const expiryDate = new Date(cert.expiresAt)
-    const daysUntilExpiry = differenceInDays(expiryDate, now)
-
-    if (daysUntilExpiry < 0) return "expired"
-    if (daysUntilExpiry <= 30) return "expiring"
+    if (cert.effectiveStatus === "REVOKED") return "revoked"
+    if (cert.effectiveStatus === "EXPIRED") return "expired"
+    if (cert.effectiveStatus === "EXPIRING") return "expiring"
     return "valid"
   }, [])
 
@@ -109,7 +103,7 @@ export function ClientCertifications() {
           cert.collaborator.lastName.toLowerCase().includes(term) ||
           cert.collaborator.email.toLowerCase().includes(term) ||
           cert.course.name.toLowerCase().includes(term) ||
-          cert.course.code.toLowerCase().includes(term)
+          (cert.course.code ?? "").toLowerCase().includes(term)
 
         const certStatus = getCertStatus(cert)
         const matchesStatus = statusFilter === "all" || certStatus === statusFilter
@@ -177,6 +171,40 @@ export function ClientCertifications() {
     }
   }
 
+  const handleRepair = async () => {
+    try {
+      setProcessing(true)
+      const response = await fetch("/api/progress/certifications/repair", {
+        method: "POST",
+      })
+
+      const data = await response.json() as {
+        created?: number
+        skipped?: number
+        failed?: number
+        error?: string
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || "No se pudo reparar certificaciones")
+      }
+
+      toast.success(
+        `Reparacion completada: ${data.created ?? 0} creadas, ${data.skipped ?? 0} sin cambios`
+      )
+      loadCertifications()
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "No se pudo reparar certificaciones"
+      console.error("Error repairing certifications:", error)
+      toast.error(message)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   const exportToCSV = () => {
     const headers = ["Colaborador", "Email", "Curso", "Código", "Estado", "Fecha Emisión", "Fecha Vencimiento", "Días Restantes"]
     const rows = filteredCertifications.map((certification) => {
@@ -190,7 +218,7 @@ export function ClientCertifications() {
         `${certification.collaborator.firstName} ${certification.collaborator.lastName}`,
         certification.collaborator.email,
         certification.course.name,
-        certification.course.code,
+        certification.course.code ?? "",
         config.label,
         format(new Date(certification.issuedAt), "dd/MM/yyyy", { locale: es }),
         certification.expiresAt
@@ -221,6 +249,9 @@ export function ClientCertifications() {
           <Button onClick={loadCertifications} variant="outline" disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
             Actualizar
+          </Button>
+          <Button onClick={handleRepair} variant="outline" disabled={processing}>
+            Reparar Historicos
           </Button>
           <Button onClick={exportToCSV} variant="outline">
             <Download className="h-4 w-4 mr-2" />

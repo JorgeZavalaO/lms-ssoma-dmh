@@ -3,6 +3,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { LessonProgressSchema } from "@/validations/content"
 import { capLessonProgress } from "@/lib/progress"
+import { ensureCertificationForProgress } from "@/lib/certificates"
 
 // GET - Obtener progreso de una lección para el usuario actual
 export async function GET(
@@ -168,18 +169,29 @@ export async function PUT(
 
     // Actualizar CourseProgress: acumular tiempo y recalcular % de curso
     const courseId = lesson.unit.courseId
+    const linkedEnrollment = await prisma.enrollment.findFirst({
+      where: {
+        collaboratorId,
+        courseId,
+        status: { not: "CANCELLED" },
+      },
+      orderBy: { enrolledAt: "desc" },
+      select: { id: true },
+    })
 
     await prisma.courseProgress.upsert({
       where: { collaboratorId_courseId: { collaboratorId, courseId } },
       create: {
         collaboratorId,
         courseId,
+        enrollmentId: linkedEnrollment?.id,
         status: "IN_PROGRESS",
         progressPercent: 0,
         timeSpent: effectiveDeltaSec || 0,
         lastActivityAt: new Date(),
       },
       update: {
+        ...(linkedEnrollment?.id && { enrollmentId: linkedEnrollment.id }),
         timeSpent: { increment: effectiveDeltaSec || 0 } as any,
         lastActivityAt: new Date(),
       },
@@ -232,7 +244,7 @@ export async function PUT(
 
     const isCourseApproved = finalCourseStatus === "PASSED"
 
-    await prisma.courseProgress.update({
+    const updatedCourseProgress = await prisma.courseProgress.update({
       where: { collaboratorId_courseId: { collaboratorId, courseId } },
       data: {
         progressPercent: newPercent,
@@ -243,6 +255,7 @@ export async function PUT(
         attended: isFullyCompleted ? attended : undefined,
         ...(finalTimeSpent !== undefined && { timeSpent: finalTimeSpent }),
       },
+      select: { id: true, status: true },
     })
 
     // Sincronizar progreso/estado en inscripción del curso para reflejar avance en UI de cursos
@@ -259,6 +272,23 @@ export async function PUT(
         completedAt: isCourseApproved ? new Date() : null,
       },
     })
+
+    if (updatedCourseProgress.status === "PASSED") {
+      try {
+        await ensureCertificationForProgress(updatedCourseProgress.id, {
+          certificateData: {
+            score: 100,
+            trigger: "COURSE_COMPLETED_WITHOUT_QUIZ",
+          },
+          trigger: "COURSE_COMPLETED_WITHOUT_QUIZ",
+        })
+      } catch (error) {
+        console.error(
+          `No se pudo emitir automaticamente el certificado para ${updatedCourseProgress.id}:`,
+          error
+        )
+      }
+    }
 
     // Recalcular progreso de rutas relacionadas al curso para el colaborador
     const pathEnrollments = await prisma.enrollment.findMany({

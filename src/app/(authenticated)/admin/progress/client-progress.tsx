@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CheckCircle, Clock, AlertCircle, Search, Download, RefreshCw } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { normalizeProgressStatus } from "@/lib/progress-status"
 
 interface CourseProgress {
   id: string
@@ -25,7 +26,13 @@ interface CourseProgress {
     name: string
     code: string | null
   }
-  status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "FAILED" | "EXEMPT"
+  status:
+    | "NOT_STARTED"
+    | "IN_PROGRESS"
+    | "COMPLETED"
+    | "FAILED"
+    | "EXEMPT"
+    | "EXPIRED"
   progress: number
   startedAt: string | null
   completedAt: string | null
@@ -40,6 +47,7 @@ interface ProgressStats {
   notStarted: number
   failed: number
   exempt: number
+  expired: number
 }
 
 const statusConfig = {
@@ -48,29 +56,10 @@ const statusConfig = {
   COMPLETED: { label: "Completado", color: "bg-emerald-500", icon: CheckCircle },
   FAILED: { label: "Fallido", color: "bg-red-500", icon: AlertCircle },
   EXEMPT: { label: "Exento", color: "bg-purple-500", icon: CheckCircle },
+  EXPIRED: { label: "Vencido", color: "bg-amber-600", icon: AlertCircle },
 }
 
 type StatusKey = keyof typeof statusConfig
-
-// Normaliza estados provenientes del backend y brinda un fallback seguro
-function normalizeStatus(status: string | null | undefined): StatusKey {
-  if (!status) return "NOT_STARTED"
-  const s = status.toString().trim().toUpperCase().replace(/\s+/g, "_")
-  if ((statusConfig as Record<string, unknown>)[s]) {
-    return s as StatusKey
-  }
-  const aliases: Record<string, StatusKey> = {
-    NOTSTARTED: "NOT_STARTED",
-    PENDING: "NOT_STARTED",
-    INPROGRESS: "IN_PROGRESS",
-    PROGRESS: "IN_PROGRESS",
-    DONE: "COMPLETED",
-    PASSED: "COMPLETED",
-    FAIL: "FAILED",
-    EXEMPTED: "EXEMPT",
-  }
-  return aliases[s] ?? "NOT_STARTED"
-}
 
 export function ClientProgress() {
   const [progressList, setProgressList] = useState<CourseProgress[]>([])
@@ -81,6 +70,7 @@ export function ClientProgress() {
     notStarted: 0,
     failed: 0,
     exempt: 0,
+    expired: 0,
   })
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -109,11 +99,12 @@ export function ClientProgress() {
   const calculateStats = (progress: CourseProgress[]) => {
     const stats: ProgressStats = {
       total: progress.length,
-      inProgress: progress.filter(p => normalizeStatus(p.status) === "IN_PROGRESS").length,
-      completed: progress.filter(p => normalizeStatus(p.status) === "COMPLETED").length,
-      notStarted: progress.filter(p => normalizeStatus(p.status) === "NOT_STARTED").length,
-      failed: progress.filter(p => normalizeStatus(p.status) === "FAILED").length,
-      exempt: progress.filter(p => normalizeStatus(p.status) === "EXEMPT").length,
+      inProgress: progress.filter(p => normalizeProgressStatus(p.status) === "IN_PROGRESS").length,
+      completed: progress.filter(p => normalizeProgressStatus(p.status) === "COMPLETED").length,
+      notStarted: progress.filter(p => normalizeProgressStatus(p.status) === "NOT_STARTED").length,
+      failed: progress.filter(p => normalizeProgressStatus(p.status) === "FAILED").length,
+      exempt: progress.filter(p => normalizeProgressStatus(p.status) === "EXEMPT").length,
+      expired: progress.filter(p => normalizeProgressStatus(p.status) === "EXPIRED").length,
     }
     setStats(stats)
   }
@@ -126,7 +117,7 @@ export function ClientProgress() {
       progress.course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (progress.course.code?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
     
-    const matchesStatus = statusFilter === "all" || normalizeStatus(progress.status) === statusFilter
+    const matchesStatus = statusFilter === "all" || normalizeProgressStatus(progress.status) === statusFilter
 
     return matchesSearch && matchesStatus
   })
@@ -138,7 +129,7 @@ export function ClientProgress() {
       p.collaborator.email,
       p.course.name,
       p.course.code,
-      statusConfig[normalizeStatus(p.status)].label,
+      statusConfig[normalizeProgressStatus(p.status) as StatusKey].label,
       p.progress.toString(),
       p.startedAt ? format(new Date(p.startedAt), "dd/MM/yyyy", { locale: es }) : "N/A",
       p.completedAt ? format(new Date(p.completedAt), "dd/MM/yyyy", { locale: es }) : "N/A",
@@ -174,7 +165,7 @@ export function ClientProgress() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-7">
         <Card className="border-slate-200">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
@@ -234,6 +225,16 @@ export function ClientProgress() {
             <p className="text-xs text-muted-foreground mt-1">Dispensados</p>
           </CardContent>
         </Card>
+
+        <Card className="border-amber-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Vencidos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold text-amber-700">{stats.expired}</div>
+            <p className="text-xs text-muted-foreground mt-1">Requieren renovacion</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
@@ -268,6 +269,7 @@ export function ClientProgress() {
                 <SelectItem value="COMPLETED">Completado</SelectItem>
                 <SelectItem value="FAILED">Fallido</SelectItem>
                 <SelectItem value="EXEMPT">Exento</SelectItem>
+                <SelectItem value="EXPIRED">Vencido</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -306,7 +308,7 @@ export function ClientProgress() {
                   </TableRow>
                 ) : (
                   filteredProgress.map((progress) => {
-                    const key = normalizeStatus(progress.status)
+                    const key = normalizeProgressStatus(progress.status) as StatusKey
                     const config = statusConfig[key]
                     const Icon = config.icon
 
