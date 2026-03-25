@@ -283,8 +283,14 @@ export async function PUT(
           trigger: "COURSE_COMPLETED_WITHOUT_QUIZ",
         })
       } catch (error) {
+        // El progreso ya quedó en PASSED. Si la certificación falla aquí,
+        // repairMissingCertifications() detecta y crea el certificado en la
+        // siguiente ejecución (POST /api/progress/certifications/repair).
         console.error(
-          `No se pudo emitir automaticamente el certificado para ${updatedCourseProgress.id}:`,
+          `[CERT_PENDING] No se pudo emitir certificado automaticamente.` +
+          ` courseProgressId=${updatedCourseProgress.id}` +
+          ` collaboratorId=${collaboratorId}` +
+          ` courseId=${courseId}:`,
           error
         )
       }

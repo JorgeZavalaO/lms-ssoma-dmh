@@ -53,8 +53,14 @@ export async function POST(
         trigger: "COURSE_EXEMPTED",
       })
     } catch (error) {
+      // El progreso ya quedó en EXEMPTED. Si la certificación falla aquí,
+      // repairMissingCertifications() detecta y crea el certificado en la
+      // siguiente ejecución (POST /api/progress/certifications/repair).
       console.error(
-        `No se pudo emitir automaticamente el certificado para ${progress.id}:`,
+        `[CERT_PENDING] No se pudo emitir certificado automaticamente.` +
+        ` courseProgressId=${progress.id}` +
+        ` collaboratorId=${progress.collaborator.id}` +
+        ` courseId=${progress.course.id}:`,
         error
       )
     }
