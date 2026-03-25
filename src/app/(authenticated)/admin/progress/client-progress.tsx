@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CheckCircle, Clock, AlertCircle, Search, Download, RefreshCw } from "lucide-react"
+import { CheckCircle, Clock, AlertCircle, Search, Download, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { normalizeProgressStatus } from "@/lib/progress-status"
@@ -61,6 +61,8 @@ const statusConfig = {
 
 type StatusKey = keyof typeof statusConfig
 
+const PAGE_SIZE_OPTIONS = [10, 20, 50]
+
 export function ClientProgress() {
   const [progressList, setProgressList] = useState<CourseProgress[]>([])
   const [stats, setStats] = useState<ProgressStats>({
@@ -75,15 +77,36 @@ export function ClientProgress() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [total, setTotal] = useState(0)
 
-  const loadProgress = useCallback(async () => {
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const fromItem = total === 0 ? 0 : (page - 1) * pageSize + 1
+  const toItem = Math.min(page * pageSize, total)
+
+  const loadProgress = useCallback(async (
+    currentPage: number,
+    currentPageSize: number,
+    currentSearch: string,
+    currentStatus: string,
+  ) => {
     try {
       setLoading(true)
-      const response = await fetch("/api/progress/courses")
+      const params = new URLSearchParams()
+      params.set("page", String(currentPage))
+      params.set("pageSize", String(currentPageSize))
+      if (currentSearch) params.set("search", currentSearch)
+      if (currentStatus && currentStatus !== "all") params.set("status", currentStatus)
+
+      const response = await fetch(`/api/progress/courses?${params}`)
       if (response.ok) {
         const data = await response.json()
         setProgressList(data.progress || [])
-        calculateStats(data.progress || [])
+        setTotal(data.total || 0)
+        if (data.stats) setStats(data.stats)
       }
     } catch (error) {
       console.error("Error loading progress:", error)
@@ -92,55 +115,64 @@ export function ClientProgress() {
     }
   }, [])
 
+  // Carga inicial y cuando cambia página / pageSize / statusFilter
   useEffect(() => {
-    loadProgress()
-  }, [loadProgress])
+    loadProgress(page, pageSize, searchTerm, statusFilter)
+  }, [page, pageSize, statusFilter])
 
-  const calculateStats = (progress: CourseProgress[]) => {
-    const stats: ProgressStats = {
-      total: progress.length,
-      inProgress: progress.filter(p => normalizeProgressStatus(p.status) === "IN_PROGRESS").length,
-      completed: progress.filter(p => normalizeProgressStatus(p.status) === "COMPLETED").length,
-      notStarted: progress.filter(p => normalizeProgressStatus(p.status) === "NOT_STARTED").length,
-      failed: progress.filter(p => normalizeProgressStatus(p.status) === "FAILED").length,
-      exempt: progress.filter(p => normalizeProgressStatus(p.status) === "EXEMPT").length,
-      expired: progress.filter(p => normalizeProgressStatus(p.status) === "EXPIRED").length,
-    }
-    setStats(stats)
+  // Debounce para búsqueda de texto
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      setPage(1)
+      loadProgress(1, pageSize, value, statusFilter)
+    }, 300)
   }
 
-  const filteredProgress = progressList.filter(progress => {
-    const matchesSearch = 
-      progress.collaborator.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      progress.collaborator.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      progress.collaborator.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      progress.course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (progress.course.code?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
-    
-    const matchesStatus = statusFilter === "all" || normalizeProgressStatus(progress.status) === statusFilter
+  const handleStatusChange = (value: string) => {
+    setStatusFilter(value)
+    setPage(1)
+  }
 
-    return matchesSearch && matchesStatus
-  })
+  const handleRefresh = () => {
+    loadProgress(page, pageSize, searchTerm, statusFilter)
+  }
 
-  const exportToCSV = () => {
-    const headers = ["Colaborador", "Email", "Curso", "Código", "Estado", "Progreso %", "Fecha Inicio", "Fecha Completado"]
-    const rows = filteredProgress.map(p => [
-      `${p.collaborator.firstName} ${p.collaborator.lastName}`,
-      p.collaborator.email,
-      p.course.name,
-      p.course.code,
-      statusConfig[normalizeProgressStatus(p.status) as StatusKey].label,
-      p.progress.toString(),
-      p.startedAt ? format(new Date(p.startedAt), "dd/MM/yyyy", { locale: es }) : "N/A",
-      p.completedAt ? format(new Date(p.completedAt), "dd/MM/yyyy", { locale: es }) : "N/A",
-    ])
+  const exportToCSV = async () => {
+    try {
+      const params = new URLSearchParams()
+      params.set("export", "true")
+      if (searchTerm) params.set("search", searchTerm)
+      if (statusFilter && statusFilter !== "all") params.set("status", statusFilter)
 
-    const csvContent = [headers, ...rows].map(row => row.join(",")).join("\n")
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-    const link = document.createElement("a")
-    link.href = URL.createObjectURL(blob)
-    link.download = `progreso-${format(new Date(), "yyyy-MM-dd")}.csv`
-    link.click()
+      const response = await fetch(`/api/progress/courses?${params}`)
+      if (!response.ok) return
+      const data = await response.json()
+      const allProgress: CourseProgress[] = data.progress || []
+
+      const headers = ["Colaborador", "DNI", "Email", "Curso", "Código", "Estado", "Progreso %", "Fecha Inicio", "Fecha Completado"]
+      const rows = allProgress.map(p => [
+        `${p.collaborator.firstName} ${p.collaborator.lastName}`,
+        p.collaborator.dni,
+        p.collaborator.email,
+        p.course.name,
+        p.course.code ?? "",
+        statusConfig[normalizeProgressStatus(p.status) as StatusKey]?.label ?? p.status,
+        p.progress.toString(),
+        p.startedAt ? format(new Date(p.startedAt), "dd/MM/yyyy", { locale: es }) : "N/A",
+        p.completedAt ? format(new Date(p.completedAt), "dd/MM/yyyy", { locale: es }) : "N/A",
+      ])
+
+      const csvContent = [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n")
+      const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" })
+      const link = document.createElement("a")
+      link.href = URL.createObjectURL(blob)
+      link.download = `progreso-${format(new Date(), "yyyy-MM-dd")}.csv`
+      link.click()
+    } catch (error) {
+      console.error("Error exporting CSV:", error)
+    }
   }
 
   return (
@@ -154,7 +186,7 @@ export function ClientProgress() {
 
       {/* Botones de acción */}
       <div className="flex gap-2">
-        <Button onClick={loadProgress} variant="outline" disabled={loading}>
+        <Button onClick={handleRefresh} variant="outline" disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
           Actualizar
         </Button>
@@ -251,14 +283,14 @@ export function ClientProgress() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por colaborador, email o curso..."
+                  placeholder="Buscar por colaborador, DNI, email o curso..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="pl-9"
                 />
               </div>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={handleStatusChange}>
               <SelectTrigger className="w-full sm:w-[200px]">
                 <SelectValue placeholder="Filtrar por estado" />
               </SelectTrigger>
@@ -266,10 +298,9 @@ export function ClientProgress() {
                 <SelectItem value="all">Todos los estados</SelectItem>
                 <SelectItem value="NOT_STARTED">No Iniciado</SelectItem>
                 <SelectItem value="IN_PROGRESS">En Progreso</SelectItem>
-                <SelectItem value="COMPLETED">Completado</SelectItem>
+                <SelectItem value="PASSED">Completado</SelectItem>
                 <SelectItem value="FAILED">Fallido</SelectItem>
-                <SelectItem value="EXEMPT">Exento</SelectItem>
-                <SelectItem value="EXPIRED">Vencido</SelectItem>
+                <SelectItem value="EXEMPTED">Exento</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -296,20 +327,20 @@ export function ClientProgress() {
                       <p className="text-sm text-muted-foreground">Cargando progreso...</p>
                     </TableCell>
                   </TableRow>
-                ) : filteredProgress.length === 0 ? (
+                ) : progressList.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8">
                       <p className="text-sm text-muted-foreground">
-                        {searchTerm || statusFilter !== "all" 
+                        {searchTerm || statusFilter !== "all"
                           ? "No se encontraron resultados con los filtros aplicados"
                           : "No hay registros de progreso todavía"}
                       </p>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredProgress.map((progress) => {
+                  progressList.map((progress) => {
                     const key = normalizeProgressStatus(progress.status) as StatusKey
-                    const config = statusConfig[key]
+                    const config = statusConfig[key] ?? statusConfig.NOT_STARTED
                     const Icon = config.icon
 
                     return (
@@ -361,6 +392,101 @@ export function ClientProgress() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination controls */}
+          {!loading && total > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 pt-4 border-t">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Mostrando {fromItem}–{toItem} de {total} registros</span>
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(v) => {
+                    setPageSize(Number(v))
+                    setPage(1)
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-[80px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAGE_SIZE_OPTIONS.map(n => (
+                      <SelectItem key={n} value={String(n)}>{n} / pág</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setPage(1)}
+                  disabled={page === 1}
+                  title="Primera página"
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  title="Página anterior"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                {/* Page number pills */}
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                    .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                      if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("...")
+                      acc.push(p)
+                      return acc
+                    }, [])
+                    .map((p, idx) =>
+                      p === "..." ? (
+                        <span key={`ellipsis-${idx}`} className="px-1 text-muted-foreground text-sm">…</span>
+                      ) : (
+                        <Button
+                          key={p}
+                          variant={page === p ? "default" : "outline"}
+                          size="icon"
+                          className="h-8 w-8 text-xs"
+                          onClick={() => setPage(p as number)}
+                        >
+                          {p}
+                        </Button>
+                      )
+                    )}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  title="Página siguiente"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setPage(totalPages)}
+                  disabled={page === totalPages}
+                  title="Última página"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
