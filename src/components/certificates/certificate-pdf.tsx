@@ -38,7 +38,7 @@ export function createCertificatePDF(data: CertificateData) {
               <Text style={styles.subtitle}>
                 Sistema de Gestión de Capacitación SSOMA
               </Text>
-              <Text style={styles.subtitle}>DMH Construcciones y Servicios</Text>
+              <Text style={styles.subtitle}>Distribuidora de Mangueras Hidráulicas S.A.C.</Text>
             </View>
 
             {/* Main Content */}

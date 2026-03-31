@@ -285,7 +285,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="border-t border-border pt-8 flex items-center justify-between text-sm text-muted-foreground">
-            <p>&copy; 2025 SSOMA DMH. Todos los derechos reservados.</p>
+            <p>&copy; 2026 SSOMA DMH. Todos los derechos reservados.</p>
             <div className="flex items-center gap-4">
               <a href="#" className="hover:text-foreground">Twitter</a>
               <a href="#" className="hover:text-foreground">LinkedIn</a>

@@ -112,7 +112,7 @@ export default function VerifyCertificatePage() {
             {isActuallyValid ? 'Certificado Válido' : 'Certificado No Válido'}
           </CardTitle>
           <CardDescription>
-            Sistema de Gestión de Capacitación - DMH Construcciones y Servicios
+            Sistema de Gestión de Capacitación - Distribuidora de Mangueras Hidráulicas S.A.C.
           </CardDescription>
         </CardHeader>
 
@@ -235,7 +235,7 @@ export default function VerifyCertificatePage() {
           {/* Pie de página */}
           <div className="text-center pt-4 border-t border-slate-200">
             <p className="text-xs text-muted-foreground">
-              Este certificado ha sido verificado electrónicamente a través del sistema de DMH Construcciones y Servicios.
+              Este certificado ha sido verificado electrónicamente a través del sistema de Distribuidora de Mangueras Hidráulicas S.A.C. (DIMAHISAC).
               <br />
               Para mayor información, contacte al departamento de SSOMA.
             </p>
