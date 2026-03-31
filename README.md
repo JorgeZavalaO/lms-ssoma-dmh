@@ -2,7 +2,7 @@
 
 Sistema de Gestión de Aprendizaje (LMS) para Seguridad, Salud Ocupacional y Medio Ambiente de DMH.
 
-[![Next.js](https://img.shields.io/badge/Next.js-15.5.5-black)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-15.5.9-black)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-6.x-2D3748)](https://www.prisma.io/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.x-38B2AC)](https://tailwindcss.com/)
@@ -14,6 +14,66 @@ Sistema de Gestión de Aprendizaje (LMS) para Seguridad, Salud Ocupacional y Med
 LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacitaciones, colaboradores y recursos relacionados con Seguridad, Salud Ocupacional y Medio Ambiente. El sistema permite administrar usuarios, asignar cursos, gestionar áreas y puestos, y realizar seguimiento del progreso de capacitaciones.
 
 ## 🆕 Últimas Actualizaciones
+
+### v2.3.0 - Seguridad, Certificaciones Avanzadas y Progreso Paginado (25 Mar 2026)
+
+- ✅ **Arquitectura de seguridad modular**:
+  - `lib/authorization.ts`: helpers centralizados de roles y permisos (elimina verificaciones inline dispersas)
+  - `lib/operational-safety.ts`: bloqueos ante acciones destructivas en entornos no productivos
+  - `lib/quiz-security.ts`: sanitización de datos de cuestionarios y mezcla segura de opciones
+  - Nuevas suites de pruebas de seguridad: `authorization`, `operational-safety` y `quiz-security`
+
+- ✅ **Certificaciones mejoradas**:
+  - Nuevo endpoint `POST /api/progress/certifications/repair` para corregir certificaciones faltantes
+  - Generación de PDF con identificadores únicos y QR refactorizada en `lib/certificates.ts`
+  - Manejo de estado `PENDING_EVALUATION` en submit de intentos, exoneración y progreso de lecciones
+
+- ✅ **Login y autorización refactorizados**:
+  - Nuevo componente `login-form.tsx` separado de `page.tsx` del login
+  - `auth.config.ts` y `middleware.ts` actualizados con comprobaciones de autenticación más robustas
+
+- ✅ **Progreso de cursos con paginación server-side**:
+  - `GET /api/progress/courses` soporta `page`, `pageSize` y `search`
+  - Respuesta incluye `pagination` y `globalStats`
+  - Dashboard de reportes actualizado con nueva estructura de datos
+
+### v2.2.9 - Estado PENDING_EVALUATION y Evaluaciones Avanzadas (23 Mar 2026)
+
+- ✅ **Nuevo estado `PENDING_EVALUATION`** en `ProgressStatus`:
+  - Migración: `20260323175704_add_pending_evaluation_status`
+  - Se asigna al completar lecciones pero antes de aprobar el quiz final
+  - Badge diferenciado en el portal del colaborador
+
+- ✅ **Evaluaciones con intentos máximos y remediación**:
+  - `quiz-taker.tsx` bloquea reintentos al agotar el máximo configurado
+  - Diálogo admin para crear unidades de tipo `EVALUATION`
+  - Visualización de historial de intentos directamente en la vista de lección
+
+- ✅ **Conteo granular en progreso**: `lessonCount` y `quizCount` en `GET /api/progress/courses`
+
+### v2.2.8 - Quizzes en Unidades, DNI Auth y Reorganización de Tests (18 Mar 2026)
+
+- ✅ **Quizzes vinculados a unidades** (migración: `20260318120000_add_quiz_order_and_unit_fk`):
+  - Campo `order` con índice único `(unitId, order)`
+  - FK a `units` con integridad referencial
+  - Nuevo endpoint `POST /api/quizzes/reorder`
+  - Admin de contenido muestra y gestiona quizzes por unidad
+
+- ✅ **Autenticación por DNI o email**: `auth.ts` busca por ambos campos
+
+- ✅ **Sistema de exámenes mejorado**: lógica de remediación antes de reintento
+
+- ✅ **Tests reorganizados y extendidos** en `tests/module-c`, `tests/module-d`, `tests/module-e`, `tests/module-h`
+
+### v2.2.7 - Inscripciones Automáticas con Rules Engine (17 Mar 2026)
+
+- ✅ **Refactorización completa de `lib/enrollment.ts`**:
+  - `syncEnrollmentRulesForCollaborator()` para sincronización automática al crear/editar colaboradores
+  - Cancelación automática de inscripciones al cambiar área/sede/puesto
+  - APIs de colaboradores e inscripciones disparan sync de reglas
+
+- ✅ **Suite de 599+ pruebas** para inscripciones automáticas y reglas (`tests/module-e/enrollment.test.ts`)
+
 ### v2.2.6 - Repositorio de Archivos V3 con Deshabilitado y Eliminación Segura (11 Mar 2026)
 
 - ✅ **Ciclo de vida seguro para archivos en `/admin/files`**:
@@ -137,7 +197,7 @@ LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacit
 - ✅ **Tabla de colaboradores mejorada**:
   - Colores de texto consistentes: `text-slate-900` (primario), `text-slate-600` (secundario).
   - Email con link clickable (color emerald-600).
-  - Pills con bordes sutiles y colores de fondo: 
+  - Pills con bordes sutiles y colores de fondo:
     - Estado ACTIVE: `bg-emerald-50 text-emerald-700 border-emerald-200`
     - Estado INACTIVE: `bg-amber-50 text-amber-700 border-amber-200`
     - Rol SUPERADMIN: rojo, ADMIN: ámbar, COLLABORATOR: gris
@@ -188,7 +248,7 @@ LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacit
 
 - ✅ **Dialog "Crear Nuevo Curso" rediseñado**: Estética minimalista con bordes sutiles y colores en paleta emergente (`border-emerald-500`, `bg-emerald-600` para CTA).
 - ✅ **Iconos descriptivos**: Cada sección etiquetada con icono (BookOpen, FileText, Users, Clock, AlertCircle, CheckCircle2) para mejor escaneo visual.
-- ✅ **Mejor organización de campos**: 
+- ✅ **Mejor organización de campos**:
   - Sección "Estado" con indicadores de color (puntos animados para Draft/Published/Archived).
   - Sección "Configuración de Tiempo" agrupando Duración, Modalidad y Vigencia con etiquetas secundarias.
   - Requisitos en sección aparte con descripción clara.
@@ -217,6 +277,7 @@ LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacit
 - ✅ **Build validado**: Compilación exitosa tras cambios (78 páginas, 0 errores). Varios warnings de ESLint existentes permanecen documentados.
 
 ### v2.1.6 - Mejoras en Gestión de Colaboradores (3 Nov 2025)
+
 - ✅ **Validación de Contraseña Condicional**: Password requerida solo cuando `createUser=true` en diálogo de creación
 - ✅ **Reestructuración UX del Diálogo**: Flujo lineal 3-pasos (info → organización → cuenta) con validación clara
 - ✅ **Botones Contextuales**: "Siguiente" en pasos 1-2, "Crear Colaborador" solo en paso 3 con submit
@@ -229,6 +290,7 @@ LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacit
 **Beneficio clave**: Experiencia de usuario mejorada con validación inteligente, flujo claro en diálogo y importación modal sin abandonar la página actual.
 
 ### v2.1.5 - Reestructuración Administrativa y Mejoras UX (3 Nov 2025)
+
 - ✅ **Reestructuración de /admin**: Eliminada página visible `/admin`, ahora es carpeta organizacional para paneles administrativos
 - ✅ **Breadcrumbs inteligentes**: "Inicio" redirige a dashboard, omite segmento `/admin` en navegación
 - ✅ **Redirecciones autenticadas**: Usuarios logueados redirigidos automáticamente desde páginas públicas
@@ -242,6 +304,7 @@ LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacit
 **Beneficio clave**: Arquitectura más limpia con /admin como carpeta organizacional, mejor UX con drag-and-drop, y reportes precisos con horas oficiales.
 
 ### v2.1.4 - Sistema de Asistencia y Horas (31 Oct 2025)
+
 - ✅ **Tracking automático de asistencia**: Marca asistencia cuando los colaboradores completan 100% de un curso
 - ⏱️ **Ajuste de horas estandarizado**: Al completar, reemplaza tiempo acumulado con duración oficial del curso
 - 📊 **Reportes Excel mejorados**: Nuevas columnas "Asistencia" (Sí/No) y "Horas" (estandarizadas)
@@ -252,12 +315,18 @@ LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacit
 ## ✨ Características Principales
 
 ### 🔐 Autenticación y Autorización
+
 - Sistema de login seguro con NextAuth v5
+- **Login por DNI o email**: el campo usuario acepta ambos identificadores indistintamente
 - Roles de usuario: SUPERADMIN, ADMIN, COLLABORATOR
 - Protección de rutas por rol
 - Sesiones JWT
+- **Librería de autorización centralizada** (`lib/authorization.ts`): helpers de roles y permisos reutilizables
+- **Seguridad operativa** (`lib/operational-safety.ts`): bloqueos ante acciones destructivas en no-producción
+- **Seguridad de cuestionarios** (`lib/quiz-security.ts`): sanitización de datos y mezcla segura de opciones
 
 ### 👥 Gestión de Colaboradores
+
 - CRUD completo de colaboradores
 - **Email opcional**: Colaboradores pueden existir sin cuenta de acceso
 - **Importación masiva (CSV/XLSX)** con creación automática de usuarios:
@@ -271,6 +340,7 @@ LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacit
 - Cambio de roles por administrador
 
 ### 📚 Gestión de Cursos
+
 - CRUD completo de cursos con estados (BORRADOR, PUBLICADO, ARCHIVADO)
 - **Códigos automáticos** siguiendo patrón `CRS-XXX` (generados automáticamente al crear cursos)
 - Versionado automático de cursos con historial completo
@@ -281,6 +351,7 @@ LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacit
 - API para consultas de cursos asignados
 
 ### 🛤️ Rutas de Aprendizaje
+
 - Creación de itinerarios de cursos estructurados
 - Definición de prerequisitos entre cursos
 - Ordenamiento secuencial de cursos
@@ -293,13 +364,14 @@ LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacit
 Nota técnica: la verificación de acceso está centralizada en `src/lib/access.ts` mediante `checkCoursePrerequisites(collaboratorId, courseId)` y se aplica en las páginas de curso, lección y cuestionario bajo `src/app/(authenticated)/courses/...`.
 
 ### 📖 Contenidos y Lecciones (Módulo D)
+
 - **Unidades Didácticas**: Organización de contenido en unidades
-- **Lecciones Multimedia**: 
+- **Lecciones Multimedia**:
   - Videos embebidos (YouTube/Vimeo)
   - Documentos PDF/PPT con visor
   - Contenido HTML interactivo
   - Paquetes SCORM
-- **Progreso de Aprendizaje**: 
+- **Progreso de Aprendizaje**:
   - Seguimiento automático de % visto
   - Marcado de completado configurable
   - Historial de visualizaciones
@@ -320,6 +392,7 @@ Nota técnica: la verificación de acceso está centralizada en `src/lib/access.
   - Puntuación opcional
 
 ### 🎯 Inscripciones y Accesos (Módulo E)
+
 - **Asignación Automática por Perfil (E1)**:
   - Reglas de inscripción basadas en sede/área/puesto
   - Aplicación automática al crear/editar colaboradores
@@ -336,6 +409,7 @@ Nota técnica: la verificación de acceso está centralizada en `src/lib/access.
 Nota técnica: el módulo E incluye APIs RESTful para gestión de reglas (`/api/enrollment-rules`) e inscripciones (`/api/enrollments`), utilidades en `src/lib/enrollment.ts` y validaciones en `src/validations/enrollment.ts`.
 
 ### 📝 Evaluaciones Automatizadas (Módulo F)
+
 - **Banco de Preguntas (F1)**:
   - 5 tipos de preguntas: Opción única, Opción múltiple, Verdadero/Falso, Ordenar, Completar
   - Metadatos: tema, dificultad, índice de discriminación
@@ -349,6 +423,7 @@ Nota técnica: el módulo E incluye APIs RESTful para gestión de reglas (`/api/
   - Pool de preguntas por intento
   - Políticas de visualización configurables
   - Estados: BORRADOR, PUBLICADO, ARCHIVADO
+  - **Quizzes vinculados a unidades**: cada quiz puede asignarse a una unidad específica del curso con orden explícito; el admin puede reordenarlos desde el contenido del curso
   - **UI Mejorada:** Diseño minimalista y profesional con paleta de colores sobria, indicadores visuales de puntuación (badge + barra de progreso), selección sin bucles de actualización.
 - **Calificación Automática (F3)**:
   - Inicio y envío de intentos con validaciones
@@ -357,16 +432,17 @@ Nota técnica: el módulo E incluye APIs RESTful para gestión de reglas (`/api/
   - Estados: EN_PROGRESO, ENVIADO, CALIFICADO, APROBADO, REPROBADO
   - Vista de resultados con feedback
 - **Reintentos y Remediación (F3.1)**:
-  - Bloqueo de reintento si no aprueba
-  - Contenido de refuerzo antes de reintentar
+  - Bloqueo de reintento si no aprueba o se alcanzan los intentos máximos configurados
+  - Contenido de refuerzo obligatorio antes de reintentar
   - Marcado de remediación completada
 - **Banco por Versión (F4)**:
   - Pool de preguntas específico por versión de curso
   - Métricas de dificultad y discriminación
 
-Nota técnica: el módulo F incluye 8 endpoints REST, validaciones Zod en `src/validations/quiz.ts`, y 10+ componentes shadcn/ui para experiencia profesional. El formulario de cuestionarios implementa selección eficiente sin bucles de React mediante `onCheckedChange` y `stopPropagation`.
+Nota técnica: el módulo F incluye 9 endpoints REST (incluyendo `POST /api/quizzes/reorder`), validaciones Zod en `src/validations/quiz.ts`, y 10+ componentes shadcn/ui. La migración `20260318120000_add_quiz_order_and_unit_fk` agrega `order`, FK `unitId` e índices en la tabla `quizzes`.
 
 ### 📊 Progreso y Cumplimiento (Módulo H)
+
 - **Tracking de Avance (H1)**:
   - Progreso por curso: porcentaje, tiempo empleado, última actividad
   - **Sistema de Asistencia Automática**: marca `attended = true` cuando el curso alcanza 100% de completado
@@ -375,8 +451,10 @@ Nota técnica: el módulo F incluye 8 endpoints REST, validaciones Zod en `src/v
     - Garantiza reportes de cumplimiento SSOMA con horas oficiales
   - Progreso por lección: visualizaciones, completado automático
   - Progreso por ruta de aprendizaje: cursos completados/totales
-  - Estados: NO_INICIADO, EN_PROGRESO, APROBADO, DESAPROBADO, VENCIDO, EXONERADO
+  - Estados: NO_INICIADO, EN_PROGRESO, APROBADO, DESAPROBADO, VENCIDO, EXONERADO, **PENDING_EVALUATION** (nuevo)
+  - El estado `PENDING_EVALUATION` se asigna automáticamente cuando las lecciones están completas pero el quiz final no ha sido aprobado
   - Cálculo automático basado en lecciones y quizzes
+  - **Paginación y búsqueda server-side**: `GET /api/progress/courses` admite `page`, `pageSize` y `search` con `pagination` y `globalStats` en respuesta
 - **Cumplimiento por Vigencia (H2)**:
   - Cursos con fecha de caducidad configurable
   - Certificaciones con validez temporal
@@ -391,9 +469,10 @@ Nota técnica: el módulo F incluye 8 endpoints REST, validaciones Zod en `src/v
   - Fechas de tracking: inicio, completado, aprobado, desaprobado, vencido, certificado, exonerado
   - Auditoría de cambios de estado
 
-Nota técnica: el módulo H incluye 15 endpoints REST en `/api/progress`, validaciones en `src/validations/progress.ts`, 5 modelos Prisma (CourseProgress, CertificationRecord, ProgressAlert, LearningPathProgress + LessonProgress reutilizado), 2 enums (ProgressStatus, AlertType), y sistema de alertas automáticas con job manual.
+Nota técnica: el módulo H incluye 15+ endpoints REST en `/api/progress`, validaciones en `src/validations/progress.ts`, 5 modelos Prisma, 2 enums (`ProgressStatus` con 7 valores, `AlertType`), y sistema de alertas automáticas. La migración `20260323175704_add_pending_evaluation_status` agrega el valor `PENDING_EVALUATION` al enum.
 
 ### 🔔 Notificaciones y Recordatorios (Módulo I)
+
 - **Email y Bandeja Interna (I1)**:
   - 8 tipos de eventos: nueva inscripción, recordatorios (30/7/1 días), desaprobación, certificado listo, recertificación próxima, resumen de equipo
   - Plantillas editables con 20+ variables dinámicas
@@ -414,6 +493,7 @@ Nota técnica: el módulo H incluye 15 endpoints REST en `/api/progress`, valida
 Nota técnica: el módulo I incluye 11 endpoints REST en `/api/notification-templates`, `/api/notifications`, `/api/notification-preferences`, validaciones en `src/validations/notification.ts`, 4 modelos Prisma (NotificationTemplate, Notification, NotificationPreference, NotificationLog), 3 enums (NotificationEvent, NotificationChannel, NotificationStatus), servicio completo en `src/lib/notifications.ts` con funciones para envío por email/in-app y generación de resúmenes.
 
 ### � Certificados (Emisión y Verificación Pública) (Módulo K)
+
 - **Emisión Automática de Certificados PDF (K1)**:
   - Generación profesional con `@react-pdf/renderer` en diseño landscape (A4 horizontal)
   - Plantilla con bordes dobles, marca de agua "SSOMA", y layout estructurado
@@ -450,6 +530,7 @@ Nota técnica: el módulo I incluye 11 endpoints REST en `/api/notification-temp
 Nota técnica: el módulo K incluye 4 endpoints REST en `/api/certificates/*`, validaciones en `src/validations/certificates.ts`, extensión del modelo `CertificationRecord` con 4 campos nuevos, servicio en `src/lib/certificates.ts` con 6 funciones (240 líneas), componente template en `src/components/certificates/certificate-template.tsx` (260 líneas), 2 páginas (admin + verify), dependencias: @react-pdf/renderer 4.3.1, qrcode 1.5.4, total 1220 líneas de código.
 
 ### 📊 Reportes (Áreas, Curso, Cumplimiento) (Módulo J)
+
 - **Dashboard Ejecutivo (J1)**:
   - 15+ KPIs en tiempo real: % cumplimiento, alertas críticas, intentos promedio, tasa de aprobación, NPS
   - 4 visualizaciones interactivas con recharts: compliance por área (BarChart), distribución de alertas (PieChart), tendencia de inscripciones (AreaChart), tendencia de completados (LineChart)
@@ -492,6 +573,7 @@ Nota técnica: el módulo K incluye 4 endpoints REST en `/api/certificates/*`, v
 Nota técnica: el módulo J incluye 5 endpoints REST en `/api/reports/*`, validaciones en `src/validations/reports.ts`, 4 modelos Prisma (Report, ReportSchedule, ReportExecution, KPISnapshot), 3 enums (ReportType, ReportFormat, ScheduleFrequency), servicio con 6 funciones (600+ líneas) en `src/lib/reports.ts`, dependencias: recharts 2.x, date-fns 3.x, shadcn/ui chart component.
 
 ### 🏠 Landing Page y Reorganización de Rutas (Octubre 2025 - v2.0)
+
 - **Landing Page en Raíz (`/`)**: Página de presentación pública con hero, features, benefits, CTA y footer
   - Accesible sin autenticación
   - Diseño profesional con gradientes y grid responsivo
@@ -512,6 +594,7 @@ Nota técnica: el módulo J incluye 5 endpoints REST en `/api/reports/*`, valida
   - Escalable para agregar más grupos (ej: `/super-admin/`)
 
 ### 👥 Portal del Colaborador (Octubre 2025)
+
 - **Mis Cursos**: Visualización de cursos asignados con progreso detallado
   - Tabs: Disponibles, En Progreso, Completados, Historial
   - Tarjetas con: nombre curso, progreso %, estado, acciones
@@ -553,6 +636,7 @@ Nota técnica: el módulo J incluye 5 endpoints REST en `/api/reports/*`, valida
 Nota técnica: Portal completamente integrado con navegación en sidebar (5 links: Cursos, Evaluaciones, Certificados, Notificaciones, Perfil), contador de notificaciones en tiempo real, acceso filtrado por sesión del usuario, validaciones de rol COLLABORATOR. Build exitoso: 77 rutas (optimizado tras consolidación).
 
 ### 📊 Consolidación de Reportes y Optimización (Octubre 2025)
+
 - **Consolidación de Excel Export en Dashboard Ejecutivo**:
   - Movida funcionalidad de descarga Excel desde `/reports/collaborators` al Dashboard Ejecutivo (`/reports/dashboard`)
   - Eliminación de página redundante `/reports/collaborators` (reducción de 79 a 77 rutas)
@@ -587,12 +671,14 @@ Nota técnica: Portal completamente integrado con navegación en sidebar (5 link
 Nota técnica: Consolidación reduce complejidad manteniendo funcionalidad completa. Excel export genera 3-sheet workbook con KPIs, colaboradores y detalle de cursos. Dashboard Ejecutivo ahora centraliza reportes y exportaciones.
 
 ### 🏢 Administración
+
 - Gestión de áreas con jefes de área
 - Gestión de puestos de trabajo
 - Gestión de sedes
 - Dashboard con métricas
 
 ### 🎨 Interfaz de Usuario
+
 Nota: muchos componentes de la interfaz se generaron y organizaron usando el flujo MCP de `shadcn/ui` para mantener un estilo moderno, consistente y profesional entre los distintos módulos (modales, formularios, badges y layouts).
 
 ---
@@ -600,13 +686,15 @@ Nota: muchos componentes de la interfaz se generaron y organizaron usando el flu
 ## 🛠️ Stack Tecnológico
 
 ### Frontend
-- **Next.js 15.5.5** - Framework React con App Router
+
+- **Next.js 15.5.9** - Framework React con App Router
 - **TypeScript** - Tipado estático
 - **Tailwind CSS** - Estilos utilitarios
 - **shadcn/ui** - Componentes de UI
 - **Lucide React** - Iconos
 
 ### Backend
+
 - **Next.js API Routes** - Endpoints RESTful
 - **NextAuth v5** - Autenticación
 - **Prisma** - ORM para base de datos
@@ -614,6 +702,7 @@ Nota: muchos componentes de la interfaz se generaron y organizaron usando el flu
 - **Zod** - Validación de esquemas
 
 ### Herramientas
+
 - **Turbopack** - Bundler rápido
 - **ESLint** - Linting
 - **pnpm** - Gestor de paquetes
@@ -636,30 +725,33 @@ Nota: muchos componentes de la interfaz se generaron y organizaron usando el flu
 
 ### Prerrequisitos
 
-- Node.js 18+ 
+- Node.js 18+
 - pnpm (recomendado) o npm
 - PostgreSQL 14+
 
 ### Instalación
 
 1. **Clonar el repositorio**
+
    ```bash
    git clone <repository-url>
    cd lms-ssoma-dmh
    ```
 
 2. **Instalar dependencias**
+
    ```bash
    pnpm install
    ```
 
 3. **Configurar variables de entorno**
-   
+
    Crear archivo `.env` en la raíz del proyecto:
+
    ```env
    # Database
    DATABASE_URL="postgresql://user:password@localhost:5432/lms_ssoma"
-   
+
    # NextAuth
    NEXTAUTH_URL="http://localhost:3000"
    NEXTAUTH_SECRET="your-secret-key-here"
@@ -672,21 +764,23 @@ Nota: muchos componentes de la interfaz se generaron y organizaron usando el flu
    ```
 
 4. **Configurar base de datos**
+
    ```bash
    # Ejecutar migraciones
    pnpm prisma migrate dev
-   
+
    # (Opcional) Seed inicial
    pnpm prisma db seed
    ```
 
 5. **Iniciar servidor de desarrollo**
+
    ```bash
    pnpm dev
    ```
 
 6. **Abrir en navegador**
-   
+
    Ir a [http://localhost:3000](http://localhost:3000)
 
 ---
@@ -821,11 +915,11 @@ pnpm test            # Ejecutar pruebas unitarias (Vitest)
 
 ## 🔐 Roles y Permisos
 
-| Rol | Descripción | Permisos |
-|-----|-------------|----------|
-| **SUPERADMIN** | Administrador total del sistema | Acceso completo a todas las funcionalidades |
-| **ADMIN** | Administrador de empresa/área | Gestión de colaboradores, cursos, áreas |
-| **COLLABORATOR** | Usuario final | Ver cursos asignados, completar capacitaciones |
+| Rol              | Descripción                     | Permisos                                       |
+| ---------------- | ------------------------------- | ---------------------------------------------- |
+| **SUPERADMIN**   | Administrador total del sistema | Acceso completo a todas las funcionalidades    |
+| **ADMIN**        | Administrador de empresa/área   | Gestión de colaboradores, cursos, áreas        |
+| **COLLABORATOR** | Usuario final                   | Ver cursos asignados, completar capacitaciones |
 
 ---
 
@@ -871,11 +965,13 @@ User                  # Usuarios del sistema
 ## 🌐 API Endpoints
 
 ### Autenticación
+
 - `POST /api/auth/signin` - Iniciar sesión
 - `POST /api/auth/signout` - Cerrar sesión
 - `POST /api/register` - Registro de usuario
 
 ### Colaboradores
+
 - `GET /api/collaborators` - Listar colaboradores (paginado)
 - `POST /api/collaborators` - Crear colaborador (email opcional, genera placeholder si no se provee)
 - `GET /api/collaborators/:id` - Obtener colaborador
@@ -886,6 +982,7 @@ User                  # Usuarios del sistema
 - `GET /api/collaborators/export` - Exportar en formato reimportable (2 hojas: códigos + detalles)
 
 ### Cursos
+
 - `GET /api/courses` - Listar cursos (filtros por estado)
 - `POST /api/courses` - Crear curso (crea versión 1 automáticamente)
 - `GET /api/courses/:id` - Obtener curso con versiones
@@ -895,6 +992,7 @@ User                  # Usuarios del sistema
 - `GET /api/courses/assigned` - Cursos asignados de un colaborador
 
 ### Rutas de Aprendizaje
+
 - `GET /api/learning-paths` - Listar rutas
 - `POST /api/learning-paths` - Crear ruta
 - `GET /api/learning-paths/:id` - Obtener ruta con cursos
@@ -904,6 +1002,7 @@ User                  # Usuarios del sistema
 - `DELETE /api/learning-paths/:id/courses` - Quitar curso de ruta
 
 ### Contenidos (Módulo D)
+
 - `GET /api/courses/:id/units` - Listar unidades de un curso
 - `POST /api/courses/:id/units` - Crear unidad
 - `GET /api/units/:id` - Obtener unidad
@@ -927,6 +1026,7 @@ User                  # Usuarios del sistema
 - `POST /api/activities` - Crear actividad
 
 ### Inscripciones (Módulo E)
+
 - `GET /api/enrollment-rules` - Listar reglas de inscripción
 - `POST /api/enrollment-rules` - Crear regla (aplica automáticamente)
 - `GET /api/enrollment-rules/:id` - Obtener regla
@@ -940,7 +1040,8 @@ User                  # Usuarios del sistema
 - `DELETE /api/enrollments/:id` - Eliminar inscripción
 
 ### Progreso y Cumplimiento (Módulo H)
-- `GET /api/progress/courses` - Listar progreso de cursos (con filtros)
+
+- `GET /api/progress/courses` - Listar progreso de cursos (con filtros, paginación: `page`, `pageSize`, `search`)
 - `POST /api/progress/courses` - Inicializar progreso de curso
 - `GET /api/progress/courses/:id` - Obtener progreso de curso
 - `PUT /api/progress/courses/:id` - Actualizar progreso de curso
@@ -948,6 +1049,7 @@ User                  # Usuarios del sistema
 - `POST /api/progress/courses/:id/exempt` - Exonerar colaborador (admin)
 - `GET /api/progress/certifications` - Listar certificaciones
 - `POST /api/progress/certifications` - Emitir certificación (admin)
+- `POST /api/progress/certifications/repair` - Reparar certificaciones faltantes (admin) ⭐ **NUEVO**
 - `GET /api/progress/certifications/:id` - Obtener certificación con historial
 - `POST /api/progress/certifications/:id/revoke` - Revocar certificación (admin)
 - `POST /api/progress/certifications/:id/recertify` - Crear recertificación (admin)
@@ -962,11 +1064,13 @@ User                  # Usuarios del sistema
 - `POST /api/progress/paths` - Crear/actualizar progreso de ruta
 
 ### Áreas
+
 - `GET /api/areas` - Listar áreas
 - `POST /api/areas` - Crear área
 - `POST /api/areas/:id/head` - Asignar jefe de área
 
 ### Puestos
+
 - `GET /api/positions` - Listar puestos
 - `POST /api/positions` - Crear puesto
 
@@ -975,22 +1079,26 @@ User                  # Usuarios del sistema
 ## 🎨 Componentes UI Principales
 
 ### Sidebar
+
 - Componente colapsible responsive
 - Navegación condicional por rol
 - Integración con NextAuth para datos de usuario
 - Tooltips en modo icon
 
 ### Header
+
 - Breadcrumbs dinámicos basados en ruta
 - SidebarTrigger para mobile
 - Separador visual
 
 ### Footer
+
 - Grid responsive (4 columnas)
 - Enlaces rápidos, recursos, contacto
 - Copyright dinámico
 
 ### DataTable
+
 - Tabla reutilizable con paginación
 - Búsqueda integrada
 - Ordenamiento de columnas
@@ -1002,7 +1110,9 @@ User                  # Usuarios del sistema
 La documentación completa se organiza en tres archivos principales en la carpeta `docs/`:
 
 ### 1. **[docs/MODULES.md](./docs/MODULES.md)** - Descripción de Módulos
+
 Descripción funcional de todos los módulos del sistema (10 módulos completos):
+
 - Módulo K: Certificados (Emisión y Verificación Pública) ⭐ **NUEVO**
 - Módulo J: Reportes (Áreas, Curso, Cumplimiento)
 - Módulo I: Notificaciones y Recordatorios
@@ -1017,7 +1127,9 @@ Descripción funcional de todos los módulos del sistema (10 módulos completos)
 **Úsalo para**: Entender qué hace cada módulo y sus características principales.
 
 ### 2. **[docs/API_REFERENCE.md](./docs/API_REFERENCE.md)** - Referencia de API
+
 Referencia técnica completa de 99+ endpoints REST:
+
 - Módulo K: Certificados (4 endpoints) ⭐ **NUEVO**
 - Módulo J: Reportes (5 endpoints)
 - Módulo I: Notificaciones (11 endpoints)
@@ -1030,7 +1142,9 @@ Referencia técnica completa de 99+ endpoints REST:
 **Úsalo para**: Integración con la API, request/response examples, debugging.
 
 ### 3. **[docs/IMPLEMENTATION_NOTES.md](./docs/IMPLEMENTATION_NOTES.md)** - Notas Técnicas
+
 Detalles de implementación, arquitectura y decisiones técnicas:
+
 - Estructura del proyecto
 - Base de datos y Prisma (39+ modelos)
 - Autenticación y validación
@@ -1041,7 +1155,9 @@ Detalles de implementación, arquitectura y decisiones técnicas:
 **Úsalo para**: Entender la arquitectura, contribuir al código, debugging.
 
 ### 4. **[docs/MODULE_K_STATUS.md](./docs/MODULE_K_STATUS.md)** - Estado Módulo K ⭐ **NUEVO**
+
 Estado completo del Módulo K - Certificados:
+
 - Emisión automática de certificados PDF con @react-pdf/renderer
 - Plantilla profesional landscape con bordes dobles y marca de agua
 - Código de verificación único (16 chars hex) + QR code
@@ -1054,7 +1170,9 @@ Estado completo del Módulo K - Certificados:
 - Total 1,220 líneas de código
 
 ### 5. **[docs/MODULE_J_STATUS.md](./docs/MODULE_J_STATUS.md)** - Estado Módulo J
+
 Estado completo del Módulo J - Reportes:
+
 - Dashboard ejecutivo con 15+ KPIs y 4 gráficos interactivos
 - Reportes por área, curso, cumplimiento
 - Matriz de cumplimiento con semáforo (🟢🟡🔴)
@@ -1066,7 +1184,9 @@ Estado completo del Módulo J - Reportes:
 **Úsalo para**: Entender a fondo el sistema de reportes y analítica.
 
 ### 6. **[docs/MODULE_I_STATUS.md](./docs/MODULE_I_STATUS.md)** - Estado Módulo I
+
 Estado completo del Módulo I - Notificaciones:
+
 - Sistema de notificaciones email e in-app
 - 8 tipos de eventos configurables
 - Plantillas editables con 20+ variables
@@ -1076,7 +1196,9 @@ Estado completo del Módulo I - Notificaciones:
 **Úsalo para**: Entender a fondo el sistema de notificaciones.
 
 ### 7. **[docs/README_DOCS.md](./docs/README_DOCS.md)** - Guía de Documentación
+
 Índice y guía de navegación de toda la documentación:
+
 - Estado de módulos (10/10 completados ✅)
 - Estructura de documentación
 - Estadísticas del sistema
@@ -1086,55 +1208,62 @@ Estado completo del Módulo I - Notificaciones:
 
 ---
 
-### Cambio Reciente: Módulo K - Certificados (Octubre 2025)
+### Cambio Reciente: v2.3.0 - Seguridad Modular, Certificaciones y Progreso Paginado (25 Mar 2026)
 
-Se completó el **Módulo K de Certificados** con emisión automática y verificación pública:
-- Generación de certificados PDF profesionales con @react-pdf/renderer
-- Códigos de verificación únicos + QR codes para autenticidad
-- Página de verificación pública sin autenticación (`/verify/[code]`)
-- Panel de administración con listado, generación y descarga
-- Plantilla landscape con diseño profesional (bordes dobles, marca de agua)
-- 4 endpoints REST: generate, download, list, verify (1 público)
-- Ver detalles en [docs/MODULE_K_STATUS.md](./docs/MODULE_K_STATUS.md)
+Se implementó la **arquitectura de seguridad modular** junto a mejoras en certificaciones, login y paginación:
 
-### Cambio Previo: Módulo J - Reportes (Octubre 2025)
+- Nuevas librerías `lib/authorization.ts`, `lib/operational-safety.ts` y `lib/quiz-security.ts`
+- Suites de pruebas de seguridad: `authorization` (85+ casos), `operational-safety` (43 casos), `quiz-security` (124 casos)
+- Nuevo endpoint `POST /api/progress/certifications/repair` para corregir certificaciones faltantes
+- Nuevo componente `login-form.tsx` separado del `page.tsx` del login
+- `GET /api/progress/courses` con paginación (`page`, `pageSize`, `search`) y `globalStats`
+- KPIs del dashboard admin ampliados con alertas críticas y métricas de cumplimiento
+- Ver detalles en [CHANGELOG.md](./CHANGELOG.md)
 
-Se completó el **Módulo J de Reportes** con analítica avanzada:
-- Dashboard ejecutivo con KPIs en tiempo real
-- 5 tipos de reportes: Dashboard, Área, Curso, Cumplimiento, Auditoría
-- Visualizaciones con recharts (BarChart, PieChart, AreaChart, LineChart)
-- Matriz de cumplimiento con semáforo de tráfico
-- Trazabilidad completa de evaluaciones con IP y timestamps
-- Ver detalles en [docs/MODULE_J_STATUS.md](./docs/MODULE_J_STATUS.md)
+### Cambio Previo: v2.2.9 - Estado PENDING_EVALUATION y Evaluaciones Avanzadas (23 Mar 2026)
 
-### Cambio Previo: Inscripción Masiva (E2.2)
+Se completó el sistema de **evaluaciones avanzadas con nuevo estado de progreso**:
 
-Se completó la funcionalidad de **inscripción masiva por filtros** en enero 2025:
-- Endpoint `POST /api/enrollments/bulk` con transacciones ACID
-- Modal UI `EnrollBulkDialog` con filtros de sede/área/puesto
-- Validación Zod multi-capa (cliente + servidor)
-- Ver detalles en [docs/MODULES.md#e22-inscripción-masiva-por-filtros](./docs/MODULES.md#e22-inscripción-masiva-por-filtros)
+- Nuevo estado `PENDING_EVALUATION` en `ProgressStatus` (migración: `20260323175704`)
+- Bloqueo de reintentos al agotar intentos máximos configurados
+- Diálogo admin para crear unidades de tipo `EVALUATION`
+- Visualización de historial de intentos en la vista de lección
+- Ver detalles en [CHANGELOG.md](./CHANGELOG.md)
+
+### Cambio Previo: v2.2.8 - Quizzes en Unidades y Auth por DNI (18 Mar 2026)
+
+Se implementaron **quizzes vinculados a unidades** y autenticación por DNI:
+
+- Migración `20260318120000_add_quiz_order_and_unit_fk`: campo `order`, FK `unitId` e índices en `quizzes`
+- Nuevo endpoint `POST /api/quizzes/reorder` para reordenar quizzes desde el admin
+- `auth.ts` acepta DNI o email indistintamente en el login
+- Tests reorganizados en `tests/module-c`, `tests/module-d`, `tests/module-e`, `tests/module-h`
+- Ver detalles en [CHANGELOG.md](./CHANGELOG.md)
 
 ---
 
 ## �📝 Convenciones de Código
 
 ### TypeScript
+
 - Usar tipos explícitos siempre que sea posible
 - Evitar `any`, usar `unknown` si es necesario
 - Interfaces para objetos, types para uniones
 
 ### Componentes
+
 - Server components por defecto
 - `"use client"` solo cuando sea necesario
 - Extraer lógica compleja a hooks personalizados
 
 ### Estilos
+
 - Tailwind CSS para estilos
 - Componentes shadcn/ui para UI consistente
 - Evitar CSS personalizado cuando sea posible
 
 ### Validación
+
 - Zod para validación de esquemas
 - Schemas en `src/validations/`
 - Reutilizar schemas entre cliente y servidor
@@ -1179,7 +1308,7 @@ Ver [CHANGELOG.md](./CHANGELOG.md) para historial de cambios.
 
 ## 📄 Licencia
 
-Propietario - DMH © 2025. Todos los derechos reservados.
+Propietario - DMH © 2026. Todos los derechos reservados.
 
 ---
 
@@ -1188,21 +1317,24 @@ Propietario - DMH © 2025. Todos los derechos reservados.
 Para ver el historial completo de cambios, consulta [CHANGELOG.md](./CHANGELOG.md).
 
 ### Versiones Recientes
+
+- **v2.3.0** (25 Mar 2026) - Seguridad modular, certificaciones avanzadas y progreso paginado
+- **v2.2.9** (23 Mar 2026) - Estado PENDING_EVALUATION y evaluaciones avanzadas
+- **v2.2.8** (18 Mar 2026) - Quizzes en unidades, autenticación por DNI y mejoras de exámenes
+- **v2.2.7** (17 Mar 2026) - Inscripciones automáticas con Rules Engine
 - **v2.2.6** (11 Mar 2026) - Repositorio de archivos V3 con deshabilitado y eliminación segura
 - **v2.2.5** (11 Mar 2026) - Repositorio de archivos V2 con exportación y priorización de revisión
 - **v2.2.4** (11 Mar 2026) - Repositorio de archivos V1 con trazabilidad segura para producción
 - **v2.2.3** (1 Dic 2025) - Sistema de templates de colaboradores con gestión de contraseñas
 - **v2.2.2** (4 Nov 2025) - Organización de componentes compartidos
 - **v2.2.1** (4 Nov 2025) - Modularización admin y limpieza
-- **v2.2.0** (4 Nov 2025) - Mejora UI módulo de colaboradores + descarga Excel
-- **v2.1.5** (3 Nov 2025) - Reestructuración administrativa y mejoras UX
-- **v2.1.4** (31 Oct 2025) - Sistema de asistencia y horas estandarizadas
 
 ---
 
 ## 🆘 Soporte
 
 Para soporte y preguntas:
+
 - Email: analista@dimahisac.com
 - Documentación interna: [Enlace pendiente]
 

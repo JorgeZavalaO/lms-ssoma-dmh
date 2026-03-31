@@ -7,6 +7,269 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [2.3.0] - 2026-03-25
+
+### Agregado - Seguridad, Certificaciones Avanzadas y Progreso con Paginación
+
+- ✅ **Librería de autorización centralizada**
+  - Nuevo módulo `src/lib/authorization.ts` con helpers de roles y permisos
+  - Eliminación de verificaciones inline dispersas en endpoints/páginas
+  - Protección uniforme para rutas ADMIN, COLLABORATOR y SUPERADMIN
+
+- ✅ **Seguridad operativa y de cuestionarios**
+  - Nuevo `src/lib/operational-safety.ts`: bloqueos ante acciones destructivas en no-producción
+  - Nuevo `src/lib/quiz-security.ts`: sanitización de datos de cuestionarios para colaboradores y mezcla segura de opciones
+  - Validación anti-manipulación de respuestas en server-side
+
+- ✅ **Formulario de login refactorizado**
+  - Nuevo componente `src/app/(public)/login/login-form.tsx` extraído de `page.tsx`
+  - Separación de responsabilidades: UI vs lógica de autenticación
+  - Credenciales validadas con Zod antes del submit
+
+- ✅ **Generación de certificados mejorada**
+  - Soporte para identificadores únicos y generación de códigos QR refactorizada en `lib/certificates.ts`
+  - Normalización y mapeo de estado de progreso en `lib/progress-status.ts`
+  - Nuevo endpoint `POST /api/progress/certifications/repair` para reparar certificaciones faltantes
+  - Manejo de certificaciones pendientes en submit de intentos, progreso de lecciones y exoneración
+
+- ✅ **Admin KPIs extendidos**
+  - `lib/admin-kpis.ts` ampliado con alertas críticas y métricas de cumplimiento
+  - Dashboard ejecutivo con datos más precisos de incumplimientos activos
+
+- ✅ **Paginación y búsqueda server-side en progreso de cursos**
+  - `GET /api/progress/courses` ahora admite `page`, `pageSize` y `search`
+  - Respuesta incluye `pagination` (total, page, pageSize) y `globalStats`
+  - Cálculo dinámico de estado de vencimiento basado en `expiresAt`
+  - Dashboard de reportes (`/reports/dashboard`) actualizado con nueva estructura de respuesta
+
+- ✅ **Reportes mejorados**
+  - `lib/reports.ts` refactorizado con nuevas opciones de estado
+  - `src/validations/reports.ts` actualizado con estados adicionales
+  - Mejoras en auditoría de evaluaciones y compliance
+
+### Seguridad
+
+- ✅ Nuevas suites de pruebas en `tests/security/`:
+  - `authorization.test.ts`: 85+ casos para roles y permisos
+  - `operational-safety.test.ts`: 43 casos para bloqueos destructivos
+  - `quiz-security.test.ts`: 124 casos para sanitización y mezcla segura
+- ✅ `tests/module-i/notifications-validation.test.ts`: validación de canales de notificación obligatorios
+
+### Técnico
+
+- **Archivos nuevos**:
+  1. `src/lib/authorization.ts`
+  2. `src/lib/operational-safety.ts`
+  3. `src/lib/quiz-security.ts`
+  4. `src/lib/progress-status.ts`
+  5. `src/app/(public)/login/login-form.tsx`
+  6. `src/app/api/progress/certifications/repair/route.ts`
+  7. `tests/security/authorization.test.ts`
+  8. `tests/security/operational-safety.test.ts`
+  9. `tests/security/quiz-security.test.ts`
+  10. `tests/module-i/notifications-validation.test.ts`
+
+- **Archivos actualizados** (selección):
+  1. `src/auth.config.ts` / `src/auth.ts`
+  2. `src/middleware.ts`
+  3. `src/lib/certificates.ts`
+  4. `src/lib/admin-kpis.ts`
+  5. `src/lib/reports.ts`
+  6. `src/lib/notifications.ts`
+  7. `src/app/api/progress/courses/route.ts`
+  8. `src/app/(authenticated)/admin/progress/client-progress.tsx`
+  9. `src/app/(authenticated)/reports/dashboard/page.tsx`
+  10. `src/app/(authenticated)/my-certificates/client-certificates-view.tsx`
+  11. `src/app/(authenticated)/admin/certifications/tabs/certificates-tab.tsx`
+  12. `README.md`
+  13. `CHANGELOG.md`
+
+### Validación
+
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+
+---
+
+## [2.2.9] - 2026-03-23
+
+### Agregado - Estado PENDING_EVALUATION y Evaluaciones Avanzadas
+
+- ✅ **Nuevo estado `PENDING_EVALUATION` en `ProgressStatus`**
+  - Migración aditiva: `20260323175704_add_pending_evaluation_status`
+  - Se asigna automáticamente cuando el colaborador completa todas las lecciones pero aún no aprueba el cuestionario final
+  - Visible en `client-my-courses.tsx` con badge diferenciado
+
+- ✅ **Intentos máximos y lógica de reintento en cuestionarios**
+  - `quiz-taker.tsx` y `quiz-results.tsx` bloquean nuevos intentos al agotar el máximo configurado
+  - Mensaje claro de "sin intentos disponibles" con botón de retorno al curso
+
+- ✅ **Diálogo de creación de unidades de evaluación**
+  - `src/components/admin/courses/units/modals.tsx` ampliado con tipo `EVALUATION`
+  - `client-content.tsx` soporta unidades de evaluación con flujos diferenciados
+
+- ✅ **Visualización de intentos en lección**
+  - `client-lesson-view.tsx` muestra intentos pasados del cuestionario asociado a la lección
+  - Página `lessons/[lessonId]/page.tsx` enriquecida con datos de intentos
+
+- ✅ **Conteo de lecciones y quizzes en progreso de cursos**
+  - `GET /api/progress/courses` retorna `lessonCount` y `quizCount` por inscripción
+  - Permite visualizar completitud más granular en el portal del colaborador
+
+- ✅ **Autorización mejorada en descarga de certificados**
+  - `GET /api/certificates/[id]/download` verifica que el colaborador sea propietario o sea ADMIN/SUPERADMIN
+
+- ✅ **Filtrado de inscripciones sin curso en rutas de aprendizaje**
+  - `client-my-courses.tsx` omite inscripciones de ruta sin curso asignado para evitar tarjetas rotas
+
+### Técnico
+
+- **Archivos actualizados**:
+  1. `prisma/schema.prisma` (nuevo valor enum `PENDING_EVALUATION`)
+  2. `src/validations/progress.ts`
+  3. `src/app/(authenticated)/my-courses/client-my-courses.tsx`
+  4. `src/app/(authenticated)/courses/[courseId]/quiz/[quizId]/quiz-taker.tsx`
+  5. `src/app/(authenticated)/courses/[courseId]/quiz/[quizId]/quiz-results.tsx`
+  6. `src/app/(authenticated)/courses/[courseId]/lessons/[lessonId]/page.tsx`
+  7. `src/app/(authenticated)/courses/[courseId]/lessons/[lessonId]/client-lesson-view.tsx`
+  8. `src/app/api/progress/courses/route.ts`
+  9. `src/app/api/attempts/[id]/submit/route.ts`
+  10. `src/app/api/certificates/[id]/download/route.ts`
+  11. `src/app/api/progress/certifications/route.ts`
+  12. `src/app/api/progress/certifications/[id]/recertify/route.ts`
+  13. `src/components/admin/courses/units/modals.tsx`
+  14. `src/app/(authenticated)/admin/courses/[id]/content/client-content.tsx`
+
+### Validación
+
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+
+---
+
+## [2.2.8] - 2026-03-18
+
+### Agregado - Quizzes en Unidades, Autenticación DNI y Mejoras de Exámenes
+
+- ✅ **Quizzes vinculados a unidades con orden explícito**
+  - Migración: `20260318120000_add_quiz_order_and_unit_fk`
+  - Nuevo campo `order` en `quizzes` con índice único por `(unitId, order)`
+  - FK `quizzes.unitId` → `units.id` con integridad referencial
+  - Índice compuesto `(courseId, unitId)` para consultas filtradas
+  - Nuevo endpoint `POST /api/quizzes/reorder` para reordenar quizzes en admin
+  - Formulario de quiz actualizado con asignación de unidad
+
+- ✅ **Contenido del curso con quizzes por unidad**
+  - `client-content.tsx` muestra quizzes asociados a cada unidad
+  - Acciones de reordenar, editar y eliminar quiz directamente desde el contenido
+  - Vista del curso (`client-course-view.tsx`) actualizada para mostrar quiz de unidad
+
+- ✅ **Autenticación por DNI o email**
+  - `auth.ts` y `login/page.tsx` actualizados para aceptar DNI o email en el campo usuario
+  - Búsqueda por ambos campos en el proveedor de credenciales
+
+- ✅ **Sistema de exámenes con reintentos mejorado**
+  - Lógica de remediación: el colaborador debe completar contenido de refuerzo antes de reintentar
+  - `quiz-taker.tsx` actualizado con flujo de reintento y estado de remediación
+  - `quiz-question.tsx` con mejor manejo de estado de respuestas
+
+- ✅ **Diálogo de inscripción masiva mejorado**
+  - Selección más eficiente con checkbox por colaborador y selección total
+  - Mejor feedback visual durante la búsqueda y selección
+
+- ✅ **Progreso de lecciones API mejorado**
+  - `GET /api/lessons/[lessonId]/progress` refactorizado con mejor estructura
+  - `GET /api/progress/courses` y `GET /api/progress/paths` con consultas optimizadas
+
+### Pruebas
+
+- ✅ Nuevas suites en `tests/`:
+  - `tests/module-c/courses-validation.test.ts`
+  - `tests/module-d/content-validation.test.ts`
+  - `tests/module-e/enrollment-validation.test.ts`
+  - `tests/module-h/progress-validation.test.ts`
+- ✅ `tests/module-e/enrollment.test.ts` y `tests/module-h/progress.test.ts` migrados desde `src/lib/`
+- ✅ `vitest.config.ts` actualizado para incluir tests en la nueva ubicación
+
+### Técnico
+
+- **Archivos nuevos**:
+  1. `prisma/migrations/20260318120000_add_quiz_order_and_unit_fk/migration.sql`
+  2. `src/app/api/quizzes/reorder/route.ts`
+  3. `tests/module-c/courses-validation.test.ts`
+  4. `tests/module-d/content-validation.test.ts`
+  5. `tests/module-e/enrollment-validation.test.ts`
+  6. `tests/module-h/progress-validation.test.ts`
+
+- **Archivos actualizados**:
+  1. `prisma/schema.prisma`
+  2. `src/auth.ts`
+  3. `src/app/(public)/login/page.tsx`
+  4. `src/app/api/quizzes/route.ts` / `[id]/route.ts` / `[id]/attempt/route.ts`
+  5. `src/app/api/courses/[id]/units/route.ts`
+  6. `src/app/(authenticated)/admin/courses/[id]/content/client-content.tsx`
+  7. `src/app/(authenticated)/admin/quizzes/quiz-form.tsx`
+  8. `src/app/(authenticated)/courses/[courseId]/quiz/[quizId]/quiz-taker.tsx`
+  9. `src/app/(authenticated)/courses/[courseId]/quiz/[quizId]/quiz-results.tsx`
+  10. `src/app/(authenticated)/courses/[courseId]/quiz/[quizId]/quiz-question.tsx`
+  11. `src/app/(authenticated)/admin/enrollments/client-enrollments.tsx`
+  12. `vitest.config.ts`
+
+### Validación
+
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+
+---
+
+## [2.2.7] - 2026-03-17
+
+### Agregado - Gestión de Inscripciones Automáticas con Rules Engine
+
+- ✅ **Refactorización completa de `lib/enrollment.ts`**
+  - Motor de reglas de inscripción reescrito con mejor separación de responsabilidades
+  - Función `syncEnrollmentRulesForCollaborator()` para sincronizar reglas al crear/editar colaborador
+  - Función `applyEnrollmentRule()` para aplicar una regla individual
+  - Cancelación automática de inscripciones al cambiar perfil del colaborador (área/sede/puesto)
+  - Mejor manejo de errores con log detallado por colaborador
+
+- ✅ **APIs de inscripciones y reglas actualizadas**
+  - `POST /api/collaborators` y `PUT /api/collaborators/[id]`: llaman sync de reglas tras guardar
+  - `POST /api/collaborators/import`: aplica sync masivo tras importación
+  - `POST /api/enrollment-rules` y `PUT /api/enrollment-rules/[id]`: disparan re-aplicación de regla
+  - `POST /api/enrollments` / `POST /api/enrollments/bulk`: lógica unificada con motor de reglas
+  - `POST /api/enrollments/bulk`: inscripción masiva con filtros mejorada
+
+- ✅ **Suite de pruebas exhaustiva para inscripciones**
+  - `tests/module-e/enrollment.test.ts` con 599+ casos cubriendo:
+    - Creación de inscripciones únicas y en lote
+    - Reglas de sincronización automáticas
+    - Cancelación por cambio de perfil
+    - Manejo de duplicados y conflictos
+
+### Técnico
+
+- **Archivos actualizados**:
+  1. `src/lib/enrollment.ts` (refactorización completa)
+  2. `src/app/api/collaborators/[id]/route.ts`
+  3. `src/app/api/collaborators/import/route.ts`
+  4. `src/app/api/enrollment-rules/[id]/route.ts`
+  5. `src/app/api/enrollment-rules/route.ts`
+  6. `src/app/api/enrollments/bulk/route.ts`
+  7. `src/app/api/enrollments/route.ts`
+  8. `tests/module-e/enrollment.test.ts`
+
+### Validación
+
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+
+---
+
 ## [2.2.6] - 2026-03-11
 
 ### Agregado - Repositorio de Archivos V3
@@ -231,15 +494,20 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Hash seguro de contraseñas: `await bcrypt.hash(password, 10)`
   - Lógica condicional de creación de usuario:
     ```typescript
-    if (data.email && data.email.length > 0 && data.password && data.password.length >= 6) {
-      const hashedPassword = await bcrypt.hash(data.password, 10)
+    if (
+      data.email &&
+      data.email.length > 0 &&
+      data.password &&
+      data.password.length >= 6
+    ) {
+      const hashedPassword = await bcrypt.hash(data.password, 10);
       collaboratorData.user = {
         create: {
           email: data.email,
           hashedPassword,
           role: "COLLABORATOR",
-        }
-      }
+        },
+      };
     }
     ```
   - Validación de password mínimo 6 caracteres
@@ -252,7 +520,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Columna Password agregada (vacía por seguridad)
   - Filtrado de emails generados internamente:
     ```typescript
-    c.email && !c.email.includes('@noemail.local') ? c.email : ""
+    c.email && !c.email.includes("@noemail.local") ? c.email : "";
     ```
   - Export CSV actualizado con misma estructura que hoja 1
   - Anchos de columna optimizados para legibilidad
@@ -349,9 +617,9 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Colores de texto: `text-slate-900` (primario), `text-slate-600` (secundario).
   - Email con link clickable en color emerald-600.
   - Pills con bordes subtiles y fondos coloreados:
-    * ACTIVE: `bg-emerald-50 text-emerald-700 border-emerald-200`
-    * INACTIVE: `bg-amber-50 text-amber-700 border-amber-200`
-    * Rol SUPERADMIN: rojo, ADMIN: ámbar, COLLABORATOR: gris
+    - ACTIVE: `bg-emerald-50 text-emerald-700 border-emerald-200`
+    - INACTIVE: `bg-amber-50 text-amber-700 border-amber-200`
+    - Rol SUPERADMIN: rojo, ADMIN: ámbar, COLLABORATOR: gris
   - Botones "Rol" con icono Shield y label responsivo.
 
 - ✅ **Dialog "Cambiar Rol" rediseñado**
@@ -370,6 +638,59 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Soporte dual: XLSX (con lib `xlsx`) y CSV.
 
 - ✅ **Build validado**: Compilación exitosa en 9.8s, 79 páginas (+1 export), 0 errores.
+
+---
+
+## [2.2.2] - 2025-11-04
+
+### Refactor - Organización de Componentes Compartidos
+
+- ♻️ **Reubicación de componentes** para arquitectura más clara:
+  - `AppHeader` y `AppFooter` → `src/components/layout/`
+  - `DataTable` → `src/components/common/`
+  - `NotificationsBadge` → `src/components/notifications/`
+  - `ContentProgressTracker` → `src/components/learning/`
+  - `YouTubePlayer` → `src/components/media/`
+- 🔗 Actualizados todos los imports en páginas y componentes que referencian los componentes movidos.
+- 🧹 Componentes `nav-main.tsx` y `nav-projects.tsx` marcados como deprecados (sin usos activos); pendientes de eliminación física.
+
+### Técnico
+
+- **Archivos movidos/renombrados** (5 componentes reubicados)
+- **Archivos actualizados**: todos los imports afectados en páginas admin y vistas de colaborador
+
+### Validación
+
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+
+---
+
+## [2.2.1] - 2025-11-04
+
+### Refactor - Modularización Admin y Limpieza
+
+- ✅ **Componentes admin modularizados por dominio** en `src/components/admin/<modulo>/...`:
+  - Áreas, colaboradores, cursos, unidades/lecciones, rutas, sedes, puestos, inscripciones, preguntas
+- ✅ **Rewired de imports** en páginas y tablas de `/admin/*` para usar los nuevos paths modulares.
+- 🧹 Archivos centralizados anteriores marcados como deprecados y excluidos del lint:
+  - `components/admin/*-modals.tsx`
+  - `components/admin/course-lessons-preview.tsx`
+  - `components/admin/question-preview-dialog.tsx`
+
+### Técnico
+
+- **Archivos nuevos**: estructura modular en `src/components/admin/<dominio>/`
+- **Archivos actualizados**: imports en páginas `/admin/*`
+
+### Validación
+
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+
+---
 
 ## [2.1.9] - 2025-11-04
 
@@ -622,7 +943,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Compilación: ✓ Exitosa sin errores críticos
   - Rutas generadas: 78 páginas (sin /admin visible)
   - ESLint: Solo warnings pre-existentes (no nuevos errores)
-  - Middleware: Protección /admin/* intacta
+  - Middleware: Protección /admin/\* intacta
 
 ### Beneficios de la Implementación
 
@@ -713,7 +1034,6 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - **Corrección de Runtime Error:** Eliminado bucle "Maximum update depth exceeded" en la selección de preguntas del formulario de cuestionarios.
   - Problema: doble toggle del Checkbox causado por handlers redundantes (onClick del contenedor + onClick del checkbox).
   - Solución: refactor a control único mediante `onCheckedChange` con `stopPropagation`.
-  
 - **Diseño Minimalista y Profesional:**
   - Paleta de colores sobria (escala gris neutral: `slate-50`, `slate-100`, `slate-900/30`).
   - Tipografía con jerarquía clara: labels uppercase con tracking, títulos de sección con peso semibold.
@@ -732,10 +1052,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Sin impacto en otros diálogos de la aplicación.
 
 Archivos modificados:
+
 - `src/app/(authenticated)/admin/quizzes/quiz-form.tsx`: refactor de selección, mejoras de espaciado y tipografía, indicadores visuales.
 - `src/app/(authenticated)/admin/quizzes/client-quizzes.tsx`: ampliación del ancho del diálogo.
 
 Calidad y verificación:
+
 - Build: PASS (Next.js 15.5.5, 7.4s). Sin errores nuevos, solo warnings previos de ESLint.
 - Tests: PASS (Vitest) — 6 tests en `src/lib/progress.test.ts`, regresión cero.
 - Accesibilidad: soporta light/dark mode automáticamente; labels y aria-labels preservados.
@@ -755,6 +1077,7 @@ Calidad y verificación:
 - Lógica extraída a función pura `capLessonProgress()` para pruebas unitarias.
 
 Archivos relevantes:
+
 - `src/lib/progress.ts`: nueva función `capLessonProgress(prev, requested, serverDeltaSec, clientDeltaSec, duration?)` con contrato claro.
 - `src/app/api/lessons/[lessonId]/progress/route.ts`: refactor para usar `capLessonProgress` antes de persistir.
 - `src/validations/content.ts`: añade `timeDeltaSeconds` y `duration` a `LessonProgressSchema`.
@@ -763,9 +1086,11 @@ Archivos relevantes:
 - `vitest.config.ts`: configuración mínima con entorno node y PostCSS desactivado.
 
 Documentación:
+
 - `README.md`: actualizado para reflejar anti-salto, script `pnpm test`, y la ruta oficial del endpoint.
 
 Calidad y verificación:
+
 - Build: PASS (Next.js 15.5.5). Solo warnings previos de ESLint, sin nuevos errores.
 - Tests: PASS (Vitest) — 6 tests, 1 archivo de pruebas.
 
@@ -776,12 +1101,14 @@ Calidad y verificación:
 - Mantiene anti-salto intacto para lecciones de video.
 
 Archivos relevantes:
+
 - `src/app/(authenticated)/courses/[courseId]/lessons/[lessonId]/client-lesson-view.tsx`: botón y envío de `manualComplete` para no-video.
 - `src/app/api/lessons/[lessonId]/progress/route.ts`: rama para forzar completado en no-video cuando `manualComplete` es verdadero.
 - `src/validations/content.ts`: `LessonProgressSchema` extendido con campo opcional `manualComplete`.
 - `README.md`: documenta el comportamiento del botón y el parámetro `manualComplete`.
 
 Calidad y verificación:
+
 - Build: PASS (Next.js 15.5.5) tras integrar `manualComplete`.
 - Tests: PASS (Vitest) — regresión negativa no observada; la lógica anti-salto permanece cubierta por 6 pruebas unitarias.
 
@@ -802,12 +1129,14 @@ Calidad y verificación:
 - Lógica consolidada para múltiples rutas: si el curso pertenece a varias rutas, se permite el acceso si al menos una ruta aplicable no exige prerrequisito o este ya está cumplido.
 
 Archivos relevantes:
+
 - `src/lib/access.ts`: helper `checkCoursePrerequisites(collaboratorId, courseId)` con verificación contra Enrollment y CourseProgress.
 - `src/app/(authenticated)/courses/[courseId]/page.tsx`: aplica guardián antes de renderizar.
 - `src/app/(authenticated)/courses/[courseId]/lessons/[lessonId]/page.tsx`: aplica guardián antes de renderizar la lección.
 - `src/app/(authenticated)/courses/[courseId]/quiz/[quizId]/page.tsx`: valida publicación, asociación y aplica guardián antes de permitir intentos.
 
 Beneficios:
+
 - ✅ Cumplimiento de itinerarios sin alterar el proceso de inscripción.
 - ✅ Experiencia guiada: redirección a la vista de rutas para entender el prerrequisito faltante.
 - ✅ Mantenibilidad: una sola fuente de verdad para la política de acceso a cursos.
@@ -891,7 +1220,7 @@ Beneficios:
   - Redirecciona COLLABORATOR → `/dashboard`
   - Flujo fluido sin pasos adicionales
 
-- **Agregado - Reorganización de Rutas y Arquitectura de Route Groups (Octubre 17, 2025)
+- \*\*Agregado - Reorganización de Rutas y Arquitectura de Route Groups (Octubre 17, 2025)
 
 - **Landing Page en la raíz (/)** - Diseño completamente renovado
   - Página pública accesible sin autenticación
@@ -908,14 +1237,12 @@ Beneficios:
     - Layout sin sidebar, header ni footer (limpio y minimalista)
     - Rutas públicas: `/login`, `/register`
     - Ubicación: `src/app/(public)/`
-  
   - **Grupo autenticado `(authenticated)/`**:
     - Layout con SidebarProvider, AppSidebar, AppHeader, AppFooter
     - Dashboard movido a `/dashboard` (antes en raíz `/`)
     - Todas las rutas protegidas por autenticación
     - Sidebar visible en todas las páginas de este grupo
     - Ubicación: `src/app/(authenticated)/`
-  
   - **Layout jerárquico optimizado**:
     - Root layout (`src/app/layout.tsx`): SessionProvider + Toaster (mínimo)
     - Public layout: Passthrough mínimo (sin componentes extra)
@@ -1126,7 +1453,7 @@ Beneficios:
   - **Pregunta**: Texto en tiempo real
   - **Opciones**: Visualización con círculos (opción única/múltiple) o cuadrados (otras)
   - **Respuestas correctas**: Destacadas en verde con badge "✓ Correcta"
-  - **Retroalimentación**: 
+  - **Retroalimentación**:
     - Verde para respuestas correctas
     - Roja para respuestas incorrectas
     - Azul para explicación
@@ -1302,23 +1629,20 @@ Beneficios:
       - Número de certificado único
       - Fecha de emisión y vencimiento
       - Firma digital del responsable de SSOMA
-    
     - API endpoints:
       - `POST /api/certificates/generate` - Genera PDF para una certificación
       - `GET /api/certificates/[id]/download` - Descarga PDF del certificado
       - `GET /api/certificates` - Lista certificados con filtros
-    
     - Códigos de verificación únicos:
       - Generación con crypto.randomBytes (16 hex chars)
       - Únicos por certificado en base de datos
       - QR code apunta a `/verify/[code]`
-    
     - Almacenamiento en base de datos:
       - URL del PDF generado
       - QR code en base64
       - Metadata (tamaño, fecha de generación)
       - Código de verificación indexado
-  
+
   - **K2. Verificación Pública de Certificados**:
     - Página pública `/verify/[code]` sin autenticación
     - Verificación instantánea por código o escaneo QR
@@ -1326,7 +1650,6 @@ Beneficios:
       - Verde: Certificado válido y vigente
       - Amarillo/Naranja: Certificado expirado
       - Rojo: Certificado no encontrado/inválido
-    
     - Información pública mostrada:
       - Número de certificado
       - Nombre del colaborador (sin datos sensibles)
@@ -1336,15 +1659,13 @@ Beneficios:
       - Duración del curso (horas)
       - Calificación obtenida (%)
       - Estado de validez actual
-    
     - Validación de vigencia:
       - Verifica campo `isValid` en base de datos
       - Verifica fecha de expiración vs fecha actual
       - Badge visual con estado del certificado
-    
     - API endpoint:
       - `GET /api/certificates/verify/[code]` - Verificación pública
-  
+
   - **Página de Administración de Certificados**:
     - `/admin/certificates` - Panel de gestión
     - Listado completo de certificados emitidos
@@ -1355,7 +1676,6 @@ Beneficios:
       - Ver página de verificación pública
     - Filtros por colaborador, curso, estado de validez
     - Badges de estado (válido/inválido)
-  
   - **Prisma Schema**:
     - Extensión del modelo `CertificationRecord`:
       - `pdfUrl String?` - URL del PDF generado
@@ -1363,23 +1683,19 @@ Beneficios:
       - `qrCode String?` - QR code en base64
       - `pdfMetadata Json?` - Metadata del PDF
     - Migración: `20251017060346_add_certificate_pdf_fields`
-  
   - **Dependencias**:
     - `@react-pdf/renderer@4.3.1` - Generación de PDFs desde React
     - `qrcode@1.5.4` - Generación de códigos QR
     - `@types/qrcode@1.5.5` - Tipos para TypeScript
-  
   - **Utilidades**:
     - `src/lib/certificates.ts` - Lógica de generación y verificación
     - `src/components/certificates/certificate-template.tsx` - Template PDF
     - `src/validations/certificates.ts` - Schemas Zod
-  
   - **Seguridad**:
     - Generación de códigos únicos con crypto
     - Índice único en verificationCode
     - Verificación pública sin exponer datos sensibles
     - Solo admins pueden generar certificados
-  
   - **UX/UI**:
     - Diseño profesional con gradientes y bordes
     - Estados visuales claros (verde/amarillo/rojo)
@@ -1396,18 +1712,16 @@ Beneficios:
       - Intentos/promedios de evaluaciones
       - Tasa de aprobación y puntaje promedio
       - Usuarios activos en los últimos 30 días
-    
     - Gráficos interactivos (recharts + shadcn/ui chart):
       - Cumplimiento por área (BarChart)
       - Distribución de alertas por estado (PieChart)
       - Tendencia de inscripciones (AreaChart)
       - Tendencia de completaciones (LineChart)
-    
     - Filtros temporales: 7, 30, 90 días o todo el tiempo
     - Filtros por área y sede
     - Top 5 cursos críticos con desglose de vencimientos
     - 3 paneles de métricas adicionales
-  
+
   - **J2. Reporte por Área**:
     - Listado detallado de colaboradores con estado por curso
     - Tabla con columnas: DNI, Nombre, Área, Puesto, Curso, Estado, Progreso, Calificación
@@ -1420,7 +1734,6 @@ Beneficios:
     - Contador de registros encontrados
     - Botón de exportación XLSX/CSV/PDF
     - API: `GET /api/reports/area` con filtros opcionales
-  
   - **J3. Reporte por Curso**:
     - Selector de curso con generación bajo demanda
     - Estadísticas completas del curso:
@@ -1433,7 +1746,6 @@ Beneficios:
     - Gráfico circular de distribución de estados
     - Información de versión activa del curso
     - API: `GET /api/reports/course?courseId=...`
-  
   - **J4. Reporte de Cumplimiento Legal/SSOMA**:
     - Matriz de cumplimiento con cursos obligatorios
     - Semáforo de vigencia (verde/amarillo/rojo):
@@ -1446,7 +1758,6 @@ Beneficios:
     - Leyenda de iconos y estados
     - Tabla expandible con scroll horizontal
     - API: `GET /api/reports/compliance`
-  
   - **J5. Trazabilidad de Evaluaciones**:
     - Historial completo de intentos de evaluación
     - Campos de auditoría:
@@ -1464,21 +1775,18 @@ Beneficios:
     - Exportación CSV para auditorías
     - Información de retención y privacidad
     - API: `GET /api/reports/audit-trail` con múltiples filtros
-  
   - **Modelos de datos (Prisma)**:
     - `Report`: Reportes generados con metadata y archivos
     - `ReportSchedule`: Programación de reportes recurrentes (DAILY, WEEKLY, MONTHLY, QUARTERLY, CUSTOM)
     - `ReportExecution`: Historial de ejecuciones programadas
     - `KPISnapshot`: Snapshots periódicos de KPIs para análisis histórico
     - Enums: `ReportType`, `ReportFormat`, `ScheduleFrequency`
-  
   - **APIs de reportes (`src/app/api/reports/`)**:
     - `GET /api/reports/dashboard` - KPIs ejecutivos con filtros temporales y organizacionales
     - `GET /api/reports/area` - Reporte por área con filtros avanzados
     - `GET /api/reports/course` - Estadísticas detalladas por curso
     - `GET /api/reports/compliance` - Matriz de cumplimiento SSOMA
     - `GET /api/reports/audit-trail` - Trazabilidad de evaluaciones
-  
   - **Servicios de negocio (`src/lib/reports.ts`)**:
     - `getDashboardKPIs()` - Calcula todos los KPIs en tiempo real
     - `getAreaReport()` - Genera reporte por área con joins optimizados
@@ -1486,35 +1794,34 @@ Beneficios:
     - `getComplianceReport()` - Matriz de cumplimiento con semáforo
     - `getAuditTrail()` - Historial de intentos con metad
 
-atos de auditoría
-    - `createKPISnapshot()` - Crea snapshot histórico de KPIs
-  
-  - **Validaciones Zod (`src/validations/reports.ts`)**:
-    - DashboardFiltersSchema, AreaReportFiltersSchema
-    - CourseReportFiltersSchema, ComplianceReportFiltersSchema
-    - AuditTrailFiltersSchema, ExportReportSchema
-    - CreateReportScheduleSchema, UpdateReportScheduleSchema
-  
-  - **UI con shadcn/ui moderno**:
-    - Componente `chart` instalado para gráficos
-    - Cards con KPIs y métricas visuales
-    - Tablas responsivas con scroll horizontal
-    - Badges y iconos semánticos (lucide-react)
-    - Selectores de rango temporal
-    - Filtros dinámicos con estado React
-    - Botones de exportación preparados
-  
-  - **Características adicionales**:
-    - Integración con recharts para visualizaciones
-    - date-fns para manejo de fechas y formatos
-    - Soporte para exportación XLSX/CSV/PDF (preparado)
-    - Cálculos de tendencias de 30 días
-    - Agrupaciones por fecha para gráficos temporales
-    - Porcentajes y promedios calculados en tiempo real
-  
-  - **Documentación**:
-    - `docs/MODULE_J_STATUS.md`: Estado completo del módulo
-    - Actualización de MODULES.md, README_DOCS.md, API_REFERENCE.md
+atos de auditoría - `createKPISnapshot()` - Crea snapshot histórico de KPIs
+
+- **Validaciones Zod (`src/validations/reports.ts`)**:
+  - DashboardFiltersSchema, AreaReportFiltersSchema
+  - CourseReportFiltersSchema, ComplianceReportFiltersSchema
+  - AuditTrailFiltersSchema, ExportReportSchema
+  - CreateReportScheduleSchema, UpdateReportScheduleSchema
+
+- **UI con shadcn/ui moderno**:
+  - Componente `chart` instalado para gráficos
+  - Cards con KPIs y métricas visuales
+  - Tablas responsivas con scroll horizontal
+  - Badges y iconos semánticos (lucide-react)
+  - Selectores de rango temporal
+  - Filtros dinámicos con estado React
+  - Botones de exportación preparados
+
+- **Características adicionales**:
+  - Integración con recharts para visualizaciones
+  - date-fns para manejo de fechas y formatos
+  - Soporte para exportación XLSX/CSV/PDF (preparado)
+  - Cálculos de tendencias de 30 días
+  - Agrupaciones por fecha para gráficos temporales
+  - Porcentajes y promedios calculados en tiempo real
+
+- **Documentación**:
+  - `docs/MODULE_J_STATUS.md`: Estado completo del módulo
+  - Actualización de MODULES.md, README_DOCS.md, API_REFERENCE.md
 
 - **Módulo I - Notificaciones y Recordatorios - COMPLETADO**:
   - **I1. Notificaciones por Email y Bandeja de Entrada**:
@@ -1526,54 +1833,45 @@ atos de auditoría
       - 4 niveles de prioridad: LOW, MEDIUM, HIGH, URGENT
       - Edición de plantillas en tiempo real (admin)
       - Activación/desactivación por tipo
-    
     - Notificaciones individuales (`Notification`):
       - Bandeja de entrada interna con HTML enriquecido
       - Estados: isRead, isArchived con timestamps
       - Metadata JSON personalizable por tipo
       - Relación con colaborador y curso (opcional)
       - Priorización visual por urgencia
-    
     - Preferencias de usuario (`NotificationPreference`):
       - Opt-in/opt-out por tipo de notificación
       - Control granular: email e in-app independientes
       - Valores por defecto configurables
-    
     - Registro de envíos (`NotificationLog`):
       - Historial de envíos masivos con contador
       - Auditoría de remesas con timestamp
       - Vinculación con plantilla utilizada
-    
     - APIs de plantillas (admin):
       - `GET/POST /api/notification-templates` - Listar y crear plantillas
       - `GET/PUT/DELETE /api/notification-templates/[id]` - Gestión individual
-    
     - APIs de notificaciones:
       - `GET/POST /api/notifications` - Listar (paginado) y crear
       - `GET/PUT/DELETE /api/notifications/[id]` - Gestión individual
       - `POST /api/notifications/mark-all-read` - Marcar todas como leídas
       - `GET /api/notifications/unread-count` - Contador en tiempo real
-    
     - APIs de preferencias:
       - `GET/PUT /api/notification-preferences` - Configuración de usuario
-    
     - Componentes UI:
       - `NotificationBell`: Campana con badge de contador + dropdown de últimas 10
       - `/notifications`: Página completa con tabs (Todas/No leídas/Archivadas)
       - `/admin/notification-templates`: Editor de plantillas con preview HTML
-  
+
   - **I2. Recordatorios para Gerentes y Expiraciones**:
     - Generación automática de recordatorios:
       - Recordatorios de expiración (30, 7, 1 días antes del vencimiento)
       - Resumen semanal para gerentes de área con estadísticas del equipo
       - Prevención de duplicados con ventana de tiempo
-    
     - API de generación:
       - `POST /api/notifications/generate` con tipos:
         - `expiration-reminders` (days: 30/7/1)
         - `team-summary` (managerId requerido)
       - Retorna log con cantidad de notificaciones generadas
-    
     - Servicios de negocio (`src/lib/notifications.ts`):
       - `createNotification()` - Crear notificación individual
       - `createNotificationFromTemplate()` - Crear desde plantilla con variables
@@ -1582,21 +1880,19 @@ atos de auditoría
       - `markNotificationAsRead()`, `markAllNotificationsAsRead()`
       - `archiveNotification()`
       - `getUnreadNotifications()`, `countUnreadNotifications()`
-    
     - Validaciones Zod (`src/validations/notifications.ts`):
       - CreateNotificationTemplateSchema, UpdateNotificationTemplateSchema
       - CreateNotificationSchema, UpdateNotificationSchema
       - UpdateNotificationPreferenceSchema
       - SendBulkNotificationSchema
       - GenerateExpirationRemindersSchema, GenerateTeamSummarySchema
-  
+
   - **Características adicionales**:
     - Actualización automática del contador de notificaciones cada 30s
     - Renderizado seguro de HTML en notificaciones
     - Badges visuales por tipo de evento y prioridad
     - Eliminación lógica (archivo) y física (delete)
     - Sistema preparado para integración con servicios de email (Resend/SendGrid/AWS SES)
-  
   - **Documentación**:
     - `docs/MODULE_I_STATUS.md`: Estado completo del módulo (600+ líneas)
     - `docs/MODULES.md`: Documentación técnica actualizada
@@ -1613,25 +1909,22 @@ atos de auditoría
       - 6 estados: NOT_STARTED, IN_PROGRESS, PASSED, FAILED, EXPIRED, EXEMPTED
       - Transiciones automáticas basadas en porcentaje (100% → IN_PROGRESS, quiz aprobado → PASSED)
       - Fecha de expiración auto-calculada según vigencia del curso
-    
     - Progreso de lecciones (reutiliza `LessonProgress`):
       - Porcentaje de visualización
       - Marcado de completado automático por threshold
       - Última fecha de visualización
       - Actualización automática del progreso del curso al completar lecciones
-    
     - Progreso de rutas de aprendizaje (`LearningPathProgress`):
       - Cursos completados vs totales
       - Porcentaje de avance general
       - Cálculo automático en tiempo real
       - Fecha de inicio y completado
-    
     - APIs de progreso:
       - `GET/POST /api/progress/courses` - Listar e inicializar progreso de cursos
       - `GET/PUT/DELETE /api/progress/courses/[id]` - Gestión individual
       - `PUT /api/progress/lessons/[lessonId]` - Actualizar progreso de lección
       - `GET/POST /api/progress/paths` - Progreso de rutas (cálculo dinámico)
-  
+
   - **H2. Cumplimiento por Vigencia**:
     - Certificaciones (`CertificationRecord`):
       - Número de certificado único auto-generado
@@ -1641,33 +1934,29 @@ atos de auditoría
       - Revocación con razón y auditoría (`revokedAt`, `revokedBy`, `revocationReason`)
       - Almacenamiento de datos del certificado en JSON
       - URL del certificado PDF (para descarga)
-    
     - Sistema de alertas (`ProgressAlert`):
       - 4 tipos de alerta: EXPIRING_SOON (30 días), EXPIRED, RECERTIFICATION (60 días), OVERDUE
       - 3 niveles de severidad: 1=info, 2=warning, 3=critical
       - Título, mensaje y metadata configurable
       - Estados: `isRead`, `isDismissed` con timestamps
       - Fecha de vencimiento (`dueDate`) para ordenar prioridades
-    
     - Generación automática de alertas:
       - Job manual: `POST /api/progress/alerts/generate`
       - Escaneo de cursos próximos a vencer (30 días antes)
       - Detección de cursos vencidos (auto-cambia estado a EXPIRED)
       - Alertas de recertificación (60 días antes de expirar certificación)
       - Prevención de duplicados (7-30 días entre alertas)
-    
     - APIs de certificaciones:
       - `GET/POST /api/progress/certifications` - Listar y emitir certificaciones
       - `GET /api/progress/certifications/[id]` - Obtener con historial completo
       - `POST /api/progress/certifications/[id]/revoke` - Revocar certificación
       - `POST /api/progress/certifications/[id]/recertify` - Crear recertificación vinculada
-    
     - APIs de alertas:
       - `GET/POST /api/progress/alerts` - Listar y crear alertas manuales
       - `PUT /api/progress/alerts/[id]/read` - Marcar como leída
       - `PUT /api/progress/alerts/[id]/dismiss` - Descartar alerta
       - `POST /api/progress/alerts/generate` - Generar alertas automáticas
-  
+
   - **H3. Gestión de Estados**:
     - Enum `ProgressStatus`: NOT_STARTED, IN_PROGRESS, PASSED, FAILED, EXPIRED, EXEMPTED
     - Cambio manual de estado (admin): `ChangeProgressStatusSchema`
@@ -1680,7 +1969,6 @@ atos de auditoría
       - Fecha de cada transición de estado
       - Usuario responsable (en exoneraciones y cambios manuales)
       - Razón documentada
-  
   - **Validaciones Zod** (`src/validations/progress.ts`):
     - `UpdateCourseProgressSchema`: progreso 0-100%, timeSpent, status
     - `UpdateLessonProgressSchema`: isCompleted, timeSpent, score
@@ -1689,7 +1977,6 @@ atos de auditoría
     - `CreateProgressAlertSchema`: tipo, severidad, título, mensaje, metadata
     - `ExemptCollaboratorSchema`: exemptionReason obligatorio
     - `ChangeProgressStatusSchema`: status + fechas correspondientes
-  
   - **Migraciones de Base de Datos**:
     - Migración: `20251016215732_add_module_h_progress_and_compliance`
     - Tablas: `course_progress`, `certification_records`, `progress_alerts`, `learning_path_progress`
@@ -1724,7 +2011,6 @@ atos de auditoría
     - UI de administración con tabla y modal de creación/edición
     - Validación multi-capa con Zod schemas
     - Componentes shadcn/ui: Dialog, Table, Badge, Checkbox, Select
-  
   - **F2. Cuestionarios**:
     - Parámetros configurables:
       - Tiempo límite (minutos)
@@ -1739,7 +2025,6 @@ atos de auditoría
     - Estados: DRAFT, PUBLISHED, ARCHIVED
     - Relación muchos a muchos con preguntas (QuizQuestion)
     - API: GET/POST `/api/quizzes`, GET/PUT/DELETE `/api/quizzes/[id]`
-  
   - **F3. Intentos y Calificación Automática**:
     - Inicio de intento: POST `/api/quizzes/[id]/attempt`
     - Validación de límite de intentos
@@ -1751,27 +2036,22 @@ atos de auditoría
     - Cálculo de score, puntos y estado (PASSED/FAILED)
     - Tracking de tiempo empleado
     - Ver resultado: GET `/api/attempts/[id]`
-  
   - **F4. Reintentos y Remediación**:
     - Flag `requiresRemediation` si no aprueba
     - Bloqueo de reintento hasta completar contenido de refuerzo
     - Endpoint: POST `/api/attempts/[id]/remediation`
     - Marcado de remediación como completada
-  
   - **F5. Banco de Reactivos por Versión**:
     - Relación `courseVersionId` en Questions
     - Pool de preguntas específico por versión de curso
     - Métricas: dificultad, discriminación (preparado para análisis)
-  
   - **Validaciones Zod**:
     - `CreateQuestionSchema`: validación de estructura según tipo
     - `CreateQuizSchema`: validación de parámetros de configuración
     - `SubmitQuizAttemptSchema`: validación de respuestas
     - `CompleteRemediationSchema`: validación de finalización de remediación
-  
   - **Componentes shadcn/ui agregados**:
     - RadioGroup, Checkbox, Progress, Alert, Badge, Label, Select, Textarea, Switch, Separator
-  
   - **Migraciones de Base de Datos**:
     - Migración `20251016210427_add_module_f_evaluations`
     - Tablas: Question, QuestionOption, Quiz, QuizQuestion, QuizAttempt
@@ -1845,6 +2125,7 @@ atos de auditoría
   - Actividades: `GET/POST /api/activities` (con filtros por curso)
 
 ### Agregado (Módulo E - Inscripciones y Accesos)
+
 - **E1. Asignación automática por perfil**:
   - Reglas de inscripción basadas en sede/área/puesto
   - Las reglas se almacenan en `EnrollmentRule` y pueden ser activadas/desactivadas
@@ -1917,10 +2198,12 @@ atos de auditoría
   - Uso mínimo para no exceder límites
 
 ### Cambiado
+
 - **Tabla de cursos**: agregado botón "Contenido" para gestión de unidades/lecciones
 - **Schema de Prisma**: Course extendido con relación `units`
 
 ### Técnico
+
 - Componentes cliente/servidor separados para optimal performance
 - Refresh automático de listas tras operaciones CRUD
 - Validación de roles (ADMIN/SUPERADMIN) en todos los endpoints de contenido
@@ -1932,6 +2215,7 @@ atos de auditoría
 ---
 
 ### Agregado (Módulo C - Catálogo de Cursos)
+
 - **Módulo completo de Catálogo de Cursos** (`/admin/courses`)
   - CRUD completo con estados: BORRADOR, PUBLICADO, ARCHIVADO
   - Modalidades: Asíncrono, Síncrono, Mixto
@@ -1998,10 +2282,12 @@ atos de auditoría
   - Navegación organizada por módulos
 
 ### Cambiado
+
 - **Validaciones de cursos**: esquemas extendidos con nuevos campos y enums
 - **ESLint**: reglas de `@typescript-eslint/no-explicit-any` y similares cambiadas a "warn"
 
 ### Técnico
+
 - Todas las APIs con autenticación y validación de roles
 - Versionado automático detecta cambios en: name, objective, duration, modality, validity
 - Prerequisitos implementados con auto-relación en `LearningPathCourse`
@@ -2011,6 +2297,7 @@ atos de auditoría
 ---
 
 ### Agregado (Anterior)
+
 - **Módulo completo de Sedes** (`/admin/sites`)
   - APIs RESTful: `GET/POST /api/sites`, `PUT/DELETE /api/sites/[id]`
   - Validaciones Zod centralizadas (`src/validations/sites.ts`)
@@ -2048,6 +2335,7 @@ atos de auditoría
   - Estructura unificada para toda la aplicación
 
 ### Cambiado
+
 - **Sidebar UX/UI mejorado**
   - Header responsivo: muestra "LMS SSOMA" expandido, "LS" en modo icon
   - Eliminada superposición de texto en modo colapsado
@@ -2063,6 +2351,7 @@ atos de auditoría
   - Estructura simplificada
 
 ### Corregido
+
 - **Duplicación de sidebar** al entrar al dashboard
 - **Breadcrumbs** ahora disponibles en todas las páginas (antes solo en dashboard)
 - **SidebarTrigger** centralizado en header (eliminadas instancias duplicadas)
@@ -2071,6 +2360,7 @@ atos de auditoría
 - **ESLint warnings** por imports no usados
 
 ### Eliminado
+
 - Archivos antiguos de sidebar fuera de carpeta dedicada
 - `sidebar-wrapper.tsx` (ya no necesario)
 - Componentes de ejemplo no usados (`nav-main.tsx`, `nav-projects.tsx` en root)
@@ -2081,6 +2371,7 @@ atos de auditoría
 ## Notas Técnicas
 
 ### Estructura de Carpetas Actualizada
+
 ```
 src/
 ├── components/
@@ -2100,6 +2391,7 @@ src/
 ```
 
 ### Dependencias
+
 - Next.js 15.5.5 (Turbopack)
 - NextAuth v5 beta
 - Prisma v6.x
@@ -2111,17 +2403,20 @@ src/
 ## [Próximas Mejoras Planificadas]
 
 ### Alta Prioridad
+
 - [ ] Re-habilitar PrismaAdapter en NextAuth (resolver conflicto de versiones)
 - [ ] Implementar middleware de protección de rutas más robusto
 - [ ] Añadir más rutas al mapeo de breadcrumbs (rutas dinámicas)
 
 ### Media Prioridad
+
 - [ ] Selector de tema (dark/light mode)
 - [ ] Búsqueda global en header
 - [ ] Notificaciones en tiempo real
 - [ ] Perfil de usuario completo
 
 ### Baja Prioridad
+
 - [ ] Animaciones suavizadas en transiciones
 - [ ] Temas personalizables por empresa
 - [ ] Newsletter en footer

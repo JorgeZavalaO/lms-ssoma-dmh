@@ -139,39 +139,26 @@ export function ClientProgress() {
     loadProgress(page, pageSize, searchTerm, statusFilter)
   }
 
-  const exportToCSV = async () => {
+  const exportToExcel = async () => {
     try {
       const params = new URLSearchParams()
-      params.set("export", "true")
       if (searchTerm) params.set("search", searchTerm)
       if (statusFilter && statusFilter !== "all") params.set("status", statusFilter)
 
-      const response = await fetch(`/api/progress/courses?${params}`)
-      if (!response.ok) return
-      const data = await response.json()
-      const allProgress: CourseProgress[] = data.progress || []
-
-      const headers = ["Colaborador", "DNI", "Email", "Curso", "Código", "Estado", "Progreso %", "Fecha Inicio", "Fecha Completado"]
-      const rows = allProgress.map(p => [
-        `${p.collaborator.firstName} ${p.collaborator.lastName}`,
-        p.collaborator.dni,
-        p.collaborator.email,
-        p.course.name,
-        p.course.code ?? "",
-        statusConfig[normalizeProgressStatus(p.status) as StatusKey]?.label ?? p.status,
-        p.progress.toString(),
-        p.startedAt ? format(new Date(p.startedAt), "dd/MM/yyyy", { locale: es }) : "N/A",
-        p.completedAt ? format(new Date(p.completedAt), "dd/MM/yyyy", { locale: es }) : "N/A",
-      ])
-
-      const csvContent = [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n")
-      const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" })
+      const response = await fetch(`/api/progress/courses/export?${params}`)
+      if (!response.ok) {
+        console.error("Error al exportar:", await response.text())
+        return
+      }
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
       const link = document.createElement("a")
-      link.href = URL.createObjectURL(blob)
-      link.download = `progreso-${format(new Date(), "yyyy-MM-dd")}.csv`
+      link.href = url
+      link.download = `Tracking_Avance_${format(new Date(), "yyyy-MM-dd")}.xlsx`
       link.click()
+      URL.revokeObjectURL(url)
     } catch (error) {
-      console.error("Error exporting CSV:", error)
+      console.error("Error exporting Excel:", error)
     }
   }
 
@@ -190,9 +177,9 @@ export function ClientProgress() {
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
           Actualizar
         </Button>
-        <Button onClick={exportToCSV} variant="outline">
+        <Button onClick={exportToExcel} variant="outline">
           <Download className="h-4 w-4 mr-2" />
-          Exportar CSV
+          Exportar Excel
         </Button>
       </div>
 
