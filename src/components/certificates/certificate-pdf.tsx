@@ -87,7 +87,7 @@ export function createCertificatePDF(data: CertificateData) {
                   fontSize: 9,
                   color: '#64748b',
                   textAlign: 'center',
-                  marginTop: 15,
+                  marginTop: 6,
                 }}
               >
                 {expiryText}

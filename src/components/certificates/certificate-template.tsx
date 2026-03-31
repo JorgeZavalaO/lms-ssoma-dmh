@@ -15,24 +15,25 @@ import type { CertificateData } from '@/lib/certificates'
 // Estilos profesionales para el certificado
 const styles = StyleSheet.create({
   page: {
-    padding: 40,
+    padding: 25,
     backgroundColor: '#FFFFFF',
     fontFamily: 'Helvetica',
   },
   border: {
     border: '3px solid #1e40af',
-    padding: 30,
+    padding: 18,
     height: '100%',
     position: 'relative',
   },
   innerBorder: {
     border: '1px solid #3b82f6',
-    padding: 25,
+    padding: 15,
     height: '100%',
+    flexDirection: 'column',
   },
   header: {
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 12,
   },
   title: {
     fontSize: 36,
@@ -48,23 +49,24 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   mainContent: {
-    marginTop: 20,
-    marginBottom: 20,
+    flexGrow: 1,
+    marginTop: 6,
+    marginBottom: 6,
   },
   certificationText: {
     fontSize: 12,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 8,
     color: '#475569',
   },
   nameContainer: {
-    marginBottom: 25,
+    marginBottom: 10,
     alignItems: 'center',
   },
   nameLabel: {
     fontSize: 11,
     color: '#64748b',
-    marginBottom: 5,
+    marginBottom: 3,
   },
   name: {
     fontSize: 28,
@@ -78,29 +80,29 @@ const styles = StyleSheet.create({
   dniText: {
     fontSize: 10,
     color: '#64748b',
-    marginTop: 5,
+    marginTop: 3,
   },
   courseInfo: {
-    marginTop: 25,
-    marginBottom: 25,
+    marginTop: 10,
+    marginBottom: 6,
   },
   courseLabel: {
     fontSize: 11,
     color: '#64748b',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 5,
   },
   courseName: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1e40af',
     textAlign: 'center',
-    marginBottom: 15,
+    marginBottom: 8,
   },
   detailsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 20,
+    marginTop: 8,
   },
   detailBox: {
     alignItems: 'center',
@@ -116,11 +118,10 @@ const styles = StyleSheet.create({
     color: '#0f172a',
   },
   footer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 60,
+    marginTop: 'auto',
+    paddingHorizontal: 40,
+    paddingTop: 8,
+    borderTop: '1px solid #e2e8f0',
   },
   footerRow: {
     flexDirection: 'row',
@@ -131,9 +132,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   qrCode: {
-    width: 80,
-    height: 80,
-    marginBottom: 5,
+    width: 65,
+    height: 65,
+    marginBottom: 4,
   },
   verificationCode: {
     fontSize: 8,
@@ -142,7 +143,7 @@ const styles = StyleSheet.create({
   },
   signatureSection: {
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 6,
   },
   signatureLine: {
     width: 200,
@@ -158,17 +159,16 @@ const styles = StyleSheet.create({
     fontSize: 8,
     color: '#94a3b8',
     textAlign: 'right',
-    marginTop: 10,
+    marginTop: 6,
   },
   watermark: {
     position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%) rotate(-45deg)',
-    fontSize: 100,
-    color: '#f1f5f9',
-    opacity: 0.1,
-    zIndex: -1,
+    top: '30%',
+    left: '18%',
+    transform: 'rotate(-45deg)',
+    fontSize: 96,
+    color: '#dbeafe',
+    fontWeight: 'bold',
   },
 })
 
@@ -250,7 +250,7 @@ export const CertificateTemplate: React.FC<CertificateTemplateProps> = ({
                   fontSize: 9,
                   color: '#64748b',
                   textAlign: 'center',
-                  marginTop: 15,
+                  marginTop: 6,
                 }}
               >
                 {expiryText}
