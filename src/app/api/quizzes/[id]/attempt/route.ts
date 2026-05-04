@@ -12,7 +12,7 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
   try {
     void req;
     const session = await auth();
-    
+
     if (!session?.user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
     if (!quiz) {
       return NextResponse.json(
         { error: "Cuestionario no encontrado" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
     if (quiz.status !== "PUBLISHED") {
       return NextResponse.json(
         { error: "El cuestionario no está disponible" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
     if (!user?.collaboratorId) {
       return NextResponse.json(
         { error: "No tienes un perfil de colaborador asociado" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
     if (!courseId) {
       return NextResponse.json(
         { error: "El cuestionario no está asociado a un curso válido" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -89,31 +89,59 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
     if (!enrollment) {
       return NextResponse.json(
         { error: "No tienes acceso asignado a este cuestionario" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
-    const prereq = await checkCoursePrerequisites(user.collaboratorId, courseId);
+    // Verificar que el colaborador haya iniciado el curso (no puede hacer quiz sin haber comenzado el contenido)
+    const courseProgress = await prisma.courseProgress.findUnique({
+      where: {
+        collaboratorId_courseId: {
+          collaboratorId: user.collaboratorId,
+          courseId,
+        },
+      },
+      select: { status: true },
+    });
+
+    if (!courseProgress || courseProgress.status === "NOT_STARTED") {
+      return NextResponse.json(
+        {
+          error:
+            "Debes iniciar el contenido del curso antes de realizar el cuestionario",
+        },
+        { status: 403 },
+      );
+    }
+
+    const prereq = await checkCoursePrerequisites(
+      user.collaboratorId,
+      courseId,
+    );
     if (!prereq.allowed) {
       return NextResponse.json(
         {
-          error: "Debes completar los prerrequisitos antes de iniciar este cuestionario",
+          error:
+            "Debes completar los prerrequisitos antes de iniciar este cuestionario",
           reason: prereq.reason,
           missing: prereq.missing,
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     // Seleccionar preguntas (aleatorizar si está configurado)
     let questions = quiz.quizQuestions;
-    
+
     if (quiz.shuffleQuestions) {
       questions = secureShuffle(questions);
     }
 
     // Limitar cantidad de preguntas si está configurado
-    if (quiz.questionsPerAttempt && quiz.questionsPerAttempt < questions.length) {
+    if (
+      quiz.questionsPerAttempt &&
+      quiz.questionsPerAttempt < questions.length
+    ) {
       questions = questions.slice(0, quiz.questionsPerAttempt);
     }
 
@@ -154,7 +182,9 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
           lastAttempt.requiresRemediation &&
           !lastAttempt.remediationCompleted
         ) {
-          const err = new Error("REMEDIATION_REQUIRED") as Error & { attemptId?: string };
+          const err = new Error("REMEDIATION_REQUIRED") as Error & {
+            attemptId?: string;
+          };
           err.attemptId = lastAttempt.id;
           throw err;
         }
@@ -176,18 +206,19 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
       if (error?.message === "MAX_ATTEMPTS_REACHED") {
         return NextResponse.json(
           { error: "Has alcanzado el número máximo de intentos" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
       if (error?.message === "REMEDIATION_REQUIRED") {
         return NextResponse.json(
           {
-            error: "Debes completar el contenido de remediación antes de volver a intentar",
+            error:
+              "Debes completar el contenido de remediación antes de volver a intentar",
             requiresRemediation: true,
             attemptId: error.attemptId,
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -218,7 +249,7 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
     // Preparar las preguntas para enviar al cliente
     const questionsForClient = questions.map((qq) => {
       let options = qq.question.options;
-      
+
       if (quiz.shuffleOptions) {
         options = secureShuffle(options);
       }
@@ -250,13 +281,13 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
         },
         questions: questionsForClient,
       },
-      { status: createdAttempt ? 201 : 200 }
+      { status: createdAttempt ? 201 : 200 },
     );
   } catch (error) {
     console.error("Error al iniciar intento:", error);
     return NextResponse.json(
       { error: "Error al iniciar intento" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

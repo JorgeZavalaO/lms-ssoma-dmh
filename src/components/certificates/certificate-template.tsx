@@ -193,7 +193,7 @@ export const CertificateTemplate: React.FC<CertificateTemplateProps> = ({
         <View style={styles.border}>
           <View style={styles.innerBorder}>
             {/* Marca de agua */}
-            <Text style={styles.watermark}>SSOMA</Text>
+            <Text style={styles.watermark}>DIMAHISAC</Text>
 
             {/* Header */}
             <View style={styles.header}>

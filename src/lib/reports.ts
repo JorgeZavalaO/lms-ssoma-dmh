@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma"
-import { addDays, startOfDay, endOfDay, subDays } from "date-fns"
+import { prisma } from "@/lib/prisma";
+import { addDays, startOfDay, endOfDay, subDays } from "date-fns";
 
 // ====================================
 // J1 - Dashboard Ejecutivo con KPIs
@@ -7,68 +7,68 @@ import { addDays, startOfDay, endOfDay, subDays } from "date-fns"
 
 export interface DashboardKPIs {
   // KPIs globales
-  totalCollaborators: number
-  totalCourses: number
-  totalEnrollments: number
-  
+  totalCollaborators: number;
+  totalCourses: number;
+  totalEnrollments: number;
+
   // Cumplimiento
-  overallCompliance: number // %
-  complianceByArea: Record<string, number>
-  
+  overallCompliance: number; // %
+  complianceByArea: Record<string, number>;
+
   // Alertas
-  expiringIn7Days: number
-  expiringIn30Days: number
-  expired: number
-  
+  expiringIn7Days: number;
+  expiringIn30Days: number;
+  expired: number;
+
   // Evaluaciones
-  avgAttempts: number
-  avgScore: number
-  passRate: number
-  
+  avgAttempts: number;
+  avgScore: number;
+  passRate: number;
+
   // Engagement
-  activeUsers: number
-  coursesInProgress: number
-  coursesCompleted: number
-  
+  activeUsers: number;
+  coursesInProgress: number;
+  coursesCompleted: number;
+
   // Tendencias (últimos 30 días)
-  enrollmentsTrend: Array<{ date: string; count: number }>
-  completionsTrend: Array<{ date: string; count: number }>
-  
+  enrollmentsTrend: Array<{ date: string; count: number }>;
+  completionsTrend: Array<{ date: string; count: number }>;
+
   // Top cursos
   topCriticalCourses: Array<{
-    courseId: string
-    courseName: string
-    expiringCount: number
-    expiredCount: number
-  }>
+    courseId: string;
+    courseName: string;
+    expiringCount: number;
+    expiredCount: number;
+  }>;
 }
 
 export async function getDashboardKPIs(filters?: {
-  startDate?: Date
-  endDate?: Date
-  areaId?: string
-  siteId?: string
+  startDate?: Date;
+  endDate?: Date;
+  areaId?: string;
+  siteId?: string;
 }): Promise<DashboardKPIs> {
-  const now = new Date()
-  const thirtyDaysAgo = subDays(now, 30)
-  const sevenDaysFromNow = addDays(now, 7)
-  const thirtyDaysFromNow = addDays(now, 30)
+  const now = new Date();
+  const thirtyDaysAgo = subDays(now, 30);
+  const sevenDaysFromNow = addDays(now, 7);
+  const thirtyDaysFromNow = addDays(now, 30);
 
   // Filtros de colaboradores
   const collaboratorWhere = {
     status: "ACTIVE" as const,
     ...(filters?.areaId && { areaId: filters.areaId }),
     ...(filters?.siteId && { siteId: filters.siteId }),
-  }
+  };
 
   // 1. KPIs globales
   const totalCollaborators = await prisma.collaborator.count({
     where: collaboratorWhere,
-  })
+  });
 
   const totalCourses = await prisma.course.count({
     where: { status: "PUBLISHED" },
-  })
+  });
 
   const totalEnrollments = await prisma.enrollment.count({
     where: {
@@ -76,7 +76,7 @@ export async function getDashboardKPIs(filters?: {
       ...(filters?.startDate && { enrolledAt: { gte: filters.startDate } }),
       ...(filters?.endDate && { enrolledAt: { lte: filters.endDate } }),
     },
-  })
+  });
 
   // 2. Cumplimiento
   const progressRecords = await prisma.courseProgress.findMany({
@@ -100,43 +100,43 @@ export async function getDashboardKPIs(filters?: {
         },
       },
     },
-  })
+  });
 
   const compliantCount = progressRecords.filter(
     (p) =>
       ["PASSED", "EXEMPTED"].includes(p.status) &&
-      (!p.expiresAt || p.expiresAt > now)
-  ).length
+      (!p.expiresAt || p.expiresAt > now),
+  ).length;
 
   const overallCompliance =
     progressRecords.length > 0
       ? (compliantCount / progressRecords.length) * 100
-      : 0
+      : 0;
 
   // Cumplimiento por área
-  const complianceByArea: Record<string, number> = {}
+  const complianceByArea: Record<string, number> = {};
   const progressByArea = progressRecords.reduce(
     (acc, p) => {
-      if (!p.enrollment) return acc
-      const areaName = p.enrollment.collaborator.area?.name || "Sin área"
+      if (!p.enrollment) return acc;
+      const areaName = p.enrollment.collaborator.area?.name || "Sin área";
       if (!acc[areaName]) {
-        acc[areaName] = { total: 0, compliant: 0 }
+        acc[areaName] = { total: 0, compliant: 0 };
       }
-      acc[areaName].total++
+      acc[areaName].total++;
       if (
         ["PASSED", "EXEMPTED"].includes(p.status) &&
         (!p.expiresAt || p.expiresAt > now)
       ) {
-        acc[areaName].compliant++
+        acc[areaName].compliant++;
       }
-      return acc
+      return acc;
     },
-    {} as Record<string, { total: number; compliant: 0 }>
-  )
+    {} as Record<string, { total: number; compliant: 0 }>,
+  );
 
   Object.entries(progressByArea).forEach(([area, data]) => {
-    complianceByArea[area] = (data.compliant / data.total) * 100
-  })
+    complianceByArea[area] = (data.compliant / data.total) * 100;
+  });
 
   // 3. Alertas de vencimiento
   const expiringIn7Days = await prisma.courseProgress.count({
@@ -145,7 +145,7 @@ export async function getDashboardKPIs(filters?: {
       status: { in: ["IN_PROGRESS", "PASSED", "EXEMPTED"] },
       expiresAt: { gte: now, lte: sevenDaysFromNow },
     },
-  })
+  });
 
   const expiringIn30Days = await prisma.courseProgress.count({
     where: {
@@ -153,7 +153,7 @@ export async function getDashboardKPIs(filters?: {
       status: { in: ["IN_PROGRESS", "PASSED", "EXEMPTED"] },
       expiresAt: { gte: sevenDaysFromNow, lte: thirtyDaysFromNow },
     },
-  })
+  });
 
   const expired = await prisma.courseProgress.count({
     where: {
@@ -166,15 +166,15 @@ export async function getDashboardKPIs(filters?: {
         },
       ],
     },
-  })
+  });
 
-  // 4. Evaluaciones  
+  // 4. Evaluaciones
   // Primero obtengo los IDs de colaboradores que cumplen con los filtros
   const collaborators = await prisma.collaborator.findMany({
     where: collaboratorWhere,
     select: { id: true },
-  })
-  const collaboratorIds = collaborators.map((c) => c.id)
+  });
+  const collaboratorIds = collaborators.map((c) => c.id);
 
   const attempts = await prisma.quizAttempt.findMany({
     where: {
@@ -187,16 +187,16 @@ export async function getDashboardKPIs(filters?: {
       score: true,
       status: true,
     },
-  })
+  });
 
-  const avgAttempts = attempts.length / (totalCollaborators || 1)
+  const avgAttempts = attempts.length / (totalCollaborators || 1);
   const avgScore =
     attempts.length > 0
       ? attempts.reduce((sum, a) => sum + (a.score || 0), 0) / attempts.length
-      : 0
-  const passedCount = attempts.filter((a) => a.status === "PASSED").length
+      : 0;
+  const passedCount = attempts.filter((a) => a.status === "PASSED").length;
   const passRate =
-    attempts.length > 0 ? (passedCount / attempts.length) * 100 : 0
+    attempts.length > 0 ? (passedCount / attempts.length) * 100 : 0;
 
   // 5. Engagement
   const activeUsers = await prisma.collaborator.count({
@@ -208,14 +208,14 @@ export async function getDashboardKPIs(filters?: {
         },
       },
     },
-  })
+  });
 
   const coursesInProgress = await prisma.courseProgress.count({
     where: {
       collaborator: collaboratorWhere,
       status: "IN_PROGRESS",
     },
-  })
+  });
 
   const coursesCompleted = await prisma.courseProgress.count({
     where: {
@@ -224,7 +224,7 @@ export async function getDashboardKPIs(filters?: {
       ...(filters?.startDate && { passedAt: { gte: filters.startDate } }),
       ...(filters?.endDate && { passedAt: { lte: filters.endDate } }),
     },
-  })
+  });
 
   // 6. Tendencias (últimos 30 días)
   const recentEnrollments = await prisma.enrollment.findMany({
@@ -235,7 +235,7 @@ export async function getDashboardKPIs(filters?: {
     select: {
       enrolledAt: true,
     },
-  })
+  });
 
   const recentCompletions = await prisma.courseProgress.findMany({
     where: {
@@ -246,36 +246,36 @@ export async function getDashboardKPIs(filters?: {
     select: {
       passedAt: true,
     },
-  })
+  });
 
   // Agrupar por fecha en memoria
   const enrollmentsByDate = recentEnrollments.reduce(
     (acc, e) => {
-      const date = e.enrolledAt.toISOString().split("T")[0]
-      acc[date] = (acc[date] || 0) + 1
-      return acc
+      const date = e.enrolledAt.toISOString().split("T")[0];
+      acc[date] = (acc[date] || 0) + 1;
+      return acc;
     },
-    {} as Record<string, number>
-  )
+    {} as Record<string, number>,
+  );
 
   const completionsByDate = recentCompletions.reduce(
     (acc, c) => {
       if (c.passedAt) {
-        const date = c.passedAt.toISOString().split("T")[0]
-        acc[date] = (acc[date] || 0) + 1
+        const date = c.passedAt.toISOString().split("T")[0];
+        acc[date] = (acc[date] || 0) + 1;
       }
-      return acc
+      return acc;
     },
-    {} as Record<string, number>
-  )
+    {} as Record<string, number>,
+  );
 
   const enrollmentsTrend = Object.entries(enrollmentsByDate).map(
-    ([date, count]) => ({ date, count })
-  )
+    ([date, count]) => ({ date, count }),
+  );
 
   const completionsTrend = Object.entries(completionsByDate).map(
-    ([date, count]) => ({ date, count })
-  )
+    ([date, count]) => ({ date, count }),
+  );
 
   // 7. Top cursos críticos (cursos con validez/vigencia)
   const topCriticalCourses = await prisma.course.findMany({
@@ -296,7 +296,7 @@ export async function getDashboardKPIs(filters?: {
       },
     },
     take: 10, // Traigo 10 para luego ordenar y tomar 5
-  })
+  });
 
   // Ahora obtengo el progreso para cada curso
   const criticalCoursesData = await Promise.all(
@@ -310,24 +310,22 @@ export async function getDashboardKPIs(filters?: {
           status: true,
           expiresAt: true,
         },
-      })
+      });
 
       const expiringCount = progressRecords.filter(
         (p) =>
-          p.expiresAt &&
-          p.expiresAt > now &&
-          p.expiresAt <= thirtyDaysFromNow
-      ).length
+          p.expiresAt && p.expiresAt > now && p.expiresAt <= thirtyDaysFromNow,
+      ).length;
 
       const expiredCount = progressRecords.filter(
         (p) =>
           p.status === "EXPIRED" ||
           Boolean(
             p.expiresAt &&
-              p.expiresAt < now &&
-              ["PASSED", "EXEMPTED", "IN_PROGRESS"].includes(p.status)
-          )
-      ).length
+            p.expiresAt < now &&
+            ["PASSED", "EXEMPTED", "IN_PROGRESS"].includes(p.status),
+          ),
+      ).length;
 
       return {
         courseId: course.id,
@@ -336,14 +334,14 @@ export async function getDashboardKPIs(filters?: {
         expiringCount,
         expiredCount,
         criticalScore: expiredCount * 2 + expiringCount,
-      }
-    })
-  )
+      };
+    }),
+  );
 
   // Ordenar por criticidad y tomar top 5
   const sortedCriticalCourses = criticalCoursesData
     .sort((a, b) => b.criticalScore - a.criticalScore)
-    .slice(0, 5)
+    .slice(0, 5);
 
   return {
     totalCollaborators,
@@ -363,7 +361,7 @@ export async function getDashboardKPIs(filters?: {
     enrollmentsTrend,
     completionsTrend,
     topCriticalCourses: sortedCriticalCourses,
-  }
+  };
 }
 
 // ====================================
@@ -371,31 +369,31 @@ export async function getDashboardKPIs(filters?: {
 // ====================================
 
 export interface AreaReportRecord {
-  collaboratorId: string
-  dni: string
-  fullName: string
-  email: string
-  site: string | null
-  area: string | null
-  position: string | null
-  courseId: string
-  courseName: string
-  status: string
-  progress: number
-  startedAt: Date | null
-  completedAt: Date | null
-  expiresAt: Date | null
-  score: number | null
+  collaboratorId: string;
+  dni: string;
+  fullName: string;
+  email: string;
+  site: string | null;
+  area: string | null;
+  position: string | null;
+  courseId: string;
+  courseName: string;
+  status: string;
+  progress: number;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  expiresAt: Date | null;
+  score: number | null;
 }
 
 export async function getAreaReport(filters: {
-  areaId?: string
-  siteId?: string
-  positionId?: string
-  status?: string
-  startDate?: string
-  endDate?: string
-  courseId?: string
+  areaId?: string;
+  siteId?: string;
+  positionId?: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+  courseId?: string;
 }): Promise<AreaReportRecord[]> {
   const enrollments = await prisma.enrollment.findMany({
     where: {
@@ -426,18 +424,18 @@ export async function getAreaReport(filters: {
       },
       course: true,
     },
-  })
+  });
 
   const collaboratorIds = Array.from(
-    new Set(enrollments.map((enrollment) => enrollment.collaboratorId))
-  )
+    new Set(enrollments.map((enrollment) => enrollment.collaboratorId)),
+  );
   const courseIds = Array.from(
     new Set(
       enrollments
         .map((enrollment) => enrollment.courseId)
-        .filter((courseId): courseId is string => Boolean(courseId))
-    )
-  )
+        .filter((courseId): courseId is string => Boolean(courseId)),
+    ),
+  );
 
   const [progressRecords, attempts] = await Promise.all([
     prisma.courseProgress.findMany({
@@ -476,30 +474,33 @@ export async function getAreaReport(filters: {
       },
       orderBy: [{ submittedAt: "desc" }, { startedAt: "desc" }],
     }),
-  ])
+  ]);
 
   const progressMap = new Map(
     progressRecords.map((progress) => [
       `${progress.collaboratorId}:${progress.courseId}`,
       progress,
-    ])
-  )
+    ]),
+  );
 
-  const latestAttemptScoreByCourse = new Map<string, number | null>()
+  const latestAttemptScoreByCourse = new Map<string, number | null>();
   for (const attempt of attempts) {
-    const attemptCourseId = attempt.quiz.courseId ?? attempt.quiz.unit?.courseId
-    if (!attemptCourseId) continue
+    const attemptCourseId =
+      attempt.quiz.courseId ?? attempt.quiz.unit?.courseId;
+    if (!attemptCourseId) continue;
 
-    const key = `${attempt.collaboratorId}:${attemptCourseId}`
+    const key = `${attempt.collaboratorId}:${attemptCourseId}`;
     if (!latestAttemptScoreByCourse.has(key)) {
-      latestAttemptScoreByCourse.set(key, attempt.score)
+      latestAttemptScoreByCourse.set(key, attempt.score);
     }
   }
 
   return enrollments
     .map((enrollment) => {
-      const courseId = enrollment.course!.id
-      const progress = progressMap.get(`${enrollment.collaboratorId}:${courseId}`)
+      const courseId = enrollment.course!.id;
+      const progress = progressMap.get(
+        `${enrollment.collaboratorId}:${courseId}`,
+      );
 
       return {
         collaboratorId: enrollment.collaborator.id,
@@ -517,11 +518,14 @@ export async function getAreaReport(filters: {
         completedAt: progress?.completedAt || null,
         expiresAt: progress?.expiresAt || null,
         score:
-          latestAttemptScoreByCourse.get(`${enrollment.collaboratorId}:${courseId}`) ??
-          null,
-      }
+          progress?.status && progress.status !== "NOT_STARTED"
+            ? (latestAttemptScoreByCourse.get(
+                `${enrollment.collaboratorId}:${courseId}`,
+              ) ?? null)
+            : null,
+      };
     })
-    .filter((record) => !filters.status || record.status === filters.status)
+    .filter((record) => !filters.status || record.status === filters.status);
 }
 
 // ====================================
@@ -530,41 +534,41 @@ export async function getAreaReport(filters: {
 
 export interface CourseReportData {
   course: {
-    id: string
-    name: string
-    code: string
-    activeVersion: number | null
-  }
+    id: string;
+    name: string;
+    code: string;
+    activeVersion: number | null;
+  };
   statistics: {
-    totalEnrolled: number
-    avgProgress: number
-    completionRate: number
-    passRate: number
-    avgScore: number
-    avgTime: number // minutos
-  }
+    totalEnrolled: number;
+    avgProgress: number;
+    completionRate: number;
+    passRate: number;
+    avgScore: number;
+    avgTime: number; // minutos
+  };
   scoreDistribution: Array<{
-    range: string // "0-20", "21-40", etc.
-    count: number
-  }>
+    range: string; // "0-20", "21-40", etc.
+    count: number;
+  }>;
   statusDistribution: Array<{
-    status: string
-    count: number
-  }>
+    status: string;
+    count: number;
+  }>;
 }
 
 export async function getCourseReport(filters: {
-  courseId: string
-  versionId?: string
-  startDate?: string
-  endDate?: string
+  courseId: string;
+  versionId?: string;
+  startDate?: string;
+  endDate?: string;
 }): Promise<CourseReportData> {
   const course = await prisma.course.findUnique({
     where: { id: filters.courseId },
-  })
+  });
 
   if (!course) {
-    throw new Error("Curso no encontrado")
+    throw new Error("Curso no encontrado");
   }
 
   const enrollments = await prisma.enrollment.findMany({
@@ -577,12 +581,12 @@ export async function getCourseReport(filters: {
         enrolledAt: { lte: new Date(filters.endDate) },
       }),
     },
-  })
+  });
 
-  const totalEnrolled = enrollments.length
+  const totalEnrolled = enrollments.length;
   const collaboratorIds = Array.from(
-    new Set(enrollments.map((enrollment) => enrollment.collaboratorId))
-  )
+    new Set(enrollments.map((enrollment) => enrollment.collaboratorId)),
+  );
 
   const [progressRecords, attempts] = await Promise.all([
     prisma.courseProgress.findMany({
@@ -618,90 +622,103 @@ export async function getCourseReport(filters: {
       },
       orderBy: [{ submittedAt: "desc" }, { startedAt: "desc" }],
     }),
-  ])
+  ]);
 
   const progressByCollaborator = new Map(
-    progressRecords.map((progress) => [progress.collaboratorId, progress])
-  )
-  const latestAttemptByCollaborator = new Map<string, (typeof attempts)[number]>()
+    progressRecords.map((progress) => [progress.collaboratorId, progress]),
+  );
+  const latestAttemptByCollaborator = new Map<
+    string,
+    (typeof attempts)[number]
+  >();
   for (const attempt of attempts) {
     if (!latestAttemptByCollaborator.has(attempt.collaboratorId)) {
-      latestAttemptByCollaborator.set(attempt.collaboratorId, attempt)
+      latestAttemptByCollaborator.set(attempt.collaboratorId, attempt);
     }
   }
 
   const progressValues = enrollments.map(
     (enrollment) =>
-      progressByCollaborator.get(enrollment.collaboratorId)?.progressPercent || 0
-  )
+      progressByCollaborator.get(enrollment.collaboratorId)?.progressPercent ||
+      0,
+  );
   const avgProgress =
     progressValues.length > 0
-      ? progressValues.reduce((sum, value) => sum + value, 0) / progressValues.length
-      : 0
+      ? progressValues.reduce((sum, value) => sum + value, 0) /
+        progressValues.length
+      : 0;
 
   const completedCount = enrollments.filter((enrollment) => {
-    const status = progressByCollaborator.get(enrollment.collaboratorId)?.status
-    return status === "PASSED" || status === "EXEMPTED"
-  }).length
-  const completionRate = totalEnrolled > 0 ? (completedCount / totalEnrolled) * 100 : 0
+    const status = progressByCollaborator.get(
+      enrollment.collaboratorId,
+    )?.status;
+    return status === "PASSED" || status === "EXEMPTED";
+  }).length;
+  const completionRate =
+    totalEnrolled > 0 ? (completedCount / totalEnrolled) * 100 : 0;
 
-  const latestAttempts = Array.from(latestAttemptByCollaborator.values())
+  const latestAttempts = Array.from(latestAttemptByCollaborator.values());
   const finalizedAttempts = latestAttempts.filter((attempt) =>
-    ["GRADED", "PASSED", "FAILED"].includes(attempt.status)
-  )
+    ["GRADED", "PASSED", "FAILED"].includes(attempt.status),
+  );
   const passRate =
     finalizedAttempts.length > 0
-      ? (finalizedAttempts.filter((attempt) => attempt.status === "PASSED").length /
+      ? (finalizedAttempts.filter((attempt) => attempt.status === "PASSED")
+          .length /
           finalizedAttempts.length) *
         100
-      : 0
+      : 0;
 
   const scoredAttempts = latestAttempts.filter(
-    (attempt) => attempt.score !== null && attempt.score !== undefined
-  )
+    (attempt) => attempt.score !== null && attempt.score !== undefined,
+  );
   const avgScore =
     scoredAttempts.length > 0
       ? scoredAttempts.reduce((sum, attempt) => sum + (attempt.score || 0), 0) /
         scoredAttempts.length
-      : 0
+      : 0;
 
   const avgTime =
     progressRecords.length > 0
-      ? progressRecords.reduce((sum, progress) => sum + (progress.timeSpent || 0), 0) /
-          progressRecords.length /
+      ? progressRecords.reduce(
+          (sum, progress) => sum + (progress.timeSpent || 0),
+          0,
+        ) /
+        progressRecords.length /
         60
-      : 0
+      : 0;
 
   // Distribución de calificaciones (simplificada sin lastScore)
-  const scoreRanges = ["0-20", "21-40", "41-60", "61-80", "81-100"]
+  const scoreRanges = ["0-20", "21-40", "41-60", "61-80", "81-100"];
   const scoreDistribution = scoreRanges.map((range) => {
-    const [minText, maxText] = range.split("-")
-    const min = Number(minText)
-    const max = Number(maxText)
+    const [minText, maxText] = range.split("-");
+    const min = Number(minText);
+    const max = Number(maxText);
     const count = scoredAttempts.filter((attempt) => {
-      const score = attempt.score ?? -1
-      return score >= min && score <= max
-    }).length
-    return { range, count }
-  })
+      const score = attempt.score ?? -1;
+      return score >= min && score <= max;
+    }).length;
+    return { range, count };
+  });
 
   // Distribución de estados
   const statusCounts = enrollments.reduce(
     (acc, enrollment) => {
       const status =
-        progressByCollaborator.get(enrollment.collaboratorId)?.status || "NOT_STARTED"
-      acc[status] = (acc[status] || 0) + 1
-      return acc
+        progressByCollaborator.get(enrollment.collaboratorId)?.status ||
+        "NOT_STARTED";
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
     },
-    {} as Record<string, number>
-  )
+    {} as Record<string, number>,
+  );
 
   const statusDistribution = Object.entries(statusCounts).map(
     ([status, count]) => ({
       status,
       count,
-    })
-  )
+    }),
+  );
 
   return {
     course: {
@@ -720,7 +737,7 @@ export async function getCourseReport(filters: {
     },
     scoreDistribution,
     statusDistribution,
-  }
+  };
 }
 
 // ====================================
@@ -728,27 +745,27 @@ export async function getCourseReport(filters: {
 // ====================================
 
 export interface ComplianceMatrixRecord {
-  collaboratorId: string
-  fullName: string
-  position: string | null
-  area: string | null
+  collaboratorId: string;
+  fullName: string;
+  position: string | null;
+  area: string | null;
   courses: Array<{
-    courseId: string
-    courseName: string
-    isRequired: boolean
-    status: "COMPLIANT" | "EXPIRING_SOON" | "EXPIRED" | "NOT_ENROLLED"
-    expiresAt: Date | null
-    daysUntilExpiration: number | null
-  }>
+    courseId: string;
+    courseName: string;
+    isRequired: boolean;
+    status: "COMPLIANT" | "EXPIRING_SOON" | "EXPIRED" | "NOT_ENROLLED";
+    expiresAt: Date | null;
+    daysUntilExpiration: number | null;
+  }>;
 }
 
 export async function getComplianceReport(filters: {
-  areaId?: string
-  siteId?: string
-  positionId?: string
-  criticalOnly?: boolean
+  areaId?: string;
+  siteId?: string;
+  positionId?: string;
+  criticalOnly?: boolean;
 }): Promise<ComplianceMatrixRecord[]> {
-  const now = new Date()
+  const now = new Date();
 
   // Obtener colaboradores activos
   const collaborators = await prisma.collaborator.findMany({
@@ -769,7 +786,7 @@ export async function getComplianceReport(filters: {
         },
       },
     },
-  })
+  });
 
   // Obtener cursos obligatorios (con validity en meses)
   const requiredCourses = await prisma.course.findMany({
@@ -782,13 +799,13 @@ export async function getComplianceReport(filters: {
       name: true,
       validity: true,
     },
-  })
+  });
 
   return collaborators.map((collaborator) => {
     const courses = requiredCourses.map((course) => {
       const enrollment = collaborator.enrollments.find(
-        (e) => e.courseId === course.id
-      )
+        (e) => e.courseId === course.id,
+      );
 
       if (!enrollment || !enrollment.courseProgress) {
         return {
@@ -798,11 +815,11 @@ export async function getComplianceReport(filters: {
           status: "NOT_ENROLLED" as const,
           expiresAt: null,
           daysUntilExpiration: null,
-        }
+        };
       }
 
-      const progress = enrollment.courseProgress
-      const expiresAt = progress.expiresAt
+      const progress = enrollment.courseProgress;
+      const expiresAt = progress.expiresAt;
 
       if (!expiresAt) {
         return {
@@ -812,20 +829,20 @@ export async function getComplianceReport(filters: {
           status: "NOT_ENROLLED" as const,
           expiresAt: null,
           daysUntilExpiration: null,
-        }
+        };
       }
 
       const daysUntilExpiration = Math.floor(
-        (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-      )
+        (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      );
 
-      let status: "COMPLIANT" | "EXPIRING_SOON" | "EXPIRED"
+      let status: "COMPLIANT" | "EXPIRING_SOON" | "EXPIRED";
       if (daysUntilExpiration < 0) {
-        status = "EXPIRED"
+        status = "EXPIRED";
       } else if (daysUntilExpiration <= 30) {
-        status = "EXPIRING_SOON"
+        status = "EXPIRING_SOON";
       } else {
-        status = "COMPLIANT"
+        status = "COMPLIANT";
       }
 
       return {
@@ -835,8 +852,8 @@ export async function getComplianceReport(filters: {
         status,
         expiresAt,
         daysUntilExpiration,
-      }
-    })
+      };
+    });
 
     return {
       collaboratorId: collaborator.id,
@@ -844,8 +861,8 @@ export async function getComplianceReport(filters: {
       position: collaborator.position?.name || null,
       area: collaborator.area?.name || null,
       courses,
-    }
-  })
+    };
+  });
 }
 
 // ====================================
@@ -853,33 +870,33 @@ export async function getComplianceReport(filters: {
 // ====================================
 
 export interface AuditTrailRecord {
-  attemptId: string
-  collaboratorId: string
-  collaboratorName: string
-  collaboratorDNI: string
-  courseId: string
-  courseName: string
-  quizId: string
-  quizTitle: string
-  startedAt: Date
-  submittedAt: Date | null
-  timeSpent: number | null // segundos
-  score: number | null
-  status: string
-  attemptNumber: number
-  passed: boolean | null
-  answersCount: number
+  attemptId: string;
+  collaboratorId: string;
+  collaboratorName: string;
+  collaboratorDNI: string;
+  courseId: string;
+  courseName: string;
+  quizId: string;
+  quizTitle: string;
+  startedAt: Date;
+  submittedAt: Date | null;
+  timeSpent: number | null; // segundos
+  score: number | null;
+  status: string;
+  attemptNumber: number;
+  passed: boolean | null;
+  answersCount: number;
 }
 
 export async function getAuditTrail(filters: {
-  collaboratorId?: string
-  courseId?: string
-  quizId?: string
-  startDate?: string
-  endDate?: string
-  minScore?: number
-  maxScore?: number
-  status?: string
+  collaboratorId?: string;
+  courseId?: string;
+  quizId?: string;
+  startDate?: string;
+  endDate?: string;
+  minScore?: number;
+  maxScore?: number;
+  status?: string;
 }): Promise<AuditTrailRecord[]> {
   const attempts = await prisma.quizAttempt.findMany({
     where: {
@@ -922,10 +939,10 @@ export async function getAuditTrail(filters: {
     orderBy: {
       startedAt: "desc",
     },
-  })
+  });
 
   // Obtener colaboradores para cada intento
-  const collaboratorIds = [...new Set(attempts.map((a) => a.collaboratorId))]
+  const collaboratorIds = [...new Set(attempts.map((a) => a.collaboratorId))];
   const collaborators = await prisma.collaborator.findMany({
     where: {
       id: { in: collaboratorIds },
@@ -935,19 +952,20 @@ export async function getAuditTrail(filters: {
       fullName: true,
       dni: true,
     },
-  })
+  });
 
-  const collaboratorMap = new Map(
-    collaborators.map((c) => [c.id, c])
-  )
+  const collaboratorMap = new Map(collaborators.map((c) => [c.id, c]));
 
   return attempts.map((attempt) => {
-    const collaborator = collaboratorMap.get(attempt.collaboratorId)
-    const courseId = attempt.quiz.course?.id || attempt.quiz.unit?.courseId || ""
+    const collaborator = collaboratorMap.get(attempt.collaboratorId);
+    const courseId =
+      attempt.quiz.course?.id || attempt.quiz.unit?.courseId || "";
     const rawAnswers =
-      attempt.answers && typeof attempt.answers === "object" && !Array.isArray(attempt.answers)
+      attempt.answers &&
+      typeof attempt.answers === "object" &&
+      !Array.isArray(attempt.answers)
         ? (attempt.answers as Record<string, unknown>)
-        : null
+        : null;
     return {
       attemptId: attempt.id,
       collaboratorId: attempt.collaboratorId,
@@ -970,8 +988,8 @@ export async function getAuditTrail(filters: {
             ? false
             : null,
       answersCount: rawAnswers ? Object.keys(rawAnswers).length : 0,
-    }
-  })
+    };
+  });
 }
 
 // ====================================
@@ -979,7 +997,7 @@ export async function getAuditTrail(filters: {
 // ====================================
 
 export async function createKPISnapshot(): Promise<void> {
-  const kpis = await getDashboardKPIs()
+  const kpis = await getDashboardKPIs();
 
   await prisma.kPISnapshot.create({
     data: {
@@ -998,5 +1016,5 @@ export async function createKPISnapshot(): Promise<void> {
       coursesInProgress: kpis.coursesInProgress,
       coursesCompleted: kpis.coursesCompleted,
     },
-  })
+  });
 }
