@@ -2,12 +2,14 @@
 
 import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileText, Shield } from "lucide-react"
+import { FileText, Shield, Wand2 } from "lucide-react"
 import { ClientCertificates } from "./tabs/certificates-tab"
 import { ClientCertifications } from "./tabs/certifications-tab"
+import { DemoCertificatesTab } from "./tabs/demo-certificates-tab"
 
 export function UnifiedCertificatesPage() {
-  const [activeTab, setActiveTab] = useState<"documents" | "lifecycle">("documents")
+  const [activeTab, setActiveTab] =
+    useState<"documents" | "lifecycle" | "demo">("documents")
 
   return (
     <div className="p-6 space-y-6">
@@ -18,8 +20,13 @@ export function UnifiedCertificatesPage() {
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "documents" | "lifecycle")}>
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) =>
+          setActiveTab(value as "documents" | "lifecycle" | "demo")
+        }
+      >
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="documents" className="gap-2">
             <FileText className="h-4 w-4" />
             Documentos PDF
@@ -27,6 +34,10 @@ export function UnifiedCertificatesPage() {
           <TabsTrigger value="lifecycle" className="gap-2">
             <Shield className="h-4 w-4" />
             Ciclo de Vida
+          </TabsTrigger>
+          <TabsTrigger value="demo" className="gap-2">
+            <Wand2 className="h-4 w-4" />
+            Demo
           </TabsTrigger>
         </TabsList>
 
@@ -36,6 +47,10 @@ export function UnifiedCertificatesPage() {
 
         <TabsContent value="lifecycle" className="mt-6">
           <ClientCertifications />
+        </TabsContent>
+
+        <TabsContent value="demo" className="mt-6">
+          <DemoCertificatesTab />
         </TabsContent>
       </Tabs>
     </div>

@@ -9,6 +9,29 @@ export const GenerateCertificateSchema = z.object({
 
 export type GenerateCertificateInput = z.infer<typeof GenerateCertificateSchema>
 
+const DemoCertificateBaseSchema = z.object({
+  courseId: z.string().cuid(),
+  score: z.coerce.number().min(0).max(100).default(100),
+})
+
+/**
+ * Generacion temporal de certificado demo.
+ * No crea registros de progreso, certificacion ni artefactos persistidos.
+ */
+export const DemoCertificateSchema = z.discriminatedUnion('recipientMode', [
+  DemoCertificateBaseSchema.extend({
+    recipientMode: z.literal('manual'),
+    collaboratorName: z.string().trim().min(3),
+    collaboratorDni: z.string().trim().min(8).max(15),
+  }),
+  DemoCertificateBaseSchema.extend({
+    recipientMode: z.literal('existing'),
+    collaboratorId: z.string().cuid(),
+  }),
+])
+
+export type DemoCertificateInput = z.infer<typeof DemoCertificateSchema>
+
 /**
  * K2 - Verificación de certificado
  */
