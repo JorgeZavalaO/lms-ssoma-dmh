@@ -40,6 +40,40 @@ export const AreaReportFiltersSchema = z.object({
 export type AreaReportFiltersInput = z.infer<typeof AreaReportFiltersSchema>
 
 // ====================================
+// J2b - Reporte por Usuario
+// ====================================
+
+const ReportProgressStatusSchema = z.enum([
+  "NOT_STARTED",
+  "IN_PROGRESS",
+  "PENDING_EVALUATION",
+  "PASSED",
+  "FAILED",
+  "EXPIRED",
+  "EXEMPTED",
+])
+
+const OptionalDateStringSchema = z
+  .string()
+  .refine((value) => !Number.isNaN(Date.parse(value)), "Fecha inválida")
+  .optional()
+
+export const UserReportFiltersSchema = z.object({
+  q: z.string().trim().optional(),
+  areaId: z.string().optional(),
+  siteId: z.string().optional(),
+  positionId: z.string().optional(),
+  courseId: z.string().optional(),
+  status: ReportProgressStatusSchema.optional(),
+  startDate: OptionalDateStringSchema,
+  endDate: OptionalDateStringSchema,
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+})
+
+export type UserReportFiltersInput = z.infer<typeof UserReportFiltersSchema>
+
+// ====================================
 // J3 - Reporte por Curso
 // ====================================
 

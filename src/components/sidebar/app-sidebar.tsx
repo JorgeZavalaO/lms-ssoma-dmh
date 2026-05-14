@@ -81,7 +81,7 @@ function NavLink({
           active && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
         )}
       >
-        <Icon className="h-4 w-4" />
+        <Icon className="size-4" />
         <span>{label}</span>
         {badge}
       </Link>
@@ -110,7 +110,7 @@ function SubNavLink({
           active && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
         )}
       >
-        <Icon className="h-3.5 w-3.5 shrink-0" />
+        <Icon className="size-3.5 shrink-0" />
         <span>{label}</span>
       </Link>
     </SidebarMenuSubButton>
@@ -118,6 +118,18 @@ function SubNavLink({
 }
 
 type NavItem = { href: string; icon: React.ElementType; label: string }
+
+function subscribeToMountStore() {
+  return () => undefined
+}
+
+function getMountedSnapshot() {
+  return true
+}
+
+function getServerMountedSnapshot() {
+  return false
+}
 
 function NavSection({
   label,
@@ -156,9 +168,9 @@ function NavSection({
               hasActive && !open && "bg-sidebar-accent/30 text-sidebar-accent-foreground"
             )}
           >
-            <Icon className="h-4 w-4" />
+            <Icon className="size-4" />
             <span>{label}</span>
-            <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+            <ChevronRight className="ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent>
@@ -233,6 +245,7 @@ const ADMIN_SECTIONS: { label: string; icon: React.ElementType; storageKey: stri
     items: [
       { href: "/reports/dashboard", icon: LineChart, label: "Resumen General" },
       { href: "/reports/area", icon: PieChart, label: "Por Área" },
+      { href: "/reports/user", icon: Users, label: "Por Usuario" },
       { href: "/reports/course", icon: FileText, label: "Por Curso" },
       { href: "/reports/compliance", icon: CheckCircle2, label: "Cumplimiento" },
     ],
@@ -250,14 +263,11 @@ const ADMIN_SECTIONS: { label: string; icon: React.ElementType; storageKey: stri
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = useSession()
   const pathname = usePathname()
-  const [mounted, setMounted] = React.useState(false)
-  const [isAdminMenuOpen, setIsAdminMenuOpen] = React.useState(false)
-
-  React.useEffect(() => {
-    setMounted(true)
-    // legacy key kept for cleanup
-    setIsAdminMenuOpen(false)
-  }, [])
+  const mounted = React.useSyncExternalStore(
+    subscribeToMountStore,
+    getMountedSnapshot,
+    getServerMountedSnapshot
+  )
 
   const role = session?.user?.role
   const isAdmin = role === "ADMIN" || role === "SUPERADMIN"
@@ -267,8 +277,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="border-b">
         <div className="flex items-center gap-2.5 px-4 py-3.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-sm">
-            <GraduationCap className="h-5 w-5" />
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-blue-800 text-white shadow-sm">
+            <GraduationCap className="size-5" />
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-bold leading-tight">LMS SSOMA</span>
@@ -348,7 +358,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild tooltip="Panel SuperAdmin">
                       <Link href="/admin/superadmin">
-                        <Shield className="h-4 w-4" />
+                        <Shield className="size-4" />
                         <span>SuperAdmin</span>
                         <Badge variant="destructive" className="ml-auto text-xs">
                           Super
@@ -369,7 +379,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Iniciar sesión">
                   <Link href="/login">
-                    <LogIn className="h-4 w-4" />
+                    <LogIn className="size-4" />
                     <span>Iniciar sesión</span>
                   </Link>
                 </SidebarMenuButton>

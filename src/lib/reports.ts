@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { AttemptStatus, ProgressStatus, type Prisma } from "@prisma/client";
 import { addDays, startOfDay, endOfDay, subDays } from "date-fns";
 
 // ====================================
@@ -526,6 +527,899 @@ export async function getAreaReport(filters: {
       };
     })
     .filter((record) => !filters.status || record.status === filters.status);
+}
+
+// ====================================
+// J2b - Reporte por Usuario
+// ====================================
+
+const COMPLETED_PROGRESS_STATUSES: ProgressStatus[] = [
+  ProgressStatus.PASSED,
+  ProgressStatus.EXEMPTED,
+];
+
+const IN_PROGRESS_STATUSES: ProgressStatus[] = [
+  ProgressStatus.IN_PROGRESS,
+  ProgressStatus.PENDING_EVALUATION,
+];
+
+const EXPIRABLE_PROGRESS_STATUSES: ProgressStatus[] = [
+  ProgressStatus.IN_PROGRESS,
+  ProgressStatus.PASSED,
+  ProgressStatus.EXEMPTED,
+];
+
+const FINAL_ATTEMPT_STATUSES: AttemptStatus[] = [
+  AttemptStatus.GRADED,
+  AttemptStatus.PASSED,
+  AttemptStatus.FAILED,
+];
+
+const USER_REPORT_COLLABORATOR_SELECT = {
+  id: true,
+  dni: true,
+  fullName: true,
+  email: true,
+  status: true,
+  entryDate: true,
+  site: { select: { id: true, name: true } },
+  area: { select: { id: true, name: true } },
+  position: { select: { id: true, name: true } },
+} satisfies Prisma.CollaboratorSelect;
+
+const USER_REPORT_ENROLLMENT_SELECT = {
+  id: true,
+  collaboratorId: true,
+  courseId: true,
+  status: true,
+  enrolledAt: true,
+  startedAt: true,
+  completedAt: true,
+  course: {
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      duration: true,
+    },
+  },
+  courseProgress: {
+    select: {
+      id: true,
+      status: true,
+      progressPercent: true,
+      timeSpent: true,
+      lastActivityAt: true,
+      attended: true,
+      startedAt: true,
+      completedAt: true,
+      passedAt: true,
+      failedAt: true,
+      expiresAt: true,
+      certifiedAt: true,
+    },
+  },
+} satisfies Prisma.EnrollmentSelect;
+
+const USER_REPORT_ATTEMPT_SELECT = {
+  id: true,
+  collaboratorId: true,
+  quizId: true,
+  attemptNumber: true,
+  status: true,
+  score: true,
+  pointsEarned: true,
+  pointsTotal: true,
+  timeSpent: true,
+  startedAt: true,
+  submittedAt: true,
+  quiz: {
+    select: {
+      title: true,
+      courseId: true,
+      course: { select: { id: true, name: true } },
+      unit: { select: { courseId: true } },
+    },
+  },
+} satisfies Prisma.QuizAttemptSelect;
+
+type UserReportCollaboratorRecord = Prisma.CollaboratorGetPayload<{
+  select: typeof USER_REPORT_COLLABORATOR_SELECT;
+}>;
+
+type UserReportEnrollmentRecord = Prisma.EnrollmentGetPayload<{
+  select: typeof USER_REPORT_ENROLLMENT_SELECT;
+}>;
+
+type UserReportAttemptRecord = Prisma.QuizAttemptGetPayload<{
+  select: typeof USER_REPORT_ATTEMPT_SELECT;
+}>;
+
+export interface UserReportFilters {
+  q?: string;
+  areaId?: string;
+  siteId?: string;
+  positionId?: string;
+  courseId?: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface UserReportKPIs {
+  totalEnrollments: number;
+  completedCourses: number;
+  inProgressCourses: number;
+  pendingCourses: number;
+  expiredCourses: number;
+  averageProgress: number;
+  averageScore: number;
+  passRate: number;
+  reportedHours: number;
+  openAlerts: number;
+  validCertificates: number;
+  lastActivityAt: Date | null;
+}
+
+export interface UserReportRecord {
+  collaboratorId: string;
+  dni: string;
+  fullName: string;
+  email: string;
+  status: string;
+  entryDate: Date;
+  site: string | null;
+  area: string | null;
+  position: string | null;
+  kpis: UserReportKPIs;
+}
+
+export interface UserReportSummary {
+  totalUsers: number;
+  usersOnPage: number;
+  totalEnrollments: number;
+  completedCourses: number;
+  expiredCourses: number;
+  averageProgress: number;
+  averageScore: number;
+  openAlerts: number;
+}
+
+export interface UserReportData {
+  records: UserReportRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  summary: UserReportSummary;
+}
+
+export interface UserReportCourseDetail {
+  enrollmentId: string;
+  courseId: string;
+  courseCode: string | null;
+  courseName: string;
+  courseDuration: number | null;
+  enrollmentStatus: string;
+  enrolledAt: Date;
+  progressStatus: string;
+  effectiveStatus: string;
+  progressPercent: number;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  passedAt: Date | null;
+  expiresAt: Date | null;
+  daysUntilExpiration: number | null;
+  attended: boolean;
+  reportedHours: number;
+  bestScore: number | null;
+  attemptsCount: number;
+  latestAttemptStatus: string | null;
+  lastActivityAt: Date | null;
+}
+
+export interface UserReportAttemptDetail {
+  attemptId: string;
+  courseId: string;
+  courseName: string;
+  quizId: string;
+  quizTitle: string;
+  attemptNumber: number;
+  status: string;
+  score: number | null;
+  pointsEarned: number | null;
+  pointsTotal: number | null;
+  timeSpent: number | null;
+  startedAt: Date;
+  submittedAt: Date | null;
+}
+
+export interface UserReportCertificationDetail {
+  id: string;
+  courseId: string;
+  courseName: string;
+  certificateNumber: string;
+  issuedAt: Date;
+  expiresAt: Date | null;
+  isValid: boolean;
+}
+
+export interface UserReportAlertDetail {
+  id: string;
+  courseId: string;
+  courseName: string;
+  type: string;
+  severity: number;
+  title: string;
+  dueDate: Date | null;
+  triggeredAt: Date;
+}
+
+export interface UserReportDetail {
+  collaborator: UserReportRecord;
+  courses: UserReportCourseDetail[];
+  attempts: UserReportAttemptDetail[];
+  certifications: UserReportCertificationDetail[];
+  alerts: UserReportAlertDetail[];
+}
+
+function roundTo(value: number, decimals = 1) {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+}
+
+function buildDateFilter(startDate?: string, endDate?: string) {
+  const dateFilter: Prisma.DateTimeFilter = {};
+  if (startDate) dateFilter.gte = new Date(startDate);
+  if (endDate) dateFilter.lte = new Date(endDate);
+  return Object.keys(dateFilter).length > 0 ? dateFilter : undefined;
+}
+
+function isExpiredProgress(
+  progress: UserReportEnrollmentRecord["courseProgress"],
+  now: Date,
+) {
+  if (!progress) return false;
+  return (
+    progress.status === ProgressStatus.EXPIRED ||
+    Boolean(
+      progress.expiresAt &&
+        progress.expiresAt < now &&
+        EXPIRABLE_PROGRESS_STATUSES.includes(progress.status),
+    )
+  );
+}
+
+function buildEnrollmentStatusFilter(
+  status: string,
+  now: Date,
+): Prisma.EnrollmentWhereInput {
+  if (status === ProgressStatus.NOT_STARTED) {
+    return {
+      OR: [
+        { courseProgress: { is: null } },
+        { courseProgress: { is: { status: ProgressStatus.NOT_STARTED } } },
+      ],
+    };
+  }
+
+  if (status === ProgressStatus.EXPIRED) {
+    return {
+      OR: [
+        { courseProgress: { is: { status: ProgressStatus.EXPIRED } } },
+        {
+          courseProgress: {
+            is: {
+              status: { in: EXPIRABLE_PROGRESS_STATUSES },
+              expiresAt: { lt: now },
+            },
+          },
+        },
+      ],
+    };
+  }
+
+  return {
+    courseProgress: { is: { status: status as ProgressStatus } },
+  };
+}
+
+function buildUserReportEnrollmentWhere(
+  filters: UserReportFilters,
+  now: Date,
+): Prisma.EnrollmentWhereInput {
+  const enrolledAt = buildDateFilter(filters.startDate, filters.endDate);
+  const andFilters: Prisma.EnrollmentWhereInput[] = [];
+
+  if (filters.status) {
+    andFilters.push(buildEnrollmentStatusFilter(filters.status, now));
+  }
+
+  return {
+    courseId: { not: null },
+    ...(filters.courseId && { courseId: filters.courseId }),
+    ...(enrolledAt && { enrolledAt }),
+    ...(andFilters.length > 0 && { AND: andFilters }),
+  };
+}
+
+function hasEnrollmentScopedFilters(filters: UserReportFilters) {
+  return Boolean(
+    filters.courseId || filters.status || filters.startDate || filters.endDate,
+  );
+}
+
+function buildUserReportCollaboratorWhere(
+  filters: UserReportFilters,
+  now: Date,
+): Prisma.CollaboratorWhereInput {
+  const q = filters.q?.trim();
+
+  return {
+    status: "ACTIVE",
+    ...(q && {
+      OR: [
+        { dni: { contains: q, mode: "insensitive" } },
+        { fullName: { contains: q, mode: "insensitive" } },
+        { email: { contains: q, mode: "insensitive" } },
+      ],
+    }),
+    ...(filters.areaId && { areaId: filters.areaId }),
+    ...(filters.siteId && { siteId: filters.siteId }),
+    ...(filters.positionId && { positionId: filters.positionId }),
+    ...(hasEnrollmentScopedFilters(filters) && {
+      enrollments: {
+        some: buildUserReportEnrollmentWhere(filters, now),
+      },
+    }),
+  };
+}
+
+function groupByCollaborator<T extends { collaboratorId: string }>(items: T[]) {
+  const grouped = new Map<string, T[]>();
+  for (const item of items) {
+    const current = grouped.get(item.collaboratorId);
+    if (current) {
+      current.push(item);
+    } else {
+      grouped.set(item.collaboratorId, [item]);
+    }
+  }
+  return grouped;
+}
+
+function getAttemptCourseId(attempt: UserReportAttemptRecord) {
+  return attempt.quiz.courseId ?? attempt.quiz.unit?.courseId ?? "";
+}
+
+function buildAttemptCourseKey(collaboratorId: string, courseId: string) {
+  return `${collaboratorId}:${courseId}`;
+}
+
+function maxDate(current: Date | null, candidate?: Date | null) {
+  if (!candidate) return current;
+  if (!current || candidate > current) return candidate;
+  return current;
+}
+
+function getReportedHours(enrollment: UserReportEnrollmentRecord) {
+  const progress = enrollment.courseProgress;
+  const courseDuration = enrollment.course?.duration ?? null;
+
+  if (progress?.attended && courseDuration) {
+    return courseDuration;
+  }
+
+  return (progress?.timeSpent ?? 0) / 3600;
+}
+
+function computeUserReportKPIs(params: {
+  enrollments: UserReportEnrollmentRecord[];
+  attempts: UserReportAttemptRecord[];
+  openAlerts: number;
+  validCertificates: number;
+  now: Date;
+}): UserReportKPIs {
+  const { enrollments, attempts, now, openAlerts, validCertificates } = params;
+
+  let completedCourses = 0;
+  let inProgressCourses = 0;
+  let pendingCourses = 0;
+  let expiredCourses = 0;
+  let progressTotal = 0;
+  let reportedHours = 0;
+  let lastActivityAt: Date | null = null;
+
+  for (const enrollment of enrollments) {
+    const progress = enrollment.courseProgress;
+    const status = progress?.status ?? ProgressStatus.NOT_STARTED;
+
+    if (COMPLETED_PROGRESS_STATUSES.includes(status)) {
+      completedCourses += 1;
+    }
+    if (IN_PROGRESS_STATUSES.includes(status)) {
+      inProgressCourses += 1;
+    }
+    if (!progress || status === ProgressStatus.NOT_STARTED) {
+      pendingCourses += 1;
+    }
+    if (isExpiredProgress(progress, now)) {
+      expiredCourses += 1;
+    }
+
+    progressTotal += progress?.progressPercent ?? 0;
+    reportedHours += getReportedHours(enrollment);
+    lastActivityAt = maxDate(lastActivityAt, progress?.lastActivityAt);
+    lastActivityAt = maxDate(lastActivityAt, progress?.completedAt);
+    lastActivityAt = maxDate(lastActivityAt, progress?.passedAt);
+    lastActivityAt = maxDate(lastActivityAt, progress?.startedAt);
+    lastActivityAt = maxDate(lastActivityAt, enrollment.enrolledAt);
+  }
+
+  const scoredAttempts = attempts.filter(
+    (attempt) => attempt.pointsEarned !== null && attempt.pointsEarned !== undefined,
+  );
+  const finalAttempts = attempts.filter((attempt) =>
+    FINAL_ATTEMPT_STATUSES.includes(attempt.status),
+  );
+
+  const averageScore =
+    scoredAttempts.length > 0
+      ? scoredAttempts.reduce(
+          (sum, attempt) => sum + (attempt.pointsEarned ?? 0),
+          0,
+        ) / scoredAttempts.length
+      : 0;
+  const passRate =
+    finalAttempts.length > 0
+      ? (finalAttempts.filter((attempt) => attempt.status === "PASSED").length /
+          finalAttempts.length) *
+        100
+      : 0;
+
+  return {
+    totalEnrollments: enrollments.length,
+    completedCourses,
+    inProgressCourses,
+    pendingCourses,
+    expiredCourses,
+    averageProgress:
+      enrollments.length > 0
+        ? roundTo(progressTotal / enrollments.length, 1)
+        : 0,
+    averageScore: roundTo(averageScore, 2),
+    passRate: roundTo(passRate, 1),
+    reportedHours: roundTo(reportedHours, 2),
+    openAlerts,
+    validCertificates,
+    lastActivityAt,
+  };
+}
+
+async function loadUserReportMetricInputs(
+  collaboratorIds: string[],
+  filters: UserReportFilters,
+  now: Date,
+) {
+  if (collaboratorIds.length === 0) {
+    return {
+      enrollments: [] as UserReportEnrollmentRecord[],
+      attempts: [] as UserReportAttemptRecord[],
+      openAlertsByCollaborator: new Map<string, number>(),
+      validCertificatesByCollaborator: new Map<string, number>(),
+    };
+  }
+
+  const enrollments = await prisma.enrollment.findMany({
+    where: {
+      collaboratorId: { in: collaboratorIds },
+      ...buildUserReportEnrollmentWhere(filters, now),
+    },
+    select: USER_REPORT_ENROLLMENT_SELECT,
+    orderBy: { enrolledAt: "desc" },
+  });
+
+  const courseIds = Array.from(
+    new Set(
+      enrollments
+        .map((enrollment) => enrollment.courseId)
+        .filter((courseId): courseId is string => Boolean(courseId)),
+    ),
+  );
+
+  if (courseIds.length === 0) {
+    return {
+      enrollments,
+      attempts: [] as UserReportAttemptRecord[],
+      openAlertsByCollaborator: new Map<string, number>(),
+      validCertificatesByCollaborator: new Map<string, number>(),
+    };
+  }
+
+  const [attempts, openAlerts, validCertificates] = await Promise.all([
+    prisma.quizAttempt.findMany({
+      where: {
+        collaboratorId: { in: collaboratorIds },
+        status: { in: [...FINAL_ATTEMPT_STATUSES] },
+        pointsEarned: { not: null },
+        quiz: {
+          OR: [
+            { courseId: { in: courseIds } },
+            { unit: { courseId: { in: courseIds } } },
+          ],
+        },
+      },
+      select: USER_REPORT_ATTEMPT_SELECT,
+      orderBy: [{ submittedAt: "desc" }, { startedAt: "desc" }],
+    }),
+    prisma.progressAlert.findMany({
+      where: {
+        collaboratorId: { in: collaboratorIds },
+        courseId: { in: courseIds },
+        isRead: false,
+        isDismissed: false,
+      },
+      select: { collaboratorId: true },
+    }),
+    prisma.certificationRecord.findMany({
+      where: {
+        collaboratorId: { in: collaboratorIds },
+        courseId: { in: courseIds },
+        isValid: true,
+        revokedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gte: now } }],
+      },
+      select: { collaboratorId: true },
+    }),
+  ]);
+
+  const openAlertsByCollaborator = new Map<string, number>();
+  for (const alert of openAlerts) {
+    openAlertsByCollaborator.set(
+      alert.collaboratorId,
+      (openAlertsByCollaborator.get(alert.collaboratorId) ?? 0) + 1,
+    );
+  }
+
+  const validCertificatesByCollaborator = new Map<string, number>();
+  for (const certification of validCertificates) {
+    validCertificatesByCollaborator.set(
+      certification.collaboratorId,
+      (validCertificatesByCollaborator.get(certification.collaboratorId) ?? 0) +
+        1,
+    );
+  }
+
+  return {
+    enrollments,
+    attempts,
+    openAlertsByCollaborator,
+    validCertificatesByCollaborator,
+  };
+}
+
+function buildUserReportRecord(params: {
+  collaborator: UserReportCollaboratorRecord;
+  enrollments: UserReportEnrollmentRecord[];
+  attempts: UserReportAttemptRecord[];
+  openAlerts: number;
+  validCertificates: number;
+  now: Date;
+}): UserReportRecord {
+  const { collaborator, enrollments, attempts, openAlerts, validCertificates, now } =
+    params;
+
+  return {
+    collaboratorId: collaborator.id,
+    dni: collaborator.dni,
+    fullName: collaborator.fullName,
+    email: collaborator.email,
+    status: collaborator.status,
+    entryDate: collaborator.entryDate,
+    site: collaborator.site?.name ?? null,
+    area: collaborator.area?.name ?? null,
+    position: collaborator.position?.name ?? null,
+    kpis: computeUserReportKPIs({
+      enrollments,
+      attempts,
+      openAlerts,
+      validCertificates,
+      now,
+    }),
+  };
+}
+
+function buildUserReportSummary(
+  records: UserReportRecord[],
+  totalUsers: number,
+): UserReportSummary {
+  const usersOnPage = records.length;
+  const totalEnrollments = records.reduce(
+    (sum, record) => sum + record.kpis.totalEnrollments,
+    0,
+  );
+  const completedCourses = records.reduce(
+    (sum, record) => sum + record.kpis.completedCourses,
+    0,
+  );
+  const expiredCourses = records.reduce(
+    (sum, record) => sum + record.kpis.expiredCourses,
+    0,
+  );
+  const openAlerts = records.reduce(
+    (sum, record) => sum + record.kpis.openAlerts,
+    0,
+  );
+  const averageProgress =
+    usersOnPage > 0
+      ? records.reduce((sum, record) => sum + record.kpis.averageProgress, 0) /
+        usersOnPage
+      : 0;
+  const scoredRecords = records.filter((record) => record.kpis.averageScore > 0);
+  const averageScore =
+    scoredRecords.length > 0
+      ? scoredRecords.reduce((sum, record) => sum + record.kpis.averageScore, 0) /
+        scoredRecords.length
+      : 0;
+
+  return {
+    totalUsers,
+    usersOnPage,
+    totalEnrollments,
+    completedCourses,
+    expiredCourses,
+    averageProgress: roundTo(averageProgress, 1),
+    averageScore: roundTo(averageScore, 2),
+    openAlerts,
+  };
+}
+
+export async function getUserReport(
+  filters: UserReportFilters = {},
+): Promise<UserReportData> {
+  const now = new Date();
+  const page = filters.page ?? 1;
+  const pageSize = filters.pageSize ?? 20;
+  const collaboratorWhere = buildUserReportCollaboratorWhere(filters, now);
+
+  const [total, collaborators] = await Promise.all([
+    prisma.collaborator.count({ where: collaboratorWhere }),
+    prisma.collaborator.findMany({
+      where: collaboratorWhere,
+      select: USER_REPORT_COLLABORATOR_SELECT,
+      orderBy: { fullName: "asc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
+
+  const collaboratorIds = collaborators.map((collaborator) => collaborator.id);
+  const {
+    enrollments,
+    attempts,
+    openAlertsByCollaborator,
+    validCertificatesByCollaborator,
+  } = await loadUserReportMetricInputs(collaboratorIds, filters, now);
+
+  const enrollmentsByCollaborator = groupByCollaborator(enrollments);
+  const attemptsByCollaborator = groupByCollaborator(attempts);
+
+  const records = collaborators.map((collaborator) =>
+    buildUserReportRecord({
+      collaborator,
+      enrollments: enrollmentsByCollaborator.get(collaborator.id) ?? [],
+      attempts: attemptsByCollaborator.get(collaborator.id) ?? [],
+      openAlerts: openAlertsByCollaborator.get(collaborator.id) ?? 0,
+      validCertificates: validCertificatesByCollaborator.get(collaborator.id) ?? 0,
+      now,
+    }),
+  );
+
+  return {
+    records,
+    total,
+    page,
+    pageSize,
+    summary: buildUserReportSummary(records, total),
+  };
+}
+
+function buildAttemptsByCourse(attempts: UserReportAttemptRecord[]) {
+  const attemptsByCourse = new Map<string, UserReportAttemptRecord[]>();
+  for (const attempt of attempts) {
+    const courseId = getAttemptCourseId(attempt);
+    if (!courseId) continue;
+
+    const key = buildAttemptCourseKey(attempt.collaboratorId, courseId);
+    const current = attemptsByCourse.get(key);
+    if (current) {
+      current.push(attempt);
+    } else {
+      attemptsByCourse.set(key, [attempt]);
+    }
+  }
+  return attemptsByCourse;
+}
+
+function buildUserReportCourseDetails(params: {
+  enrollments: UserReportEnrollmentRecord[];
+  attempts: UserReportAttemptRecord[];
+  now: Date;
+}): UserReportCourseDetail[] {
+  const { enrollments, attempts, now } = params;
+  const attemptsByCourse = buildAttemptsByCourse(attempts);
+
+  return enrollments.map((enrollment) => {
+    const progress = enrollment.courseProgress;
+    const progressStatus = progress?.status ?? ProgressStatus.NOT_STARTED;
+    const expired = isExpiredProgress(progress, now);
+    const courseAttempts = enrollment.courseId
+      ? attemptsByCourse.get(
+          buildAttemptCourseKey(enrollment.collaboratorId, enrollment.courseId),
+        ) ?? []
+      : [];
+    const bestScore =
+      courseAttempts.length > 0
+        ? Math.max(
+            ...courseAttempts.map((attempt) => attempt.pointsEarned ?? 0),
+          )
+        : null;
+    const latestAttempt = courseAttempts[0] ?? null;
+    const daysUntilExpiration = progress?.expiresAt
+      ? Math.ceil(
+          (progress.expiresAt.getTime() - now.getTime()) /
+            (1000 * 60 * 60 * 24),
+        )
+      : null;
+
+    return {
+      enrollmentId: enrollment.id,
+      courseId: enrollment.courseId ?? "",
+      courseCode: enrollment.course?.code ?? null,
+      courseName: enrollment.course?.name ?? "Curso no encontrado",
+      courseDuration: enrollment.course?.duration ?? null,
+      enrollmentStatus: enrollment.status,
+      enrolledAt: enrollment.enrolledAt,
+      progressStatus,
+      effectiveStatus: expired ? ProgressStatus.EXPIRED : progressStatus,
+      progressPercent: progress?.progressPercent ?? 0,
+      startedAt: progress?.startedAt ?? enrollment.startedAt,
+      completedAt: progress?.completedAt ?? enrollment.completedAt,
+      passedAt: progress?.passedAt ?? null,
+      expiresAt: progress?.expiresAt ?? null,
+      daysUntilExpiration,
+      attended: progress?.attended ?? false,
+      reportedHours: roundTo(getReportedHours(enrollment), 2),
+      bestScore,
+      attemptsCount: courseAttempts.length,
+      latestAttemptStatus: latestAttempt?.status ?? null,
+      lastActivityAt: progress?.lastActivityAt ?? null,
+    };
+  });
+}
+
+export async function getUserReportDetail(
+  collaboratorId: string,
+  filters: UserReportFilters = {},
+): Promise<UserReportDetail> {
+  const now = new Date();
+  const collaborator = await prisma.collaborator.findFirst({
+    where: {
+      id: collaboratorId,
+      status: "ACTIVE",
+      ...(filters.areaId && { areaId: filters.areaId }),
+      ...(filters.siteId && { siteId: filters.siteId }),
+      ...(filters.positionId && { positionId: filters.positionId }),
+    },
+    select: USER_REPORT_COLLABORATOR_SELECT,
+  });
+
+  if (!collaborator) {
+    throw new Error("Colaborador no encontrado");
+  }
+
+  const { enrollments, attempts, openAlertsByCollaborator, validCertificatesByCollaborator } =
+    await loadUserReportMetricInputs([collaboratorId], filters, now);
+  const courseIds = Array.from(
+    new Set(
+      enrollments
+        .map((enrollment) => enrollment.courseId)
+        .filter((courseId): courseId is string => Boolean(courseId)),
+    ),
+  );
+
+  const [certifications, alerts] =
+    courseIds.length > 0
+      ? await Promise.all([
+          prisma.certificationRecord.findMany({
+            where: {
+              collaboratorId,
+              courseId: { in: courseIds },
+            },
+            select: {
+              id: true,
+              courseId: true,
+              certificateNumber: true,
+              issuedAt: true,
+              expiresAt: true,
+              isValid: true,
+              course: { select: { name: true } },
+            },
+            orderBy: { issuedAt: "desc" },
+          }),
+          prisma.progressAlert.findMany({
+            where: {
+              collaboratorId,
+              courseId: { in: courseIds },
+              isRead: false,
+              isDismissed: false,
+            },
+            select: {
+              id: true,
+              courseId: true,
+              type: true,
+              severity: true,
+              title: true,
+              dueDate: true,
+              triggeredAt: true,
+              course: { select: { name: true } },
+            },
+            orderBy: [{ severity: "desc" }, { triggeredAt: "desc" }],
+          }),
+        ])
+      : [[], []];
+
+  const collaboratorRecord = buildUserReportRecord({
+    collaborator,
+    enrollments,
+    attempts,
+    openAlerts: openAlertsByCollaborator.get(collaboratorId) ?? 0,
+    validCertificates: validCertificatesByCollaborator.get(collaboratorId) ?? 0,
+    now,
+  });
+
+  return {
+    collaborator: collaboratorRecord,
+    courses: buildUserReportCourseDetails({ enrollments, attempts, now }),
+    attempts: attempts.map((attempt) => {
+      const courseId = getAttemptCourseId(attempt);
+      return {
+        attemptId: attempt.id,
+        courseId,
+        courseName: attempt.quiz.course?.name ?? "Curso no encontrado",
+        quizId: attempt.quizId,
+        quizTitle: attempt.quiz.title,
+        attemptNumber: attempt.attemptNumber,
+        status: attempt.status,
+        score: attempt.score,
+        pointsEarned: attempt.pointsEarned,
+        pointsTotal: attempt.pointsTotal,
+        timeSpent: attempt.timeSpent,
+        startedAt: attempt.startedAt,
+        submittedAt: attempt.submittedAt,
+      };
+    }),
+    certifications: certifications.map((certification) => ({
+      id: certification.id,
+      courseId: certification.courseId,
+      courseName: certification.course.name,
+      certificateNumber: certification.certificateNumber,
+      issuedAt: certification.issuedAt,
+      expiresAt: certification.expiresAt,
+      isValid: certification.isValid,
+    })),
+    alerts: alerts.map((alert) => ({
+      id: alert.id,
+      courseId: alert.courseId,
+      courseName: alert.course.name,
+      type: alert.type,
+      severity: alert.severity,
+      title: alert.title,
+      dueDate: alert.dueDate,
+      triggeredAt: alert.triggeredAt,
+    })),
+  };
 }
 
 // ====================================
