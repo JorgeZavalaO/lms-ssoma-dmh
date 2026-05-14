@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { QuizTaker } from "./quiz-taker";
 import { checkCoursePrerequisites } from "@/lib/access";
 import { sanitizeQuizForCollaborator } from "@/lib/quiz-security";
+import { getCourseCompletionPolicy } from "@/lib/system-settings";
 
 type Params = Promise<{ courseId: string; quizId: string }>;
 
@@ -78,9 +79,12 @@ export default async function QuizPage({ params }: { params: Params }) {
     redirect("/my-courses");
   }
 
-  const prereq = await checkCoursePrerequisites(user.collaboratorId, courseId);
-  if (!prereq.allowed) {
-    redirect("/my-learning-paths");
+  const policy = await getCourseCompletionPolicy();
+  if (!policy.bypassCourseCompletionRestrictions) {
+    const prereq = await checkCoursePrerequisites(user.collaboratorId, courseId);
+    if (!prereq.allowed) {
+      redirect("/my-learning-paths");
+    }
   }
 
   let attempts: any[] = [];

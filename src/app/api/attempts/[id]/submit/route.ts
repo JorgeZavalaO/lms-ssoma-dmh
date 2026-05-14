@@ -6,7 +6,8 @@ import {
   buildAttemptDetailsForCollaborator,
   sanitizeAttemptForCollaborator,
 } from "@/lib/quiz-security";
-import { ensureCertificationForProgress } from "@/lib/certificates";
+import { markCoursePassedFromQuiz } from "@/lib/course-completion";
+import { getCourseCompletionPolicy } from "@/lib/system-settings";
 
 type Params = Promise<{ id: string }>;
 
@@ -183,64 +184,19 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
         select: { status: true },
       })
 
-      if (passed && courseProgressRecord?.status === "PENDING_EVALUATION") {
-        // Lecciones completadas + quiz aprobado → PASSED
-        const courseForTime = await prisma.course.findUnique({
-          where: { id: quizCourseId },
-          select: { duration: true },
-        })
-        const quizFinalTimeSpent = courseForTime?.duration
-          ? courseForTime.duration * 3600
-          : undefined
+      if (passed) {
+        // Quiz aprobado: el helper aplica la politica global de finalizacion.
+        const courseCompletionPolicy = await getCourseCompletionPolicy()
 
-        const updatedCourseProgress = await prisma.courseProgress.update({
-          where: {
-            collaboratorId_courseId: {
-              collaboratorId: attempt.collaboratorId,
-              courseId: quizCourseId,
-            },
-          },
-          data: {
-            status: "PASSED",
-            passedAt: new Date(),
-            completedAt: new Date(),
-            lastActivityAt: new Date(),
-            ...(quizFinalTimeSpent !== undefined && { timeSpent: quizFinalTimeSpent }),
-          },
-          select: { id: true },
+        await markCoursePassedFromQuiz({
+          collaboratorId: attempt.collaboratorId,
+          courseId: quizCourseId,
+          attemptId,
+          quizId: attempt.quizId,
+          score,
+          bypassCourseCompletionRestrictions:
+            courseCompletionPolicy.bypassCourseCompletionRestrictions,
         })
-
-        await prisma.enrollment.updateMany({
-          where: {
-            collaboratorId: attempt.collaboratorId,
-            courseId: quizCourseId,
-            status: { not: "CANCELLED" },
-          },
-          data: { status: "COMPLETED", completedAt: new Date() },
-        })
-
-        try {
-          await ensureCertificationForProgress(updatedCourseProgress.id, {
-            certificateData: {
-              score,
-              attemptId,
-              quizId: attempt.quizId,
-              trigger: "QUIZ_PASSED",
-            },
-            trigger: "QUIZ_PASSED",
-          })
-        } catch (error) {
-          // El progreso ya quedó en PASSED. Si la certificación falla aquí,
-          // repairMissingCertifications() detecta y crea el certificado en la
-          // siguiente ejecución (POST /api/progress/certifications/repair).
-          console.error(
-            `[CERT_PENDING] No se pudo emitir certificado automaticamente.` +
-            ` courseProgressId=${updatedCourseProgress.id}` +
-            ` collaboratorId=${attempt.collaboratorId}` +
-            ` courseId=${quizCourseId}:`,
-            error
-          )
-        }
       } else if (
         !passed &&
         attempt.quiz.maxAttempts !== null &&

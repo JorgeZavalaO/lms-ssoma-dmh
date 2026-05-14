@@ -7,6 +7,36 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [2.3.1] - 2026-05-14
+
+### Agregado - Politica Superadmin para Culminacion por Examen
+
+- ✅ **Switch global en Superadmin para retiro de restricciones de finalizacion**
+  - Nuevo modelo Prisma `SystemSettings` con singleton `global`
+  - Nueva migracion `20260514120000_add_system_settings`
+  - Nuevo endpoint `GET/PATCH /api/superadmin/course-completion-policy`
+  - Panel `/admin/superadmin` ahora permite activar o bloquear la politica desde UI
+
+- ✅ **Bypass controlado de acceso a evaluaciones**
+  - Cuando la politica esta activa, un colaborador inscrito puede iniciar quizzes publicados sin haber completado lecciones ni prerrequisitos de ruta
+  - Se mantienen intactos los controles de autenticacion, inscripcion, quiz publicado, limite de intentos y remediacion
+  - Las paginas de curso, leccion y quiz respetan la politica global sin duplicar logica
+
+- ✅ **Culminacion oficial del curso al aprobar examen**
+  - Nuevo helper `src/lib/course-completion.ts` para centralizar la transicion a `PASSED`
+  - Con politica activa, el sistema puede culminar el curso aunque el progreso previo estuviera en `NOT_STARTED` o `IN_PROGRESS`
+  - La culminacion actualiza `CourseProgress`, `Enrollment`, recalcula progreso de rutas y emite certificacion oficial
+  - No se fabrican registros de `LessonProgress` para contenido no consumido
+
+### Validacion
+
+- `pnpm exec prisma generate`
+- `pnpm exec prisma migrate deploy`
+- `pnpm exec prisma validate`
+- `pnpm lint` (solo 3 warnings preexistentes en `reports/compliance/page.tsx`)
+- `pnpm test` (72 tests)
+- Smoke local de `/admin/superadmin` con dev server
+
 ## [2.3.0] - 2026-03-25
 
 ### Agregado - Seguridad, Certificaciones Avanzadas y Progreso con Paginación

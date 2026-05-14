@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { checkCoursePrerequisites } from "@/lib/access";
 import { secureShuffle } from "@/lib/quiz-security";
+import { getCourseCompletionPolicy } from "@/lib/system-settings";
 
 type Params = Promise<{ id: string }>;
 
@@ -93,6 +94,10 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
       );
     }
 
+    const policy = await getCourseCompletionPolicy();
+    const bypassCourseCompletionRestrictions =
+      policy.bypassCourseCompletionRestrictions;
+
     // Verificar que el colaborador haya iniciado el curso (no puede hacer quiz sin haber comenzado el contenido)
     const courseProgress = await prisma.courseProgress.findUnique({
       where: {
@@ -104,7 +109,10 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
       select: { status: true },
     });
 
-    if (!courseProgress || courseProgress.status === "NOT_STARTED") {
+    if (
+      !bypassCourseCompletionRestrictions &&
+      (!courseProgress || courseProgress.status === "NOT_STARTED")
+    ) {
       return NextResponse.json(
         {
           error:
@@ -114,20 +122,22 @@ export async function POST(req: NextRequest, { params }: { params: Params }) {
       );
     }
 
-    const prereq = await checkCoursePrerequisites(
-      user.collaboratorId,
-      courseId,
-    );
-    if (!prereq.allowed) {
-      return NextResponse.json(
-        {
-          error:
-            "Debes completar los prerrequisitos antes de iniciar este cuestionario",
-          reason: prereq.reason,
-          missing: prereq.missing,
-        },
-        { status: 403 },
+    if (!bypassCourseCompletionRestrictions) {
+      const prereq = await checkCoursePrerequisites(
+        user.collaboratorId,
+        courseId,
       );
+      if (!prereq.allowed) {
+        return NextResponse.json(
+          {
+            error:
+              "Debes completar los prerrequisitos antes de iniciar este cuestionario",
+            reason: prereq.reason,
+            missing: prereq.missing,
+          },
+          { status: 403 },
+        );
+      }
     }
 
     // Seleccionar preguntas (aleatorizar si está configurado)

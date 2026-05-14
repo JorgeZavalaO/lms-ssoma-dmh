@@ -15,6 +15,22 @@ LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacit
 
 ## 🆕 Últimas Actualizaciones
 
+### v2.3.1 - Politica Superadmin para Culminacion por Examen (14 May 2026)
+
+- ✅ **Switch global en `/admin/superadmin`**:
+  - Nueva politica persistida en `SystemSettings` para retirar restricciones de finalizacion
+  - Endpoint `GET/PATCH /api/superadmin/course-completion-policy`
+  - Activacion inmediata desde UI solo para `SUPERADMIN`
+
+- ✅ **Bypass controlado para evaluaciones**:
+  - Con la politica activa, un colaborador inscrito puede iniciar quizzes publicados sin completar lecciones ni prerrequisitos de ruta
+  - Se mantienen autenticacion, inscripcion, quiz publicado, limite de intentos y remediacion
+
+- ✅ **Culminacion oficial por examen aprobado**:
+  - Si aprueba el examen, el curso queda culminado con `CourseProgress.PASSED` y `Enrollment.COMPLETED`
+  - Recalculo automatico de rutas relacionadas y emision de certificacion oficial
+  - No se marcan lecciones no vistas como completadas
+
 ### v2.3.0 - Seguridad, Certificaciones Avanzadas y Progreso Paginado (25 Mar 2026)
 
 - ✅ **Arquitectura de seguridad modular**:
@@ -455,6 +471,7 @@ Nota técnica: el módulo F incluye 9 endpoints REST (incluyendo `POST /api/quiz
   - El estado `PENDING_EVALUATION` se asigna automáticamente cuando las lecciones están completas pero el quiz final no ha sido aprobado
   - Cálculo automático basado en lecciones y quizzes
   - **Paginación y búsqueda server-side**: `GET /api/progress/courses` admite `page`, `pageSize` y `search` con `pagination` y `globalStats` en respuesta
+- **Politica global de culminacion por examen**: un `SUPERADMIN` puede habilitar desde `/admin/superadmin` el bypass de restricciones para permitir iniciar el quiz y culminar oficialmente el curso al aprobarlo
 - **Cumplimiento por Vigencia (H2)**:
   - Cursos con fecha de caducidad configurable
   - Certificaciones con validez temporal
@@ -1208,7 +1225,18 @@ Estado completo del Módulo I - Notificaciones:
 
 ---
 
-### Cambio Reciente: v2.3.0 - Seguridad Modular, Certificaciones y Progreso Paginado (25 Mar 2026)
+### Cambio Reciente: v2.3.1 - Politica Superadmin para Culminacion por Examen (14 May 2026)
+
+Se implemento una **politica global controlada por SUPERADMIN** para flexibilizar la finalizacion de cursos por examen:
+
+- Nuevo singleton `SystemSettings` con migracion `20260514120000_add_system_settings`
+- Nuevo endpoint `GET/PATCH /api/superadmin/course-completion-policy`
+- Switch en `/admin/superadmin` para retirar o bloquear restricciones de finalizacion
+- Bypass de prerrequisitos y progreso previo solo para iniciar quizzes publicados
+- Culminacion oficial del curso, rutas y certificacion al aprobar el examen
+- Ver detalles en [CHANGELOG.md](./CHANGELOG.md)
+
+### Cambio Previo: v2.3.0 - Seguridad Modular, Certificaciones y Progreso Paginado (25 Mar 2026)
 
 Se implementó la **arquitectura de seguridad modular** junto a mejoras en certificaciones, login y paginación:
 
@@ -1318,6 +1346,7 @@ Para ver el historial completo de cambios, consulta [CHANGELOG.md](./CHANGELOG.m
 
 ### Versiones Recientes
 
+- **v2.3.1** (14 May 2026) - Politica superadmin para culminacion por examen aprobado
 - **v2.3.0** (25 Mar 2026) - Seguridad modular, certificaciones avanzadas y progreso paginado
 - **v2.2.9** (23 Mar 2026) - Estado PENDING_EVALUATION y evaluaciones avanzadas
 - **v2.2.8** (18 Mar 2026) - Quizzes en unidades, autenticación por DNI y mejoras de exámenes

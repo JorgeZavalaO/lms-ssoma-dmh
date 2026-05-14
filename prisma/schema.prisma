@@ -89,6 +89,16 @@ model User {
   @@map("users")
 }
 
+model SystemSettings {
+  id                                  String   @id @default("global")
+  bypassCourseCompletionRestrictions Boolean  @default(false)
+  updatedBy                           String?
+  createdAt                           DateTime @default(now())
+  updatedAt                           DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
 model Site { // "Sede"
   id            String         @id @default(cuid())
   name          String

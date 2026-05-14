@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +44,7 @@ import {
   UserPlus,
   AlertTriangle,
   CheckCircle2,
+  SlidersHorizontal,
 } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
@@ -88,10 +90,18 @@ interface AdminUser {
   lastLogin: string | null
 }
 
+interface CourseCompletionPolicy {
+  bypassCourseCompletionRestrictions: boolean
+  updatedAt: string | null
+}
+
 export function ClientSuperAdmin() {
   const [stats, setStats] = useState<SystemStats | null>(null)
   const [admins, setAdmins] = useState<AdminUser[]>([])
+  const [courseCompletionPolicy, setCourseCompletionPolicy] =
+    useState<CourseCompletionPolicy | null>(null)
   const [loading, setLoading] = useState(true)
+  const [savingPolicy, setSavingPolicy] = useState(false)
   const [cleaningData, setCleaningData] = useState(false)
   const [showCleanDialog, setShowCleanDialog] = useState(false)
   const [showAddAdminDialog, setShowAddAdminDialog] = useState(false)
@@ -122,6 +132,12 @@ export function ClientSuperAdmin() {
         const data = await adminsRes.json()
         setAdmins(data.admins)
       }
+
+      const policyRes = await fetch("/api/superadmin/course-completion-policy")
+      if (policyRes.ok) {
+        const data = await policyRes.json()
+        setCourseCompletionPolicy(data.policy)
+      }
     } catch (error) {
       console.error("Error loading superadmin data:", error)
       toast.error("Error al cargar datos del sistema")
@@ -133,6 +149,39 @@ export function ClientSuperAdmin() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  const handleCourseCompletionPolicyChange = async (checked: boolean) => {
+    const previousPolicy = courseCompletionPolicy
+    setCourseCompletionPolicy({
+      bypassCourseCompletionRestrictions: checked,
+      updatedAt: previousPolicy?.updatedAt ?? null,
+    })
+    setSavingPolicy(true)
+
+    try {
+      const response = await fetch("/api/superadmin/course-completion-policy", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bypassCourseCompletionRestrictions: checked,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Error al actualizar politica")
+      }
+
+      const data = await response.json()
+      setCourseCompletionPolicy(data.policy)
+      toast.success("Politica de finalizacion actualizada")
+    } catch (error: any) {
+      setCourseCompletionPolicy(previousPolicy)
+      toast.error(error.message || "Error al actualizar politica")
+    } finally {
+      setSavingPolicy(false)
+    }
+  }
 
   const handleCleanTestData = async () => {
     if (confirmText !== "ELIMINAR TODO EL SISTEMA") {
@@ -283,6 +332,56 @@ export function ClientSuperAdmin() {
       </Card>
 
       {/* Estadísticas del Sistema */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <SlidersHorizontal className="h-5 w-5 text-blue-600" />
+            Politicas de Finalizacion
+          </CardTitle>
+          <CardDescription>
+            Control global para flexibilizar restricciones de culminacion por examen aprobado
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <Label
+                  htmlFor="bypass-course-completion-restrictions"
+                  className="font-semibold"
+                >
+                  Retirar restricciones de finalizacion de curso
+                </Label>
+                <Badge
+                  variant={
+                    courseCompletionPolicy?.bypassCourseCompletionRestrictions
+                      ? "default"
+                      : "secondary"
+                  }
+                >
+                  {courseCompletionPolicy?.bypassCourseCompletionRestrictions
+                    ? "Activo"
+                    : "Inactivo"}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Cuando esta activo, un colaborador inscrito puede iniciar un examen publicado sin completar contenido o prerrequisitos. El curso solo culmina si aprueba el examen.
+              </p>
+            </div>
+            <Switch
+              id="bypass-course-completion-restrictions"
+              checked={
+                courseCompletionPolicy?.bypassCourseCompletionRestrictions ??
+                false
+              }
+              onCheckedChange={handleCourseCompletionPolicyChange}
+              disabled={!courseCompletionPolicy || savingPolicy}
+              aria-label="Retirar restricciones de finalizacion de curso"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-3">

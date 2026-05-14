@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { ClientLessonView } from "./client-lesson-view"
 import { checkCoursePrerequisites } from "@/lib/access"
+import { getCourseCompletionPolicy } from "@/lib/system-settings"
 
 interface LessonPageProps {
   params: Promise<{
@@ -34,9 +35,12 @@ export default async function LessonPage({ params }: LessonPageProps) {
   // Enforcer de prerequisito si el curso pertenece a una ruta asignada
   const collabId = session.user.collaboratorId
   if (collabId) {
-    const prereq = await checkCoursePrerequisites(collabId, courseId)
-    if (!prereq.allowed) {
-      redirect("/my-learning-paths")
+    const policy = await getCourseCompletionPolicy()
+    if (!policy.bypassCourseCompletionRestrictions) {
+      const prereq = await checkCoursePrerequisites(collabId, courseId)
+      if (!prereq.allowed) {
+        redirect("/my-learning-paths")
+      }
     }
   }
 
