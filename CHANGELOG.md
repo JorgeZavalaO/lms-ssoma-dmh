@@ -7,6 +7,36 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [2.4.0] - 2026-05-21
+
+### Agregado - Reconciliación global de progreso y certificados
+
+- ✅ **Servicio de reconciliación masiva**
+  - `src/lib/course-reconciliation.ts`: nuevo servicio que audita inscripciones activas y detecta intentos `PASSED` no sincronizados con `CourseProgress`.
+  - Soporta `dryRun` para auditoría y ejecución real con `bypassCourseCompletionRestrictions` cuando aplica.
+
+- ✅ **Endpoints Superadmin**
+  - `GET /api/superadmin/course-reconciliation` → auditoría (dry-run, sin cambios)
+  - `POST /api/superadmin/course-reconciliation` → ejecución real (solo `SUPERADMIN`)
+  - Nuevo archivo: `src/app/api/superadmin/course-reconciliation/route.ts`
+
+- ✅ **UI: botón de ejecución en Panel Superadmin**
+  - `src/app/(authenticated)/admin/superadmin/client-superadmin.tsx` actualizado con nueva tarjeta de Reconciliación Global, métricas de auditoría y botón **Ejecutar reconciliación global**.
+
+- ✅ **Corrección de inconsistencias históricas**
+  - Scripts temporales de diagnóstico/reconciliación usados durante la corrección fueron eliminados del repositorio.
+  - El flujo usa la lógica oficial `markCoursePassedFromQuiz` para asegurar consistencia y disparar emisión de certificados mediante `ensureCertificationForProgress`.
+
+- ✅ **Validación y pruebas**
+  - Reconciliación auditada y ejecutada en entorno local para casos puntuales (usuarios reportados). Pruebas de regresión ejecutadas (`tests/module-j`) sin fallos.
+
+### Validación
+
+- `pnpm lint` (archivos nuevos y modificados sin errores)
+- `pnpm test` (tests de regresión locales pasaron)
+
+---
+
 ## [2.3.1] - 2026-05-14
 
 ### Agregado - Politica Superadmin para Culminacion por Examen

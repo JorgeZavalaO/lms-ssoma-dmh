@@ -95,6 +95,17 @@ interface CourseCompletionPolicy {
   updatedAt: string | null
 }
 
+interface CourseReconciliationSummary {
+  dryRun: boolean
+  scannedEnrollments: number
+  alreadyApproved: number
+  withoutPassedAttempt: number
+  candidates: number
+  reconciled: number
+  skipped: number
+  failed: number
+}
+
 export function ClientSuperAdmin() {
   const [stats, setStats] = useState<SystemStats | null>(null)
   const [admins, setAdmins] = useState<AdminUser[]>([])
@@ -102,6 +113,9 @@ export function ClientSuperAdmin() {
     useState<CourseCompletionPolicy | null>(null)
   const [loading, setLoading] = useState(true)
   const [savingPolicy, setSavingPolicy] = useState(false)
+  const [runningReconciliation, setRunningReconciliation] = useState(false)
+  const [reconciliationSummary, setReconciliationSummary] =
+    useState<CourseReconciliationSummary | null>(null)
   const [cleaningData, setCleaningData] = useState(false)
   const [showCleanDialog, setShowCleanDialog] = useState(false)
   const [showAddAdminDialog, setShowAddAdminDialog] = useState(false)
@@ -137,6 +151,14 @@ export function ClientSuperAdmin() {
       if (policyRes.ok) {
         const data = await policyRes.json()
         setCourseCompletionPolicy(data.policy)
+      }
+
+      const reconciliationAuditRes = await fetch(
+        "/api/superadmin/course-reconciliation"
+      )
+      if (reconciliationAuditRes.ok) {
+        const data = await reconciliationAuditRes.json()
+        setReconciliationSummary(data.summary)
       }
     } catch (error) {
       console.error("Error loading superadmin data:", error)
@@ -180,6 +202,31 @@ export function ClientSuperAdmin() {
       toast.error(error.message || "Error al actualizar politica")
     } finally {
       setSavingPolicy(false)
+    }
+  }
+
+  const handleRunCourseReconciliation = async () => {
+    try {
+      setRunningReconciliation(true)
+      const response = await fetch("/api/superadmin/course-reconciliation", {
+        method: "POST",
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Error al ejecutar reconciliación")
+      }
+
+      const data = await response.json()
+      setReconciliationSummary(data.summary)
+
+      toast.success(
+        `Reconciliación completada: ${data.summary.reconciled} registros actualizados`
+      )
+    } catch (error: any) {
+      toast.error(error.message || "Error al ejecutar reconciliación")
+    } finally {
+      setRunningReconciliation(false)
     }
   }
 
@@ -378,6 +425,57 @@ export function ClientSuperAdmin() {
               disabled={!courseCompletionPolicy || savingPolicy}
               aria-label="Retirar restricciones de finalizacion de curso"
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RefreshCw className="h-5 w-5 text-emerald-600" />
+            Reconciliación Global de Progreso y Certificados
+          </CardTitle>
+          <CardDescription>
+            Sincroniza cursos con intento aprobado para que queden en 100%, estado PASSED y certificado emitido.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Inscripciones evaluadas</p>
+              <p className="text-xl font-semibold">{reconciliationSummary?.scannedEnrollments ?? 0}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Candidatas</p>
+              <p className="text-xl font-semibold">{reconciliationSummary?.candidates ?? 0}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Reconciliadas</p>
+              <p className="text-xl font-semibold">{reconciliationSummary?.reconciled ?? 0}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Fallidas</p>
+              <p className="text-xl font-semibold">{reconciliationSummary?.failed ?? 0}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={handleRunCourseReconciliation} disabled={runningReconciliation}>
+              {runningReconciliation ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Ejecutando reconciliación...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Ejecutar reconciliación global
+                </>
+              )}
+            </Button>
+            <Button variant="outline" onClick={loadData} disabled={runningReconciliation}>
+              Actualizar auditoría
+            </Button>
           </div>
         </CardContent>
       </Card>

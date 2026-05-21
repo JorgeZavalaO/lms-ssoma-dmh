@@ -15,6 +15,26 @@ LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacit
 
 ## 🆕 Últimas Actualizaciones
 
+### v2.4.0 - Reconciliación global de progreso y certificados (21 May 2026)
+
+- ✅ **Proceso de reconciliación masiva**:
+  - Nuevo servicio `src/lib/course-reconciliation.ts` que audita inscripciones activas, detecta intentos de examen aprobados que no fueron sincronizados y, de forma segura, marca `CourseProgress` como `PASSED`, actualiza `Enrollment` a `COMPLETED` y emite certificaciones cuando corresponde.
+  - Soporta `dryRun` (auditoría) y ejecución real con reparación automática de certificaciones pendientes.
+
+- ✅ **Endpoints Superadmin para auditoría y ejecución**:
+  - `GET /api/superadmin/course-reconciliation` → auditoría (dry-run)
+  - `POST /api/superadmin/course-reconciliation` → ejecución real (solo `SUPERADMIN`)
+
+- ✅ **Botón en panel Superadmin**:
+  - Nuevo card en `/admin/superadmin` con métricas de auditoría y botón **Ejecutar reconciliación global** para disparar el proceso desde UI.
+
+- ✅ **Limpieza y seguridad**:
+  - Los scripts temporales de diagnóstico y reconciliación fueron eliminados del repositorio.
+  - El proceso está limitado a usuarios con rol `SUPERADMIN` y opera por lotes con límites de detalle para evitar saturar la base.
+
+- ✅ **Validación**:
+  - Auditoría y ejecución probadas en entorno local; pruebas de regresión (`tests/module-j`) ejecutadas sin fallos.
+
 ### v2.3.1 - Politica Superadmin para Culminacion por Examen (14 May 2026)
 
 - ✅ **Switch global en `/admin/superadmin`**:
