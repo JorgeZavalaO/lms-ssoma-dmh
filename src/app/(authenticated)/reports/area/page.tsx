@@ -52,12 +52,14 @@ export default function AreaReportPage() {
   const [areas, setAreas] = React.useState<Array<{ id: string; name: string }>>([])
   const [sites, setSites] = React.useState<Array<{ id: string; name: string }>>([])
   const [courses, setCourses] = React.useState<Array<{ id: string; name: string }>>([])
+  const [users, setUsers] = React.useState<Array<{ id: string; name: string }>>([])
   const [filters, setFilters] = React.useState({
     areaId: "",
     siteId: "",
     positionId: "",
     status: "",
     courseId: "",
+    collaboratorId: "",
   })
 
   // Función para cargar el reporte
@@ -85,10 +87,11 @@ export default function AreaReportPage() {
   React.useEffect(() => {
     const loadFilters = async () => {
       try {
-        const [areasRes, sitesRes, coursesRes] = await Promise.all([
+        const [areasRes, sitesRes, coursesRes, usersRes] = await Promise.all([
           fetch("/api/areas"),
           fetch("/api/sites"),
           fetch("/api/courses"),
+          fetch("/api/collaborators?page=1&pageSize=100&status=ACTIVE"),
         ])
 
         if (areasRes.ok) {
@@ -106,6 +109,11 @@ export default function AreaReportPage() {
           const data = await coursesRes.json()
           const coursesArray = Array.isArray(data) ? data : data.data || []
           setCourses(coursesArray.map((c: any) => ({ id: c.id, name: c.name })))
+        }
+        if (usersRes.ok) {
+          const data = await usersRes.json()
+          const usersArray = Array.isArray(data) ? data : data.items || []
+          setUsers(usersArray.map((u: any) => ({ id: u.id, name: u.fullName || u.email || u.dni })))
         }
       } catch (error) {
         console.error("Error loading filters:", error)
@@ -218,6 +226,26 @@ export default function AreaReportPage() {
                   <SelectItem value="IN_PROGRESS">En progreso</SelectItem>
                   <SelectItem value="FAILED">Reprobado</SelectItem>
                   <SelectItem value="EXPIRED">Vencido</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">Usuario</label>
+              <Select
+                value={filters.collaboratorId || "__ALL__"}
+                onValueChange={(v) => setFilters({ ...filters, collaboratorId: v === "__ALL__" ? "" : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos los usuarios" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__ALL__">Todos los usuarios</SelectItem>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

@@ -391,6 +391,7 @@ export async function getAreaReport(filters: {
   areaId?: string;
   siteId?: string;
   positionId?: string;
+  collaboratorId?: string;
   status?: string;
   startDate?: string;
   endDate?: string;
@@ -404,6 +405,7 @@ export async function getAreaReport(filters: {
       ...(filters.courseId && { courseId: filters.courseId }),
       collaborator: {
         status: "ACTIVE",
+        ...(filters.collaboratorId && { id: filters.collaboratorId }),
         ...(filters.areaId && { areaId: filters.areaId }),
         ...(filters.siteId && { siteId: filters.siteId }),
         ...(filters.positionId && { positionId: filters.positionId }),
@@ -785,8 +787,8 @@ function isExpiredProgress(
     progress.status === ProgressStatus.EXPIRED ||
     Boolean(
       progress.expiresAt &&
-        progress.expiresAt < now &&
-        EXPIRABLE_PROGRESS_STATUSES.includes(progress.status),
+      progress.expiresAt < now &&
+      EXPIRABLE_PROGRESS_STATUSES.includes(progress.status),
     )
   );
 }
@@ -958,7 +960,8 @@ function computeUserReportKPIs(params: {
   }
 
   const scoredAttempts = attempts.filter(
-    (attempt) => attempt.pointsEarned !== null && attempt.pointsEarned !== undefined,
+    (attempt) =>
+      attempt.pointsEarned !== null && attempt.pointsEarned !== undefined,
   );
   const finalAttempts = attempts.filter((attempt) =>
     FINAL_ATTEMPT_STATUSES.includes(attempt.status),
@@ -1107,8 +1110,14 @@ function buildUserReportRecord(params: {
   validCertificates: number;
   now: Date;
 }): UserReportRecord {
-  const { collaborator, enrollments, attempts, openAlerts, validCertificates, now } =
-    params;
+  const {
+    collaborator,
+    enrollments,
+    attempts,
+    openAlerts,
+    validCertificates,
+    now,
+  } = params;
 
   return {
     collaboratorId: collaborator.id,
@@ -1156,11 +1165,15 @@ function buildUserReportSummary(
       ? records.reduce((sum, record) => sum + record.kpis.averageProgress, 0) /
         usersOnPage
       : 0;
-  const scoredRecords = records.filter((record) => record.kpis.averageScore > 0);
+  const scoredRecords = records.filter(
+    (record) => record.kpis.averageScore > 0,
+  );
   const averageScore =
     scoredRecords.length > 0
-      ? scoredRecords.reduce((sum, record) => sum + record.kpis.averageScore, 0) /
-        scoredRecords.length
+      ? scoredRecords.reduce(
+          (sum, record) => sum + record.kpis.averageScore,
+          0,
+        ) / scoredRecords.length
       : 0;
 
   return {
@@ -1211,7 +1224,8 @@ export async function getUserReport(
       enrollments: enrollmentsByCollaborator.get(collaborator.id) ?? [],
       attempts: attemptsByCollaborator.get(collaborator.id) ?? [],
       openAlerts: openAlertsByCollaborator.get(collaborator.id) ?? 0,
-      validCertificates: validCertificatesByCollaborator.get(collaborator.id) ?? 0,
+      validCertificates:
+        validCertificatesByCollaborator.get(collaborator.id) ?? 0,
       now,
     }),
   );
@@ -1255,9 +1269,9 @@ function buildUserReportCourseDetails(params: {
     const progressStatus = progress?.status ?? ProgressStatus.NOT_STARTED;
     const expired = isExpiredProgress(progress, now);
     const courseAttempts = enrollment.courseId
-      ? attemptsByCourse.get(
+      ? (attemptsByCourse.get(
           buildAttemptCourseKey(enrollment.collaboratorId, enrollment.courseId),
-        ) ?? []
+        ) ?? [])
       : [];
     const bestScore =
       courseAttempts.length > 0
@@ -1319,8 +1333,12 @@ export async function getUserReportDetail(
     throw new Error("Colaborador no encontrado");
   }
 
-  const { enrollments, attempts, openAlertsByCollaborator, validCertificatesByCollaborator } =
-    await loadUserReportMetricInputs([collaboratorId], filters, now);
+  const {
+    enrollments,
+    attempts,
+    openAlertsByCollaborator,
+    validCertificatesByCollaborator,
+  } = await loadUserReportMetricInputs([collaboratorId], filters, now);
   const courseIds = Array.from(
     new Set(
       enrollments
