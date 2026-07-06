@@ -7,6 +7,38 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
 ---
 
+## [2.4.1] - 2026-07-06
+
+### Agregado - Previsualización de PDF y PPT en Admin
+
+- ✅ **Habilitación del botón "Previsualizar" para PDF**:
+  - El botón de previsualización en el panel de administración ahora está habilitado para lecciones tipo PDF
+  - Muestra el PDF embebido en un `<iframe>` dentro del diálogo de previsualización
+  - Altura del visor: 500px para mejor visualización
+  - Botón "Abrir en nueva pestaña" disponible como alternativa
+
+- ✅ **Previsualización de presentaciones PPT**:
+  - Soporte para previsualizar presentaciones PowerPoint usando Microsoft Office Online Viewer
+  - Embebe la presentación a través de `view.officeapps.live.com`
+  - Botón "Abrir en nueva pestaña" para descarga directa
+
+- ✅ **Mejora en `canPreview`**:
+  - La lógica de habilitación del botón ahora acepta PDF, PPT y HTML además de videos YouTube/Vimeo
+  - Consistencia con la vista del colaborador que ya soportaba PDF en iframe
+
+### Técnico
+
+- **Archivos modificados**:
+  1. `src/components/admin/lessons/preview-dialog.tsx` - Agregadas secciones de previsualización para PDF y PPT, importación de `FileText`, expansión de `canPreview`
+  2. `package.json` - Versión actualizada a 2.4.1
+
+### Validación
+
+- `npm run lint` (archivos modificados sin errores)
+- Verificación visual en panel de administración de cursos
+
+---
+
 ## [2.4.0] - 2026-05-21
 
 ### Agregado - Reconciliación global de progreso y certificados

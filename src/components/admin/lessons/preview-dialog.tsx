@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, AlertCircle } from "lucide-react"
+import { Eye, AlertCircle, FileText } from "lucide-react"
 
 interface LessonPreviewDialogProps {
   lesson: {
@@ -74,7 +74,10 @@ export function LessonPreviewDialog({ lesson }: LessonPreviewDialogProps) {
     : null
 
   const canPreview = 
-    lesson.type === "VIDEO" && embedUrl
+    (lesson.type === "VIDEO" && embedUrl) ||
+    (lesson.type === "PDF" && lesson.fileUrl) ||
+    (lesson.type === "PPT" && lesson.fileUrl) ||
+    (lesson.type === "HTML" && lesson.htmlContent)
 
   return (
     <>
@@ -160,6 +163,49 @@ export function LessonPreviewDialog({ lesson }: LessonPreviewDialogProps) {
                     Este video no es de YouTube ni Vimeo. Por favor, verifica la URL manualmente.
                   </div>
                 </div>
+              </div>
+            ) : lesson.type === "PDF" && lesson.fileUrl ? (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Vista Previa del PDF
+                </h3>
+                <div className="bg-muted/50 rounded-lg overflow-hidden border" style={{ height: '500px' }}>
+                  <iframe
+                    src={lesson.fileUrl}
+                    className="w-full h-full"
+                    title={lesson.title}
+                  />
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => window.open(lesson.fileUrl!, "_blank")}
+                >
+                  Abrir en nueva pestaña
+                </Button>
+              </div>
+            ) : lesson.type === "PPT" && lesson.fileUrl ? (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Vista Previa de la Presentación
+                </h3>
+                <div className="bg-muted/50 rounded-lg overflow-hidden border" style={{ height: '500px' }}>
+                  <iframe
+                    src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(lesson.fileUrl)}`}
+                    className="w-full h-full"
+                    title={lesson.title}
+                    frameBorder={0}
+                  />
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => window.open(lesson.fileUrl!, "_blank")}
+                >
+                  Abrir en nueva pestaña
+                </Button>
               </div>
             ) : lesson.type === "HTML" && lesson.htmlContent ? (
               <div className="space-y-2">

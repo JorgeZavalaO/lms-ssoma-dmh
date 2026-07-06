@@ -15,6 +15,23 @@ LMS SSOMA DMH es una plataforma web moderna para la gestión integral de capacit
 
 ## 🆕 Últimas Actualizaciones
 
+### v2.4.1 - Previsualización de PDF y PPT en Admin (6 Jul 2026)
+
+- ✅ **Botón "Previsualizar" habilitado para PDF**:
+  - El botón de previsualización en el panel de administración ahora funciona para lecciones tipo PDF
+  - Muestra el PDF embebido en un `<iframe>` dentro del diálogo
+  - Altura del visor: 500px para mejor visualización
+  - Botón "Abrir en nueva pestaña" como alternativa
+
+- ✅ **Previsualización de presentaciones PPT**:
+  - Soporte para previsualizar presentaciones PowerPoint usando Microsoft Office Online Viewer
+  - Embebe la presentación a través de `view.officeapps.live.com`
+  - Botón "Abrir en nueva pestaña" para descarga directa
+
+- ✅ **Mejora en `canPreview`**:
+  - La lógica de habilitación del botón ahora acepta PDF, PPT y HTML además de videos YouTube/Vimeo
+  - Consistencia con la vista del colaborador que ya soportaba PDF en iframe
+
 ### v2.4.0 - Reconciliación global de progreso y certificados (21 May 2026)
 
 - ✅ **Proceso de reconciliación masiva**:
@@ -407,6 +424,11 @@ Nota técnica: la verificación de acceso está centralizada en `src/lib/access.
   - Documentos PDF/PPT con visor
   - Contenido HTML interactivo
   - Paquetes SCORM
+- **Previsualización en Admin**:
+  - Botón "Previsualizar" habilitado para todos los tipos de contenido (Video, PDF, PPT, HTML)
+  - PDF embebido en `<iframe>` dentro del diálogo de previsualización
+  - PPT embebido usando Microsoft Office Online Viewer
+  - Botón "Abrir en nueva pestaña" para descarga directa
 - **Progreso de Aprendizaje**:
   - Seguimiento automático de % visto
   - Marcado de completado configurable
